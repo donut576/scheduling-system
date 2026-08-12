@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Select, Tag, Space, Tooltip } from 'antd';
-import { StarFilled } from '@ant-design/icons';
+import { StarFilled, WarningFilled } from '@ant-design/icons';
 import type { Employee } from '@/types/employee';
 import type { LicenseType } from '@/types/alert';
 import { LICENSE_TYPE_MAP } from '@/constants/licenseTypes';
@@ -11,7 +11,6 @@ export interface EmployeeSelectProps {
   onChange: (ids: string[]) => void;
   date?: string;
   requiredLicenses?: LicenseType[];
-  multiple?: boolean;
 }
 
 export interface EmployeeSelectFilters {
@@ -21,10 +20,10 @@ export interface EmployeeSelectFilters {
 }
 
 /**
- * 員工選擇器 - 支援群組、證照、休假狀態篩選
- * - 多選模式
- * - 高亮符合客戶要求證照之員工
- * - 指定日期之休假員工灰顯標示
+ * 員工選擇器 - 按鈕式指派，支援群組、證照、休假狀態篩選
+ * - 每位員工以可切換的按鈕（CheckableTag）呈現，點擊即加入／移除指派名單
+ * - 高亮符合客戶要求證照之員工；不符合證照需求時顯示警示圖示
+ * - 指定日期之休假員工灰顯並停用，無法選取
  *
  * Validates: Requirements 3.6
  */
@@ -33,7 +32,6 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
   onChange,
   date,
   requiredLicenses = [],
-  multiple = true,
 }) => {
   const [filters, setFilters] = useState<EmployeeSelectFilters>({});
 
@@ -95,101 +93,10 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
     return result;
   }, [employees, filters, date]);
 
-  // Build select options
-  const selectOptions = useMemo(() => {
-    return filteredEmployees.map((emp) => {
-      const onLeave = isOnLeave(emp);
-      const qualified = hasRequiredLicenses(emp);
-
-      return {
-        value: emp.id,
-        label: emp.name,
-        employee: emp,
-        disabled: onLeave,
-        onLeave,
-        qualified,
-      };
-    });
-  }, [filteredEmployees, date, requiredLicenses]);
-
-  // Custom option render
-  const optionRender = (option: {
-    value?: string | number | null;
-    label?: React.ReactNode;
-    data?: {
-      employee: Employee;
-      onLeave: boolean;
-      qualified: boolean;
-    };
-  }) => {
-    const { employee, onLeave, qualified } = option.data ?? {};
-    if (!employee) return <span>{String(option.label)}</span>;
-
-    return (
-      <Space
-        style={{
-          width: '100%',
-          opacity: onLeave ? 0.4 : 1,
-          color: onLeave ? '#999' : undefined,
-        }}
-      >
-        <span>{employee.name}</span>
-        <Tag color={employee.groupColor} style={{ marginInlineEnd: 0 }}>
-          {employee.groupName}
-        </Tag>
-        {qualified && (
-          <Tooltip title="符合客戶要求證照">
-            <StarFilled style={{ color: '#52c41a' }} aria-label="符合客戶要求證照" role="img" />
-          </Tooltip>
-        )}
-        {onLeave && <Tag color="default">休假</Tag>}
-        {employee.licenses
-          .filter((lic) => lic !== 'NONE')
-          .slice(0, 2)
-          .map((lic) => (
-            <Tag key={lic} style={{ fontSize: 11 }}>
-              {LICENSE_TYPE_MAP[lic]}
-            </Tag>
-          ))}
-      </Space>
-    );
-  };
-
-  // Custom tag render for selected items
-  const tagRender = (props: {
-    label: React.ReactNode;
-    value: string;
-    closable: boolean;
-    onClose: () => void;
-  }) => {
-    const { label, value: empId, closable, onClose } = props;
-    const emp = employees.find((e) => e.id === empId);
-
-    if (!emp) {
-      return (
-        <Tag closable={closable} onClose={onClose}>
-          {label}
-        </Tag>
-      );
-    }
-
-    const qualified = hasRequiredLicenses(emp);
-    const onLeave = isOnLeave(emp);
-
-    return (
-      <Tag
-        closable={closable}
-        onClose={onClose}
-        color={onLeave ? 'default' : qualified ? 'success' : undefined}
-        style={{
-          marginInlineEnd: 4,
-          opacity: onLeave ? 0.6 : 1,
-        }}
-      >
-        {qualified && <StarFilled style={{ marginInlineEnd: 4, color: '#52c41a' }} />}
-        {emp.name}
-      </Tag>
-    );
+  const handleToggle = (employee: Employee, checked: boolean) => {
+    if (isOnLeave(employee)) return;
+    const next = checked ? [...value, employee.id] : value.filter((id) => id !== employee.id);
+    onChange(next);
   };
 
   // License type filter options
@@ -236,21 +143,79 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
         />
       </Space>
 
-      {/* Employee multi-select */}
-      <Select
-        mode={multiple ? 'multiple' : undefined}
-        value={value}
-        onChange={(ids: string[]) => onChange(ids)}
-        loading={isLoading}
-        placeholder="請選擇指派員工"
-        style={{ width: '100%' }}
-        optionFilterProp="label"
-        showSearch
-        options={selectOptions}
-        optionRender={optionRender}
-        tagRender={tagRender}
+      {/* Employee toggle buttons */}
+      <Space
+        wrap
+        size={[8, 8]}
+        role="group"
         aria-label="指派員工"
-      />
+        style={{
+          border: '1px solid #d9d9d9',
+          borderRadius: 6,
+          padding: 12,
+          minHeight: 48,
+          width: '100%',
+        }}
+      >
+        {isLoading && <span>載入中...</span>}
+        {!isLoading && filteredEmployees.length === 0 && <span>無符合條件之員工</span>}
+        {filteredEmployees.map((employee) => {
+          const onLeave = isOnLeave(employee);
+          const qualified = hasRequiredLicenses(employee);
+          const unqualified = requiredLicenses.length > 0 && !qualified;
+          const selected = value.includes(employee.id);
+
+          const tag = (
+            <Tag.CheckableTag
+              key={employee.id}
+              checked={selected}
+              onChange={(checked) => handleToggle(employee, checked)}
+              aria-label={employee.name}
+              style={{
+                border: '1px solid #d9d9d9',
+                padding: '4px 10px',
+                opacity: onLeave ? 0.4 : 1,
+                cursor: onLeave ? 'not-allowed' : 'pointer',
+                pointerEvents: onLeave ? 'none' : undefined,
+              }}
+            >
+              <Space size={4}>
+                {qualified && (
+                  <Tooltip title="符合客戶要求證照">
+                    <StarFilled
+                      style={{ color: '#52c41a' }}
+                      aria-label="符合客戶要求證照"
+                      role="img"
+                    />
+                  </Tooltip>
+                )}
+                {unqualified && (
+                  <Tooltip title="不符合客戶要求證照">
+                    <WarningFilled
+                      style={{ color: '#faad14' }}
+                      aria-label="不符合客戶要求證照"
+                      role="img"
+                    />
+                  </Tooltip>
+                )}
+                <span>{employee.name}</span>
+                <Tag color={employee.groupColor} style={{ marginInlineEnd: 0 }}>
+                  {employee.groupName}
+                </Tag>
+                {onLeave && <Tag color="default">休假</Tag>}
+              </Space>
+            </Tag.CheckableTag>
+          );
+
+          return onLeave ? (
+            <Tooltip key={employee.id} title="該員工於指定日期休假，無法指派">
+              {tag}
+            </Tooltip>
+          ) : (
+            tag
+          );
+        })}
+      </Space>
     </Space>
   );
 };

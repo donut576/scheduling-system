@@ -20,18 +20,14 @@ export interface SelectOption {
   disabled?: boolean;
 }
 
-export interface TabItem {
-  key: string;
-  label: string;
-  closable?: boolean;
-}
-
 export interface MenuItem {
   key: string;
   label: string;
   icon?: ReactNode;
   children?: MenuItem[];
   permission?: string;
+  /** 若為 true，此項目仍計入權限與路由表，但不會出現在側邊選單中（例如改以全域浮動按鈕呈現）。 */
+  hideFromMenu?: boolean;
 }
 
 export interface RouteConfig {

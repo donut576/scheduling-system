@@ -13,15 +13,7 @@ import type { RoleType } from '@/types/auth';
  */
 
 // All valid RoleType values
-const ALL_ROLES: RoleType[] = [
-  'ADMIN',
-  'ADMIN_STAFF',
-  'MANAGER',
-  'DIRECTOR',
-  'LEADER',
-  'STAFF',
-  'SALES_OPS',
-];
+const ALL_ROLES: RoleType[] = ['ADMIN', 'ADMIN_STAFF', 'MANAGER', 'LEADER', 'STAFF'];
 
 // The full route table as defined in usePermissionStore (global route table)
 const FULL_ROUTES_PATHS = [

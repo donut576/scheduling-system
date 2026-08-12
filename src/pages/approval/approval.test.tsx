@@ -2,7 +2,6 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import ApprovalPage from './index';
-import { isDualApprovalComplete } from '@/utils/approvalWorkflow';
 import type { Approval } from '@/types/notification';
 import type { PaginatedResponse } from '@/types/common';
 
@@ -48,8 +47,8 @@ const scheduleChangeApproval: Approval = {
   approvers: [
     {
       approverId: 'ap1',
-      approverName: '陳主任',
-      role: 'DIRECTOR',
+      approverName: '陳組長',
+      role: 'LEADER',
       status: 'PENDING',
     },
   ],
@@ -65,12 +64,6 @@ const shiftChangeApproval: Approval = {
   requestedBy: 'u2',
   requestedByName: '李組長',
   approvers: [
-    {
-      approverId: 'ap2',
-      approverName: '陳主任',
-      role: 'DIRECTOR',
-      status: 'PENDING',
-    },
     {
       approverId: 'ap3',
       approverName: '林經理',
@@ -88,7 +81,7 @@ function mockListData(list: Approval[]): PaginatedResponse<Approval> {
 
 /**
  * Unit Tests for 審批流程頁面 (Approval Workflow Page)
- * Validates: Requirements 13.1, 13.2, 13.3
+ * Validates: Requirements 13.1, 13.3
  */
 describe('ApprovalPage', () => {
   beforeEach(() => {
@@ -136,7 +129,7 @@ describe('ApprovalPage', () => {
     it('displays approvers with their role and status', () => {
       render(<ApprovalPage />);
 
-      expect(screen.getAllByText(/陳主任.*主任.*待審批/).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/陳組長.*組長.*待審批/).length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText(/林經理.*經理.*待審批/)).toBeInTheDocument();
     });
   });
@@ -160,7 +153,7 @@ describe('ApprovalPage', () => {
       });
     });
 
-    it('does not trigger customer re-notification for SHIFT_CHANGE when only one of two approvers has approved', async () => {
+    it('approves a SHIFT_CHANGE request and triggers customer re-notification since single approval completes it', async () => {
       const user = userEvent.setup();
       render(<ApprovalPage />);
 
@@ -172,7 +165,11 @@ describe('ApprovalPage', () => {
         expect(mockApproveMutateAsync).toHaveBeenCalledWith({ id: 'a2' });
       });
 
-      expect(mockSendNotificationMutateAsync).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockSendNotificationMutateAsync).toHaveBeenCalledWith(
+          expect.objectContaining({ taskId: 't2' }),
+        );
+      });
     });
   });
 
@@ -202,45 +199,6 @@ describe('ApprovalPage', () => {
           comment: '人力調度不合理',
         });
       });
-    });
-  });
-
-  describe('雙重審批完成判斷 - Requirement 13.2 (isDualApprovalComplete)', () => {
-    it('returns true for non-SHIFT_CHANGE types regardless of approver status', () => {
-      expect(isDualApprovalComplete(scheduleChangeApproval)).toBe(true);
-    });
-
-    it('returns false for SHIFT_CHANGE when only DIRECTOR has approved', () => {
-      const approval: Approval = {
-        ...shiftChangeApproval,
-        approvers: [
-          { ...shiftChangeApproval.approvers[0]!, status: 'APPROVED' },
-          shiftChangeApproval.approvers[1]!,
-        ],
-      };
-      expect(isDualApprovalComplete(approval)).toBe(false);
-    });
-
-    it('returns false for SHIFT_CHANGE when only MANAGER has approved', () => {
-      const approval: Approval = {
-        ...shiftChangeApproval,
-        approvers: [
-          shiftChangeApproval.approvers[0]!,
-          { ...shiftChangeApproval.approvers[1]!, status: 'APPROVED' },
-        ],
-      };
-      expect(isDualApprovalComplete(approval)).toBe(false);
-    });
-
-    it('returns true for SHIFT_CHANGE when both DIRECTOR and MANAGER have approved', () => {
-      const approval: Approval = {
-        ...shiftChangeApproval,
-        approvers: [
-          { ...shiftChangeApproval.approvers[0]!, status: 'APPROVED' },
-          { ...shiftChangeApproval.approvers[1]!, status: 'APPROVED' },
-        ],
-      };
-      expect(isDualApprovalComplete(approval)).toBe(true);
     });
   });
 });

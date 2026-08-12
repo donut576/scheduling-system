@@ -14,4 +14,4 @@ export interface Employee {
   isActive: boolean;
 }
 
-export type PositionType = 'STAFF' | 'LEADER' | 'DIRECTOR' | 'MANAGER' | 'ADMIN_STAFF';
+export type PositionType = 'STAFF' | 'LEADER' | 'MANAGER' | 'ADMIN_STAFF';

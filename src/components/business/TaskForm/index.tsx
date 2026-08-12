@@ -3,20 +3,19 @@ import {
   Form,
   Select,
   DatePicker,
-  TimePicker,
   InputNumber,
   Input,
   Button,
   Space,
   Divider,
-  Switch,
+  Checkbox,
   Typography,
 } from 'antd';
 import { EnvironmentOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import type { Task, TaskFormData, TaskContent, RecurrenceRule } from '@/types/task';
+import type { Task, TaskFormData, TaskType, TaskContent, RecurrenceRule } from '@/types/task';
 import type { AlertValidationResult, AlertContext } from '@/types/alert';
 import type { CustomerGroup } from '@/types/customer';
 import { useDictStore } from '@/stores/useDictStore';
@@ -26,6 +25,8 @@ import { useEmployeeList } from '@/queries/useEmployeeQueries';
 import { useTaskList } from '@/queries/useTaskQueries';
 import { runAlertChecks } from '@/utils/alertRules';
 import { isHoliday } from '@/utils/date';
+import { TIME_OPTIONS } from '@/constants/timeOptions';
+import { HOLIDAYS_2026 } from '@/constants/holidays';
 import EmployeeSelect from '@/components/business/EmployeeSelect';
 import RecurrenceEditor from '@/components/business/RecurrenceEditor';
 import ConflictPanel from '@/components/business/ConflictPanel';
@@ -41,6 +42,35 @@ export interface TaskFormProps {
   onSubmit: (task: TaskFormData) => Promise<void>;
   onCancel: () => void;
 }
+
+/**
+ * 任務類型單選（以 checkbox 呈現，但行為為單選）
+ */
+interface TaskTypeCheckboxGroupProps {
+  value?: TaskType;
+  onChange?: (value: TaskType) => void;
+  options: { label: string; value: string | number }[];
+}
+
+const TaskTypeCheckboxGroup: React.FC<TaskTypeCheckboxGroupProps> = ({
+  value,
+  onChange,
+  options,
+}) => (
+  <Space>
+    {options.map((opt) => (
+      <Checkbox
+        key={opt.value}
+        checked={value === opt.value}
+        onChange={(e) => {
+          if (e.target.checked) onChange?.(opt.value as TaskType);
+        }}
+      >
+        {opt.label}
+      </Checkbox>
+    ))}
+  </Space>
+);
 
 /**
  * TaskForm - 任務建立/編輯表單
@@ -87,8 +117,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
   });
   const existingTasks = useMemo(() => existingTaskData?.list ?? [], [existingTaskData]);
 
-  // Holidays list - normally from API, using empty for now
-  const holidays: string[] = useMemo(() => [], []);
+  // 國定假日列表，用於日期選擇器紅字標示
+  const holidays: string[] = HOLIDAYS_2026;
 
   // Compute branches based on selected group
   const branchOptions = useMemo(() => {
@@ -119,6 +149,13 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     return branch?.requiredLicenses ?? [];
   }, [selectedGroupId, customerGroups, form]);
 
+  const defaultFormValues = {
+    taskType: 'CONTRACT' as TaskType,
+    headcount: 1,
+    contents: [] as TaskContent[],
+    assignees: [] as string[],
+  };
+
   // Initialize form values for edit mode
   useEffect(() => {
     if (mode === 'edit' && initialData) {
@@ -127,12 +164,13 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         branchId: initialData.branchId,
         taskType: initialData.taskType,
         date: dayjs(initialData.date),
-        startTime: dayjs(initialData.startTime, 'HH:mm'),
-        endTime: dayjs(initialData.endTime, 'HH:mm'),
+        startTime: initialData.startTime,
+        endTime: initialData.endTime,
         headcount: initialData.headcount,
         shift: initialData.shift,
         route: initialData.route,
         contents: initialData.contents,
+        otherContentNote: initialData.otherContentNote,
         assignees: initialData.assignees.map((a) => a.employeeId),
         remarks: initialData.remarks,
       });
@@ -179,12 +217,13 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
       branchId: values.branchId,
       taskType: values.taskType,
       date: dayjs(values.date).format('YYYY-MM-DD'),
-      startTime: dayjs(values.startTime).format('HH:mm'),
-      endTime: dayjs(values.endTime).format('HH:mm'),
+      startTime: values.startTime,
+      endTime: values.endTime,
       headcount: values.headcount ?? 1,
       shift: values.shift ?? '',
       route: values.route ?? '',
       contents: values.contents ?? [],
+      otherContentNote: values.contents?.includes('OTHER') ? values.otherContentNote : undefined,
       assignees: values.assignees ?? [],
       remarks: values.remarks,
       recurrence: enableRecurrence ? recurrenceRule : undefined,
@@ -301,23 +340,26 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     setStoreAlertResults,
   ]);
 
+  // 全部清除：重設表單欄位與週期／預檢等本地狀態，維持視窗開啟
+  const handleClearAll = useCallback(() => {
+    form.resetFields();
+    setSelectedGroupId(undefined);
+    setEnableRecurrence(false);
+    setRecurrenceRule(undefined);
+    setAlertResults(null);
+    setStoreAlertResults(null);
+  }, [form, setStoreAlertResults]);
+
+  const contentsValue: TaskContent[] = Form.useWatch('contents', form) ?? [];
+  const showOtherContentNote = contentsValue.includes('OTHER');
+
   return (
     <div data-testid="task-form">
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleFinish}
-        initialValues={{
-          taskType: 'CONTRACT',
-          headcount: 1,
-          contents: [],
-          assignees: [],
-        }}
-      >
+      <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={defaultFormValues}>
         {/* 集團 (Group) */}
         <Form.Item name="groupId" label="集團" rules={[{ required: true, message: '請選擇集團' }]}>
           <Select
-            placeholder="請選擇集團"
+            placeholder="請選擇集團或輸入搜尋"
             options={groupOptions}
             onChange={handleGroupChange}
             showSearch
@@ -326,10 +368,19 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
           />
         </Form.Item>
 
+        {/* 任務類型 (Task Type) - 三個 checkbox 單選 */}
+        <Form.Item
+          name="taskType"
+          label="任務類型"
+          rules={[{ required: true, message: '請選擇任務類型' }]}
+        >
+          <TaskTypeCheckboxGroup options={taskTypes} />
+        </Form.Item>
+
         {/* 分店 (Branch) - cascading from group */}
         <Form.Item name="branchId" label="分店" rules={[{ required: true, message: '請選擇分店' }]}>
           <Select
-            placeholder={selectedGroupId ? '請選擇分店' : '請先選擇集團'}
+            placeholder={selectedGroupId ? '請選擇分店或輸入搜尋' : '請先選擇集團'}
             options={branchOptions}
             disabled={!selectedGroupId}
             showSearch
@@ -358,15 +409,6 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
           </Button>
         </Form.Item>
 
-        {/* 任務類型 (Task Type) */}
-        <Form.Item
-          name="taskType"
-          label="任務類型"
-          rules={[{ required: true, message: '請選擇任務類型' }]}
-        >
-          <Select placeholder="請選擇任務類型" options={taskTypes} aria-label="任務類型" />
-        </Form.Item>
-
         {/* 日期 (Date) with holiday red markers */}
         <Form.Item name="date" label="日期" rules={[{ required: true, message: '請選擇日期' }]}>
           <DatePicker
@@ -382,19 +424,19 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
           />
         </Form.Item>
 
-        {/* 起訖時間 (Start/End Time) - 24hr format, cross-day allowed */}
+        {/* 起訖時間 (Start/End Time) - 24 小時制下拉選單，跨日自動判斷 */}
         <Space style={{ width: '100%' }} size="middle">
           <Form.Item
             name="startTime"
-            label="起始時間"
-            rules={[{ required: true, message: '請選擇起始時間' }]}
+            label="開始時間"
+            rules={[{ required: true, message: '請選擇開始時間' }]}
             style={{ flex: 1 }}
           >
-            <TimePicker
-              format="HH:mm"
-              minuteStep={5}
-              style={{ width: '100%' }}
-              aria-label="起始時間"
+            <Select
+              placeholder="請選擇開始時間"
+              options={TIME_OPTIONS}
+              showSearch
+              aria-label="開始時間"
             />
           </Form.Item>
           <Form.Item
@@ -403,10 +445,10 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
             rules={[{ required: true, message: '請選擇結束時間' }]}
             style={{ flex: 1 }}
           >
-            <TimePicker
-              format="HH:mm"
-              minuteStep={5}
-              style={{ width: '100%' }}
+            <Select
+              placeholder="請選擇結束時間"
+              options={TIME_OPTIONS}
+              showSearch
               aria-label="結束時間"
             />
           </Form.Item>
@@ -415,60 +457,60 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
           若結束時間早於起始時間，將自動視為跨日任務
         </Text>
 
-        {/* 人數 (Headcount) */}
+        {/* 人數需求 (Headcount) */}
         <Form.Item
           name="headcount"
-          label="人數"
-          rules={[{ required: true, message: '請輸入人數' }]}
+          label="人數需求"
+          rules={[{ required: true, message: '請輸入人數需求' }]}
         >
-          <InputNumber min={1} max={50} style={{ width: '100%' }} aria-label="人數" />
+          <InputNumber min={1} max={50} style={{ width: '100%' }} aria-label="人數需求" />
         </Form.Item>
 
-        {/* 班別 (Shift) */}
-        <Form.Item name="shift" label="班別">
+        {/* 班次 (Shift) */}
+        <Form.Item name="shift" label="班次" rules={[{ required: true, message: '請選擇班次' }]}>
           <Select
-            placeholder="請選擇班別"
+            placeholder="請選擇班次"
             options={shifts}
-            allowClear
             showSearch
             optionFilterProp="label"
-            aria-label="班別"
+            aria-label="班次"
           />
         </Form.Item>
 
-        {/* 路線 (Route) */}
-        <Form.Item name="route" label="路線">
+        {/* 路次 (Route) */}
+        <Form.Item name="route" label="路次">
           <Select
-            placeholder="請選擇路線"
+            placeholder="請選擇路次"
             options={routes}
             allowClear
             showSearch
             optionFilterProp="label"
-            aria-label="路線"
+            aria-label="路次"
           />
         </Form.Item>
 
-        {/* 工作內容 (Task Contents - Multi-select) */}
+        {/* 內容 (Task Contents) - 勾選複選，其他可輸入補充說明 */}
         <Form.Item
           name="contents"
-          label="工作內容"
-          rules={[{ required: true, message: '請選擇工作內容', type: 'array' }]}
+          label="內容"
+          rules={[{ required: true, message: '請勾選內容', type: 'array' }]}
         >
-          <Select<TaskContent[]>
-            mode="multiple"
-            placeholder="請選擇工作內容"
-            options={contents}
-            aria-label="工作內容"
-          />
+          <Checkbox.Group options={contents} />
         </Form.Item>
+
+        {showOtherContentNote && (
+          <Form.Item name="otherContentNote" label="其他內容說明">
+            <Input placeholder="請輸入其他工作內容說明" aria-label="其他內容說明" />
+          </Form.Item>
+        )}
 
         {/* 備註 (Remarks) */}
         <Form.Item name="remarks" label="備註">
           <TextArea rows={3} maxLength={500} showCount placeholder="請輸入備註" aria-label="備註" />
         </Form.Item>
 
-        {/* 指派員工 (Assignees - EmployeeSelect) */}
-        <Form.Item name="assignees" label="指派員工">
+        {/* 指派員工 (Assignees - 按鈕式 EmployeeSelect) */}
+        <Form.Item name="assignees" label="指派人員">
           <EmployeeSelect
             value={form.getFieldValue('assignees') ?? []}
             onChange={(ids) => form.setFieldValue('assignees', ids)}
@@ -479,15 +521,15 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
 
         <Divider />
 
-        {/* 週期設定 (Recurrence) */}
-        <Space align="center" style={{ marginBottom: 16 }}>
-          <Text strong>週期設定</Text>
-          <Switch
+        {/* 週期設定 (Recurrence) - 仿 Outlook 週期設定介面 */}
+        <div style={{ marginBottom: 16 }}>
+          <Checkbox
             checked={enableRecurrence}
-            onChange={setEnableRecurrence}
-            aria-label="啟用週期設定"
-          />
-        </Space>
+            onChange={(e) => setEnableRecurrence(e.target.checked)}
+          >
+            週期
+          </Checkbox>
+        </div>
 
         {enableRecurrence && (
           <RecurrenceEditor value={recurrenceRule} onChange={setRecurrenceRule} />
@@ -509,16 +551,14 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         {/* Form Actions */}
         <Form.Item>
           <Space>
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={submitting}
-              aria-label={mode === 'create' ? '建立任務' : '儲存變更'}
-            >
-              {mode === 'create' ? '建立任務' : '儲存變更'}
+            <Button type="primary" htmlType="submit" loading={submitting} aria-label="儲存">
+              儲存
             </Button>
-            <Button onClick={onCancel} aria-label="取消">
+            <Button htmlType="button" onClick={onCancel} aria-label="取消">
               取消
+            </Button>
+            <Button htmlType="button" onClick={handleClearAll} aria-label="全部清除">
+              全部清除
             </Button>
           </Space>
         </Form.Item>

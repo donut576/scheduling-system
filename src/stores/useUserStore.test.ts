@@ -15,10 +15,8 @@ describe('Property 1: 登入後使用者資料儲存完整性 (Login Profile Rou
     'ADMIN',
     'ADMIN_STAFF',
     'MANAGER',
-    'DIRECTOR',
     'LEADER',
     'STAFF',
-    'SALES_OPS',
   );
 
   // Arbitrary for UserProfile

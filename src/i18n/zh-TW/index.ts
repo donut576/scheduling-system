@@ -32,7 +32,7 @@ export default {
   },
   menu: {
     dashboard: '儀表板',
-    task: '任務管理',
+    task: '任務建立及一覽',
     schedule: '班表總覽',
     customer: '客戶資料',
     employee: '員工資料',
@@ -42,7 +42,7 @@ export default {
     map: '地圖檢視',
   },
   task: {
-    title: '任務管理',
+    title: '任務建立及一覽',
     create: '新增任務',
     edit: '編輯任務',
     list: '任務列表',

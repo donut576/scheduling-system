@@ -21,7 +21,7 @@ import type { SendNotificationData } from '@/api/notification';
  * deterministic approval fixtures, following the convention established in
  * TaskForm.integration.test.tsx.
  *
- * Validates: Requirements 13.1, 13.2, 13.3
+ * Validates: Requirements 13.1, 13.3
  */
 
 // Mock matchMedia for Ant Design responsive components (keeps BaseTable in
@@ -61,8 +61,8 @@ const scheduleChangeApproval: Approval = {
   approvers: [
     {
       approverId: 'ap1',
-      approverName: '陳主任',
-      role: 'DIRECTOR',
+      approverName: '陳組長',
+      role: 'LEADER',
       status: 'PENDING',
     },
   ],
@@ -78,12 +78,6 @@ const shiftChangeApproval: Approval = {
   requestedBy: 'u2',
   requestedByName: '李組長',
   approvers: [
-    {
-      approverId: 'ap2',
-      approverName: '陳主任',
-      role: 'DIRECTOR',
-      status: 'PENDING',
-    },
     {
       approverId: 'ap3',
       approverName: '林經理',
@@ -149,7 +143,7 @@ describe('ApprovalPage integration - 排班變更審批流程', () => {
     expect(capturedNotificationBody?.variables?.subject).toContain('【已核准】');
   });
 
-  it('SHIFT_CHANGE：僅一位審批人（主任）核准時，雙重審批未完成，不觸發客戶重新通知 (Requirement 13.2)', async () => {
+  it('SHIFT_CHANGE：核准後單一審批即完成，觸發客戶重新通知 (Requirements 13.1, 13.3)', async () => {
     server.use(
       http.get('*/api/v1/approvals', () =>
         HttpResponse.json(ok(paginated<Approval>([shiftChangeApproval]))),
@@ -163,14 +157,17 @@ describe('ApprovalPage integration - 排班變更審批流程', () => {
 
     await user.click(screen.getByRole('button', { name: '核准' }));
 
-    // 審批操作本身成功（主任核准動作已送出）。antd 的 message 提示為全域 portal，
+    // 審批操作本身成功（經理核准動作已送出）。antd 的 message 提示為全域 portal，
     // 前一個測試殘留之提示可能尚未消失，故以 findAllByText 容忍多筆相同文字存在。
     expect((await screen.findAllByText('審批已核准')).length).toBeGreaterThanOrEqual(1);
 
-    // 但因 markNextPendingApproverApproved 僅將清單中第一位 PENDING（DIRECTOR）
-    // 標記為 APPROVED，MANAGER 仍為 PENDING，isDualApprovalComplete 回傳 false，
-    // 故不應觸發客戶重新通知。
-    expect(capturedNotificationBody).toBeUndefined();
+    // 所有審批類型皆為單一審批人核准即完成，故應觸發客戶重新通知。
+    await waitFor(() => {
+      expect(capturedNotificationBody).toMatchObject({
+        taskId: 'int-t2',
+      });
+    });
+    expect(capturedNotificationBody?.variables?.subject).toContain('【已核准】');
   });
 
   it('駁回流程：需填寫備註才可送出，成功後狀態更新為已駁回 (state update to REJECTED)', async () => {

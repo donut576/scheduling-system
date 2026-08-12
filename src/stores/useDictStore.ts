@@ -1,7 +1,12 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { SelectOption } from '@/types/common';
-import { TASK_TYPE_OPTIONS, TASK_CONTENT_OPTIONS } from '@/constants/taskStatus';
+import {
+  TASK_TYPE_OPTIONS,
+  TASK_CONTENT_OPTIONS,
+  SHIFT_OPTIONS,
+  ROUTE_OPTIONS,
+} from '@/constants/taskStatus';
 import { LICENSE_TYPE_OPTIONS } from '@/constants/licenseTypes';
 import { POSITION_OPTIONS } from '@/constants/positions';
 
@@ -26,8 +31,8 @@ export const useDictStore = create<DictState>()(
   persist(
     (set) => ({
       taskTypes: TASK_TYPE_OPTIONS,
-      shifts: [],
-      routes: [],
+      shifts: SHIFT_OPTIONS,
+      routes: ROUTE_OPTIONS,
       contents: TASK_CONTENT_OPTIONS,
       licenses: LICENSE_TYPE_OPTIONS,
       positions: POSITION_OPTIONS,

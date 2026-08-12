@@ -1,12 +1,13 @@
 import { http, HttpResponse } from 'msw';
 import type { ApiResponse, PaginatedResponse } from '@/types/common';
-import type { Task } from '@/types/task';
+import type { Task, TaskAssignee, TaskFormData } from '@/types/task';
 import type { Employee } from '@/types/employee';
 import type { Customer, CustomerGroup, PendingCustomer } from '@/types/customer';
 import type { Notification, NotificationTemplate, Approval } from '@/types/notification';
 import type { UserProfile, LoginResponse } from '@/types/auth';
 import type { AlertValidationResult } from '@/types/alert';
 import type { ScheduleData } from '@/types/schedule';
+import { PERMISSIONS } from '@/constants/permissions';
 
 /**
  * MSW request handlers mocking all API endpoints defined in src/api/*.ts.
@@ -37,6 +38,16 @@ const mockUser: UserProfile = {
   employeeNo: 'E0001',
   role: 'MANAGER',
   permissions: ['task:view', 'task:edit', 'schedule:view'],
+  groupId: 'group-001',
+};
+
+// Demo admin account for local frontend development (login: admin / admin123)
+const mockAdminUser: UserProfile = {
+  id: 'emp-admin',
+  name: 'Demo 管理員',
+  employeeNo: 'ADMIN01',
+  role: 'ADMIN',
+  permissions: Object.values(PERMISSIONS),
   groupId: 'group-001',
 };
 
@@ -109,6 +120,251 @@ const mockCustomerGroup: CustomerGroup = {
   ],
 };
 
+// 額外的集團/分店假資料，供本地 demo 使用（讓任務建立表單的集團/分店連動下拉選單有多組選項可選）
+const demoCustomerGroups: CustomerGroup[] = [
+  {
+    id: 'group-002',
+    name: '星耀科技股份有限公司',
+    branches: [
+      {
+        id: 'branch-002-1',
+        groupId: 'group-002',
+        name: '內湖三期辦公室',
+        address: '台北市內湖區瑞光路588號',
+        latitude: 25.0796,
+        longitude: 121.5766,
+        contactName: '林志豪',
+        contactPhone: '02-87911234',
+        requiredLicenses: ['SAFETY_6HR'],
+      },
+      {
+        id: 'branch-002-2',
+        groupId: 'group-002',
+        name: '新竹科學園區廠',
+        address: '新竹市東區科學園路2號',
+        latitude: 24.7867,
+        longitude: 120.9847,
+        contactName: '陳雅婷',
+        contactPhone: '03-5781234',
+        requiredLicenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
+      },
+    ],
+  },
+  {
+    id: 'group-003',
+    name: '陽光連鎖餐飲集團',
+    branches: [
+      {
+        id: 'branch-003-1',
+        groupId: 'group-003',
+        name: '台中西屯門市',
+        address: '台中市西屯區台灣大道三段99號',
+        latitude: 24.1626,
+        longitude: 120.6407,
+        contactName: '黃俊傑',
+        contactPhone: '04-24621234',
+        requiredLicenses: ['PEST_CONTROL'],
+      },
+      {
+        id: 'branch-003-2',
+        groupId: 'group-003',
+        name: '高雄三多門市',
+        address: '高雄市苓雅區三多三路217號',
+        latitude: 22.6163,
+        longitude: 120.3007,
+        contactName: '李佳穎',
+        contactPhone: '07-3351234',
+        requiredLicenses: ['PEST_CONTROL', 'FIRE_ANT'],
+      },
+    ],
+  },
+  {
+    id: 'group-004',
+    name: '綠地物業管理顧問',
+    branches: [
+      {
+        id: 'branch-004-1',
+        groupId: 'group-004',
+        name: '板橋大樓管理處',
+        address: '新北市板橋區文化路二段182號',
+        latitude: 25.0143,
+        longitude: 121.4626,
+        contactName: '吳建宏',
+        contactPhone: '02-29681234',
+        requiredLicenses: ['SAFETY_MANAGER_B'],
+      },
+      {
+        id: 'branch-004-2',
+        groupId: 'group-004',
+        name: '桃園青埔社區',
+        address: '桃園市中壢區青埔一街66號',
+        latitude: 24.9836,
+        longitude: 121.2168,
+        contactName: '許雅雯',
+        contactPhone: '03-4831234',
+        requiredLicenses: ['NONE'],
+      },
+    ],
+  },
+];
+
+const mockCustomerGroups: CustomerGroup[] = [mockCustomerGroup, ...demoCustomerGroups];
+
+// 將額外集團之分店攤平為 Customer 記錄，供客戶列表／地圖檢視等端點使用
+const demoCustomers: Customer[] = demoCustomerGroups.flatMap((group) =>
+  group.branches.map((branch) => ({
+    id: `cust-${branch.id}`,
+    groupId: group.id,
+    groupName: group.name,
+    branchId: branch.id,
+    branchName: branch.name,
+    address: branch.address,
+    latitude: branch.latitude,
+    longitude: branch.longitude,
+    contactName: branch.contactName,
+    contactPhone: branch.contactPhone,
+    requiredLicenses: branch.requiredLicenses,
+    remarks: '',
+  })),
+);
+
+const mockCustomers: Customer[] = [mockCustomer, ...demoCustomers];
+
+// 額外的員工假資料，分散於不同集團／職位／證照，供指派員工下拉選單使用
+const demoEmployees: Employee[] = [
+  {
+    id: 'emp-002',
+    name: '林志豪',
+    phone: '0922334455',
+    employeeNo: 'E0002',
+    position: 'LEADER',
+    groupId: 'group-002',
+    groupName: '星耀科技股份有限公司',
+    groupColor: '#52c41a',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
+    isActive: true,
+  },
+  {
+    id: 'emp-003',
+    name: '黃俊傑',
+    phone: '0933445566',
+    employeeNo: 'E0003',
+    position: 'MANAGER',
+    groupId: 'group-003',
+    groupName: '陽光連鎖餐飲集團',
+    groupColor: '#fa8c16',
+    designatedLeaves: [],
+    licenses: ['PEST_CONTROL', 'FIRE_ANT'],
+    isActive: true,
+  },
+  {
+    id: 'emp-004',
+    name: '吳建宏',
+    phone: '0944556677',
+    employeeNo: 'E0004',
+    position: 'ADMIN_STAFF',
+    groupId: 'group-004',
+    groupName: '綠地物業管理顧問',
+    groupColor: '#722ed1',
+    designatedLeaves: [],
+    licenses: ['SAFETY_MANAGER_B'],
+    isActive: true,
+  },
+  {
+    id: 'emp-005',
+    name: '陳雅婷',
+    phone: '0955667788',
+    employeeNo: 'E0005',
+    position: 'STAFF',
+    groupId: 'group-002',
+    groupName: '星耀科技股份有限公司',
+    groupColor: '#52c41a',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
+    isActive: true,
+  },
+];
+
+const mockEmployees: Employee[] = [mockEmployee, ...demoEmployees];
+
+// 任務清單改為可變狀態，讓新增／編輯任務後重新查詢時能看到實際變化（例如編輯後狀態變為「更改」）
+let mockTasks: Task[] = [mockTask];
+
+const isOvernightRange = (startTime: string, endTime: string): boolean => {
+  const [sh = 0, sm = 0] = startTime.split(':').map(Number);
+  const [eh = 0, em = 0] = endTime.split(':').map(Number);
+  return eh * 60 + em <= sh * 60 + sm;
+};
+
+const resolveAssignees = (employeeIds: string[]): TaskAssignee[] =>
+  employeeIds
+    .map((id) => mockEmployees.find((emp) => emp.id === id))
+    .filter((emp): emp is Employee => !!emp)
+    .map((emp) => ({ employeeId: emp.id, employeeName: emp.name, licenses: emp.licenses }));
+
+const resolveGroupBranchNames = (groupId: string, branchId: string) => {
+  const group = mockCustomerGroups.find((g) => g.id === groupId);
+  const branch = group?.branches.find((b) => b.id === branchId);
+  return { groupName: group?.name ?? groupId, branchName: branch?.name ?? branchId };
+};
+
+/** 依表單資料建立新任務（狀態預設為 SCHEDULED） */
+const buildNewTask = (data: TaskFormData): Task => {
+  const { groupName, branchName } = resolveGroupBranchNames(data.groupId, data.branchId);
+  const now = new Date().toISOString();
+  return {
+    id: `task-${Date.now()}`,
+    groupId: data.groupId,
+    groupName,
+    branchId: data.branchId,
+    branchName,
+    taskType: data.taskType,
+    date: data.date,
+    startTime: data.startTime,
+    endTime: data.endTime,
+    isOvernight: isOvernightRange(data.startTime, data.endTime),
+    headcount: data.headcount,
+    shift: data.shift,
+    route: data.route,
+    contents: data.contents,
+    otherContentNote: data.otherContentNote,
+    assignees: resolveAssignees(data.assignees),
+    remarks: data.remarks,
+    recurrenceRule: data.recurrence,
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: now,
+    updatedAt: now,
+  };
+};
+
+/** 依表單資料更新既有任務，並將狀態強制標記為「更改」(MODIFIED)，模擬後端行為 */
+const applyTaskUpdate = (existing: Task, data: Partial<TaskFormData>): Task => {
+  const groupId = data.groupId ?? existing.groupId;
+  const branchId = data.branchId ?? existing.branchId;
+  const { groupName, branchName } = resolveGroupBranchNames(groupId, branchId);
+  const startTime = data.startTime ?? existing.startTime;
+  const endTime = data.endTime ?? existing.endTime;
+
+  return {
+    ...existing,
+    ...data,
+    groupId,
+    branchId,
+    groupName,
+    branchName,
+    startTime,
+    endTime,
+    isOvernight: isOvernightRange(startTime, endTime),
+    assignees: data.assignees ? resolveAssignees(data.assignees) : existing.assignees,
+    recurrenceRule: data.recurrence ?? existing.recurrenceRule,
+    status: 'MODIFIED',
+    updatedAt: new Date().toISOString(),
+  };
+};
+
 const mockPendingCustomer: PendingCustomer = {
   id: 'pending-001',
   groupId: 'group-001',
@@ -152,8 +408,8 @@ const mockApproval: Approval = {
   approvers: [
     {
       approverId: 'emp-002',
-      approverName: '測試主任',
-      role: 'DIRECTOR',
+      approverName: '測試經理',
+      role: 'MANAGER',
       status: 'PENDING',
     },
   ],
@@ -198,22 +454,54 @@ const mockScheduleData: ScheduleData = {
 
 export const handlers = [
   // auth.ts
-  http.post('*/api/v1/auth/login', () =>
-    HttpResponse.json(
+  http.post('*/api/v1/auth/login', async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as {
+      account?: string;
+      password?: string;
+    };
+
+    if (body.account === 'admin' && body.password === 'admin123') {
+      return HttpResponse.json(
+        ok<LoginResponse>({
+          accessToken: 'mock-admin-token',
+          expiresIn: 3600,
+          user: mockAdminUser,
+        }),
+      );
+    }
+
+    return HttpResponse.json(
       ok<LoginResponse>({
         accessToken: 'mock-access-token',
         expiresIn: 3600,
         user: mockUser,
       }),
-    ),
-  ),
+    );
+  }),
   http.get('*/api/v1/auth/profile', () => HttpResponse.json(ok<UserProfile>(mockUser))),
 
   // task.ts
-  http.get('*/api/v1/tasks', () => HttpResponse.json(ok(paginated<Task>([mockTask])))),
-  http.get('*/api/v1/tasks/:id', () => HttpResponse.json(ok<Task>(mockTask))),
-  http.post('*/api/v1/tasks', () => HttpResponse.json(ok<Task>(mockTask))),
-  http.patch('*/api/v1/tasks/:id', () => HttpResponse.json(ok<Task>(mockTask))),
+  http.get('*/api/v1/tasks', () => HttpResponse.json(ok(paginated<Task>(mockTasks)))),
+  http.get('*/api/v1/tasks/:id', ({ params }) => {
+    const task = mockTasks.find((t) => t.id === params.id) ?? mockTask;
+    return HttpResponse.json(ok<Task>(task));
+  }),
+  http.post('*/api/v1/tasks', async ({ request }) => {
+    const data = (await request.json()) as TaskFormData;
+    const created = buildNewTask(data);
+    mockTasks = [...mockTasks, created];
+    return HttpResponse.json(ok<Task>(created));
+  }),
+  http.patch('*/api/v1/tasks/:id', async ({ params, request }) => {
+    const data = (await request.json()) as Partial<TaskFormData>;
+    const existing = mockTasks.find((t) => t.id === params.id);
+    if (!existing) {
+      return HttpResponse.json(ok<Task>(mockTask));
+    }
+    const updated = applyTaskUpdate(existing, data);
+    mockTasks = mockTasks.map((t) => (t.id === updated.id ? updated : t));
+    return HttpResponse.json(ok<Task>(updated));
+  }),
   http.post('*/api/v1/tasks/:id/validate', () =>
     HttpResponse.json(ok<AlertValidationResult>(mockAlertValidationResult)),
   ),
@@ -224,16 +512,16 @@ export const handlers = [
   http.patch('*/api/v1/schedule', () => HttpResponse.json(ok(null))),
 
   // customer.ts
-  http.get('*/api/v1/customers', () => HttpResponse.json(ok(paginated<Customer>([mockCustomer])))),
+  http.get('*/api/v1/customers', () => HttpResponse.json(ok(paginated<Customer>(mockCustomers)))),
   http.get('*/api/v1/customers/groups', () =>
-    HttpResponse.json(ok<CustomerGroup[]>([mockCustomerGroup])),
+    HttpResponse.json(ok<CustomerGroup[]>(mockCustomerGroups)),
   ),
   http.post('*/api/v1/customers', () => HttpResponse.json(ok<Customer>(mockCustomer))),
   http.patch('*/api/v1/customers/:id', () => HttpResponse.json(ok<Customer>(mockCustomer))),
   http.delete('*/api/v1/customers/:id', () => HttpResponse.json(ok(null))),
 
   // employee.ts
-  http.get('*/api/v1/employees', () => HttpResponse.json(ok(paginated<Employee>([mockEmployee])))),
+  http.get('*/api/v1/employees', () => HttpResponse.json(ok(paginated<Employee>(mockEmployees)))),
   http.get('*/api/v1/employees/:id', () => HttpResponse.json(ok<Employee>(mockEmployee))),
   http.post('*/api/v1/employees', () => HttpResponse.json(ok<Employee>(mockEmployee))),
   http.patch('*/api/v1/employees/:id', () => HttpResponse.json(ok<Employee>(mockEmployee))),

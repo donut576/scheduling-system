@@ -1,38 +1,44 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Button, Modal, Card, Space, Tag } from 'antd';
-import { EnvironmentOutlined } from '@ant-design/icons';
+import { EnvironmentOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
 import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/BaseTable';
 import BaseSearchForm, { type SearchFieldConfig } from '@/components/base/BaseSearchForm';
 import TaskForm from '@/components/business/TaskForm';
-import { useTaskList } from '@/queries/useTaskQueries';
+import { useTaskList, useCreateTask, useUpdateTask } from '@/queries/useTaskQueries';
+import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useTaskStore } from '@/stores/useTaskStore';
-import type { Task, TaskFormData } from '@/types/task';
+import { TASK_STATUS_MAP } from '@/constants/taskStatus';
+import type { Task, TaskFormData, TaskStatus } from '@/types/task';
+import type { CustomerGroup } from '@/types/customer';
 import type { PaginatedResponse } from '@/types/common';
 
 /**
- * 任務列表頁面
+ * 任務建立及一覽頁面
  * 整合 BaseTable + BaseSearchForm，提供完整任務瀏覽、搜尋、匯出功能
  *
  * Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5, 6.1, 6.3
  */
 
-const TASK_TYPE_MAP: Record<string, string> = {
-  CONTRACT: '合約',
-  ONETIME: '單次',
-  ESR: 'ESR',
-};
-
-const searchFields: SearchFieldConfig[] = [
-  {
-    name: 'keyword',
-    label: '關鍵字',
-    type: 'input',
-    placeholder: '搜尋集團/分店名稱',
-  },
-];
+const TASK_STATUS_OPTIONS = Object.entries(TASK_STATUS_MAP).map(([value, { label }]) => ({
+  label,
+  value,
+}));
 
 const columns: ColumnDef<Task>[] = [
+  {
+    title: '狀態',
+    dataIndex: 'status',
+    key: 'status',
+    width: 90,
+    render: (value) => {
+      const config = TASK_STATUS_MAP[value as TaskStatus];
+      return <Tag color={config?.color}>{config?.label ?? (value as string)}</Tag>;
+    },
+    exportHeader: '狀態',
+    exportKey: (record) => TASK_STATUS_MAP[record.status]?.label ?? record.status,
+  },
   {
     title: '集團',
     dataIndex: 'groupName',
@@ -41,15 +47,6 @@ const columns: ColumnDef<Task>[] = [
     ellipsis: true,
     exportHeader: '集團',
     exportKey: 'groupName',
-  },
-  {
-    title: '任務類型',
-    dataIndex: 'taskType',
-    key: 'taskType',
-    width: 100,
-    render: (value) => TASK_TYPE_MAP[value as string] ?? (value as string),
-    exportHeader: '任務類型',
-    exportKey: (record) => TASK_TYPE_MAP[record.taskType] ?? record.taskType,
   },
   {
     title: '分店',
@@ -70,47 +67,54 @@ const columns: ColumnDef<Task>[] = [
     exportKey: 'date',
   },
   {
-    title: '起訖時間',
-    key: 'timeRange',
-    width: 120,
-    render: (_value, record) =>
-      `${record.startTime} - ${record.endTime}${record.isOvernight ? '(跨日)' : ''}`,
-    exportHeader: '起訖時間',
-    exportKey: (record) =>
-      `${record.startTime}-${record.endTime}${record.isOvernight ? '(跨日)' : ''}`,
+    title: '開始時間',
+    dataIndex: 'startTime',
+    key: 'startTime',
+    width: 90,
+    exportHeader: '開始時間',
+    exportKey: 'startTime',
   },
   {
-    title: '人數',
+    title: '結束時間',
+    dataIndex: 'endTime',
+    key: 'endTime',
+    width: 90,
+    render: (value, record) => `${value as string}${record.isOvernight ? '（跨日）' : ''}`,
+    exportHeader: '結束時間',
+    exportKey: (record) => `${record.endTime}${record.isOvernight ? '（跨日）' : ''}`,
+  },
+  {
+    title: '人數需求',
     dataIndex: 'headcount',
     key: 'headcount',
-    width: 70,
-    exportHeader: '人數',
+    width: 90,
+    exportHeader: '人數需求',
     exportKey: 'headcount',
   },
   {
-    title: '班別',
+    title: '班次',
     dataIndex: 'shift',
     key: 'shift',
     width: 100,
-    exportHeader: '班別',
+    exportHeader: '班次',
     exportKey: 'shift',
   },
   {
-    title: '路線',
+    title: '路次',
     dataIndex: 'route',
     key: 'route',
     width: 100,
     ellipsis: true,
-    exportHeader: '路線',
+    exportHeader: '路次',
     exportKey: 'route',
   },
   {
-    title: '工作內容',
+    title: '內容',
     key: 'contents',
     width: 140,
     ellipsis: true,
     render: (_value, record) => (Array.isArray(record.contents) ? record.contents.join(', ') : ''),
-    exportHeader: '工作內容',
+    exportHeader: '內容',
     exportKey: (record) => (Array.isArray(record.contents) ? record.contents.join(', ') : ''),
   },
   {
@@ -124,23 +128,6 @@ const columns: ColumnDef<Task>[] = [
     exportKey: (record) =>
       Array.isArray(record.assignees) ? record.assignees.map((a) => a.employeeName).join(', ') : '',
   },
-  {
-    title: '週期',
-    key: 'recurrence',
-    width: 80,
-    render: (_value, record) => (record.recurrenceId ? '∞' : '-'),
-    exportHeader: '週期',
-    exportKey: (record) => (record.recurrenceId ? '週期' : '-'),
-  },
-  {
-    title: '備註',
-    dataIndex: 'remarks',
-    key: 'remarks',
-    width: 150,
-    ellipsis: true,
-    exportHeader: '備註',
-    exportKey: 'remarks',
-  },
 ];
 
 /**
@@ -150,6 +137,7 @@ const columns: ColumnDef<Task>[] = [
  * Validates: Requirements 16.1
  */
 function renderTaskCard(record: Task) {
+  const statusConfig = TASK_STATUS_MAP[record.status];
   return (
     <Card size="small" style={{ marginBottom: 8 }} data-testid={`task-card-${record.id}`}>
       <Space direction="vertical" size={4} style={{ width: '100%' }}>
@@ -157,50 +145,64 @@ function renderTaskCard(record: Task) {
           <strong>
             {record.groupName} {record.branchName}
           </strong>
-          <Tag>{TASK_TYPE_MAP[record.taskType] ?? record.taskType}</Tag>
+          <Tag color={statusConfig?.color}>{statusConfig?.label ?? record.status}</Tag>
         </Space>
         <span>
           {record.date} {record.startTime} - {record.endTime}
           {record.isOvernight ? '（跨日）' : ''}
         </span>
         <span>
-          班別：{record.shift || '-'} ／ 人數：{record.headcount}
+          班次：{record.shift || '-'} ／ 人數需求：{record.headcount}
         </span>
         {Array.isArray(record.contents) && record.contents.length > 0 && (
-          <span>工作內容：{record.contents.join('、')}</span>
+          <span>內容：{record.contents.join('、')}</span>
         )}
         {Array.isArray(record.assignees) && record.assignees.length > 0 && (
           <span>指派人員：{record.assignees.map((a) => a.employeeName).join('、')}</span>
         )}
-        {record.recurrenceId && <Tag color="blue">週期任務 ∞</Tag>}
-        {record.remarks && <span>備註：{record.remarks}</span>}
       </Space>
     </Card>
   );
 }
 
 /**
- * 「操作」欄位獨立建立，因其包含之地圖按鈕需要 navigate 函式，
- * 由頁面元件於渲染時透過 onMapClick 回呼注入。
+ * 「功能」欄位獨立建立，因其包含之編輯／地圖按鈕需要頁面層級的回呼（開啟編輯視窗、
+ * navigate 至地圖），由頁面元件於渲染時注入。
  *
  * Validates: Requirements 15.4
  */
-function buildActionColumn(onMapClick: (record: Task) => void): ColumnDef<Task> {
+function buildActionColumn(
+  onEditClick: (record: Task) => void,
+  onMapClick: (record: Task) => void,
+): ColumnDef<Task> {
   return {
-    title: '操作',
+    title: '功能',
     key: 'actions',
-    width: 70,
+    width: 120,
     fixed: 'right',
     render: (_value, record) => (
-      <Button
-        type="link"
-        icon={<EnvironmentOutlined />}
-        aria-label="在地圖上檢視"
-        onClick={(e) => {
-          e.stopPropagation();
-          onMapClick(record);
-        }}
-      />
+      <Space size={4}>
+        <Button
+          type="link"
+          icon={<EditOutlined />}
+          aria-label="編輯"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEditClick(record);
+          }}
+        >
+          編輯
+        </Button>
+        <Button
+          type="link"
+          icon={<EnvironmentOutlined />}
+          aria-label="在地圖上檢視"
+          onClick={(e) => {
+            e.stopPropagation();
+            onMapClick(record);
+          }}
+        />
+      </Space>
     ),
   };
 }
@@ -219,11 +221,45 @@ function TaskPage() {
   const { setFilters, resetFilters } = useTaskStore();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const createMutation = useCreateTask();
+  const updateMutation = useUpdateTask();
+
+  // 集團／分店篩選選項，來源與任務建立表單之集團／分店連動下拉一致
+  const { data: customerGroups = [] } = useCustomerGroups();
+
+  const groupOptions = useMemo(
+    () => customerGroups.map((g: CustomerGroup) => ({ label: g.name, value: g.id })),
+    [customerGroups],
+  );
+
+  const branchOptions = useMemo(
+    () =>
+      customerGroups.flatMap((g: CustomerGroup) =>
+        g.branches.map((b) => ({ label: b.name, value: b.id })),
+      ),
+    [customerGroups],
+  );
+
+  const searchFields: SearchFieldConfig[] = useMemo(
+    () => [
+      { name: 'status', label: '狀態', type: 'select', options: TASK_STATUS_OPTIONS },
+      { name: 'groupId', label: '集團', type: 'select', options: groupOptions },
+      { name: 'branchId', label: '分店', type: 'select', options: branchOptions },
+      { name: 'dateRange', label: '日期', type: 'rangePicker' },
+    ],
+    [groupOptions, branchOptions],
+  );
 
   const handleSearch = useCallback(
     (values: Record<string, unknown>) => {
+      const dateRange = values.dateRange as [dayjs.Dayjs, dayjs.Dayjs] | undefined;
+
       setFilters({
-        keyword: (values.keyword as string) || undefined,
+        status: (values.status as TaskStatus) || undefined,
+        groupId: (values.groupId as string) || undefined,
+        branchId: (values.branchId as string) || undefined,
+        startDate: dateRange?.[0] ? dateRange[0].format('YYYY-MM-DD') : undefined,
+        endDate: dateRange?.[1] ? dateRange[1].format('YYYY-MM-DD') : undefined,
         page: 1,
       });
     },
@@ -239,15 +275,28 @@ function TaskPage() {
     setModalOpen(true);
   }, []);
 
+  const handleCreateClick = useCallback(() => {
+    setEditingTask(null);
+    setModalOpen(true);
+  }, []);
+
   const handleModalClose = useCallback(() => {
     setModalOpen(false);
     setEditingTask(null);
   }, []);
 
-  const handleTaskSubmit = useCallback(async (_task: TaskFormData) => {
-    setModalOpen(false);
-    setEditingTask(null);
-  }, []);
+  const handleTaskSubmit = useCallback(
+    async (data: TaskFormData) => {
+      if (editingTask) {
+        await updateMutation.mutateAsync({ id: editingTask.id, data });
+      } else {
+        await createMutation.mutateAsync(data);
+      }
+      setModalOpen(false);
+      setEditingTask(null);
+    },
+    [editingTask, createMutation, updateMutation],
+  );
 
   // 從任務列表點擊「在地圖上檢視」按鈕後，定位至該任務對應之集團/分店
   // Validates: Requirements 15.4
@@ -261,13 +310,24 @@ function TaskPage() {
   );
 
   const tableColumns = useMemo(
-    () => [...columns, buildActionColumn(handleMapClick)],
-    [handleMapClick],
+    () => [...columns, buildActionColumn(handleRowClick, handleMapClick)],
+    [handleRowClick, handleMapClick],
+  );
+
+  const rowClassName = useCallback(
+    (record: Task) => (record.status === 'MODIFIED' ? 'row-modified' : ''),
+    [],
   );
 
   return (
     <div className="task-page">
       <BaseSearchForm fields={searchFields} onSearch={handleSearch} onReset={handleReset} />
+
+      <div style={{ marginBottom: 16 }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateClick}>
+          新增任務
+        </Button>
+      </div>
 
       <BaseTable<Task>
         columns={tableColumns}
@@ -276,20 +336,21 @@ function TaskPage() {
         onRowClick={handleRowClick}
         cardRender={renderTaskCard}
         rowKey="id"
+        rowClassName={rowClassName}
       />
 
       <Modal
-        title="任務詳情 / 編輯"
+        title={editingTask ? '任務詳情 / 編輯' : '新增任務'}
         open={modalOpen}
         onCancel={handleModalClose}
         footer={null}
         width={800}
         destroyOnClose
       >
-        {editingTask && (
+        {modalOpen && (
           <TaskForm
-            mode="edit"
-            initialData={editingTask}
+            mode={editingTask ? 'edit' : 'create'}
+            initialData={editingTask ?? undefined}
             onSubmit={handleTaskSubmit}
             onCancel={handleModalClose}
           />

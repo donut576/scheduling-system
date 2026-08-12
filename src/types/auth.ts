@@ -21,5 +21,4 @@ export interface UserProfile {
   groupId?: string;
 }
 
-export type RoleType =
-  'ADMIN' | 'ADMIN_STAFF' | 'MANAGER' | 'DIRECTOR' | 'LEADER' | 'STAFF' | 'SALES_OPS';
+export type RoleType = 'ADMIN' | 'ADMIN_STAFF' | 'MANAGER' | 'LEADER' | 'STAFF';

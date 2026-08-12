@@ -15,6 +15,7 @@ export interface Task {
   shift: ShiftType;
   route: string;
   contents: TaskContent[];
+  otherContentNote?: string;
   assignees: TaskAssignee[];
   remarks?: string;
   recurrenceId?: string;
@@ -38,6 +39,7 @@ export interface TaskFormData {
   shift: ShiftType;
   route: string;
   contents: TaskContent[];
+  otherContentNote?: string;
   assignees: string[];
   remarks?: string;
   recurrence?: RecurrenceRule;
@@ -56,6 +58,7 @@ export interface TaskListParams {
   groupId?: string;
   branchId?: string;
   taskType?: TaskType;
+  status?: TaskStatus;
   startDate?: string;
   endDate?: string;
 }

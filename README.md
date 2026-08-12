@@ -91,7 +91,7 @@ src/
 ├── components/
 │   ├── base/                # 基礎共用元件（BaseTable, BaseModal, BaseSearchForm, BaseUpload, PageErrorBoundary, RouteLoadingIndicator）
 │   ├── business/             # 業務元件（TaskForm, ScheduleCalendar, EmployeeSelect, ConflictPanel, AlertBadge, RecurrenceEditor, NotificationCenter, MapView）
-│   └── layout/                # 版面元件（MainLayout, AppHeader, SideMenu）
+│   └── layout/                # 版面元件（MainLayout, AppHeader, SideMenu, MapFloatingButton）
 ├── constants/               # 常數定義（權限碼、任務狀態、證照類型、職位、通知類型、錯誤碼）
 ├── hooks/                   # 共用 Hooks（如 useMediaQuery）
 ├── i18n/                    # 國際化設定（zh-TW 預設、en-US 骨架）
@@ -116,7 +116,7 @@ src/
 - **客戶與員工資料管理**：`src/pages/customer`、`src/pages/employee`
 - **通知與審批**：通知發送、範本管理、變更審批流程（`src/pages/notification`、`src/pages/approval`）
 - **待定客戶管理**：`src/pages/pending-customer`
-- **地圖檢視**：客戶分店位置與人員分布（`src/pages/map`、`src/components/business/MapView`）
+- **地圖檢視**：客戶分店位置與人員分布（`src/pages/map`、`src/components/business/MapView`）。入口為畫面右下角的全域浮動按鈕（`src/components/layout/MapFloatingButton.tsx`），而非側邊選單項目，任一頁面皆可點擊開啟（需 `map:view` 權限）
 
 ## 測試
 

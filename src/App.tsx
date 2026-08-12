@@ -12,7 +12,9 @@ function App() {
       <ConfigProvider locale={zhTW}>
         <RouterProvider router={router} />
       </ConfigProvider>
-      <ReactQueryDevtools initialIsOpen={false} />
+      {import.meta.env.DEV && (
+        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+      )}
     </QueryClientProvider>
   );
 }

@@ -17,3 +17,15 @@ body {
   min-width: 320px;
   min-height: 100vh;
 }
+
+/* 已修改資料列標示（例如任務編輯後整列變藍色） */
+.row-modified.ant-table-row > td {
+  background-color: #e6f4ff !important;
+}
+.row-modified.ant-table-row:hover > td {
+  background-color: #bae0ff !important;
+}
+.row-modified.base-table-mobile-card {
+  background-color: #e6f4ff;
+  border-radius: 8px;
+}

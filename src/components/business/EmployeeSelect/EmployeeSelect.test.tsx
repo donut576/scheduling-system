@@ -1,11 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import EmployeeSelect from './index';
 import type { Employee } from '@/types/employee';
 
-// Mock the useEmployeeList hook
 const mockEmployees: Employee[] = [
   {
     id: 'emp-1',
@@ -74,91 +73,79 @@ describe('EmployeeSelect', () => {
     onChange = vi.fn();
   });
 
-  it('renders the employee select with filter controls and main select', () => {
+  it('renders the filter controls and a toggle button per employee', () => {
     renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} />);
 
-    // Filter selects should be present
     expect(screen.getByText('篩選群組')).toBeInTheDocument();
     expect(screen.getByText('篩選證照')).toBeInTheDocument();
     expect(screen.getByText('休假狀態')).toBeInTheDocument();
-    // Main employee select should show placeholder
-    expect(screen.getByText('請選擇指派員工')).toBeInTheDocument();
+
+    expect(screen.getByRole('group', { name: '指派員工' })).toBeInTheDocument();
+    expect(screen.getByText('王大明')).toBeInTheDocument();
+    expect(screen.getByText('李小華')).toBeInTheDocument();
+    expect(screen.getByText('陳志成')).toBeInTheDocument();
   });
 
-  it('shows employees in the dropdown when clicked', async () => {
-    const user = userEvent.setup();
-
-    renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} />);
-
-    // Click on the main employee select (use the placeholder text area)
-    const selectInput = screen.getByRole('combobox', { name: '指派員工' });
-    await user.click(selectInput);
-
-    await waitFor(() => {
-      expect(screen.getByText('王大明')).toBeInTheDocument();
-      expect(screen.getByText('李小華')).toBeInTheDocument();
-      expect(screen.getByText('陳志成')).toBeInTheDocument();
-    });
-  });
-
-  it('marks employees on leave as disabled when date is provided', async () => {
-    const user = userEvent.setup();
-
+  it('marks employees on leave as disabled (not clickable) when date is provided', () => {
     renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} date="2024-12-25" />);
 
-    const selectInput = screen.getByRole('combobox', { name: '指派員工' });
-    await user.click(selectInput);
-
-    await waitFor(() => {
-      // 王大明 and 陳志成 are on leave on 2024-12-25
-      const disabledOptions = document.querySelectorAll('.ant-select-item-option-disabled');
-      expect(disabledOptions.length).toBe(2);
-    });
+    // 王大明 and 陳志成 are on leave on 2024-12-25
+    expect(screen.getAllByText('休假')).toHaveLength(2);
   });
 
-  it('highlights employees matching required licenses with star icon', async () => {
-    const user = userEvent.setup();
-
+  it('highlights employees matching required licenses with a qualified icon', () => {
     renderWithProvider(
       <EmployeeSelect value={[]} onChange={onChange} requiredLicenses={['PROFESSIONAL']} />,
     );
 
-    const selectInput = screen.getByRole('combobox', { name: '指派員工' });
-    await user.click(selectInput);
-
-    await waitFor(() => {
-      // 王大明 has PROFESSIONAL license - should show star
-      expect(screen.getByLabelText('符合客戶要求證照')).toBeInTheDocument();
-    });
+    // 王大明 has PROFESSIONAL license - should show star
+    expect(screen.getByLabelText('符合客戶要求證照')).toBeInTheDocument();
   });
 
-  it('calls onChange when employees are selected', async () => {
+  it('shows a warning icon for employees missing required licenses', () => {
+    renderWithProvider(
+      <EmployeeSelect value={[]} onChange={onChange} requiredLicenses={['PROFESSIONAL']} />,
+    );
+
+    // 李小華 and 陳志成 don't have PROFESSIONAL license
+    expect(screen.getAllByLabelText('不符合客戶要求證照')).toHaveLength(2);
+  });
+
+  it('calls onChange with the employee added when a toggle button is clicked', async () => {
     const user = userEvent.setup();
-
     renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} />);
-
-    const selectInput = screen.getByRole('combobox', { name: '指派員工' });
-    await user.click(selectInput);
-
-    await waitFor(() => {
-      expect(screen.getByText('李小華')).toBeInTheDocument();
-    });
 
     await user.click(screen.getByText('李小華'));
     expect(onChange).toHaveBeenCalledWith(['emp-2']);
   });
 
-  it('renders selected employees as tags', () => {
-    renderWithProvider(
-      <EmployeeSelect
-        value={['emp-1', 'emp-2']}
-        onChange={onChange}
-        requiredLicenses={['PROFESSIONAL']}
-      />,
-    );
+  it('calls onChange with the employee removed when an already-selected button is clicked', async () => {
+    const user = userEvent.setup();
+    renderWithProvider(<EmployeeSelect value={['emp-1', 'emp-2']} onChange={onChange} />);
 
-    // Selected employees should be visible as tags
+    await user.click(screen.getByText('李小華'));
+    expect(onChange).toHaveBeenCalledWith(['emp-1']);
+  });
+
+  it('does not call onChange when clicking an employee on leave', () => {
+    renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} date="2024-12-25" />);
+
+    // The button is styled with pointer-events: none (blocking real user clicks);
+    // fireEvent bypasses that hit-testing to directly verify the handler's own guard.
+    fireEvent.click(screen.getByText('王大明'));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('filters the visible employees by group', async () => {
+    const user = userEvent.setup();
+    renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} />);
+
+    const groupFilter = screen.getByRole('combobox', { name: '篩選群組' });
+    await user.click(groupFilter);
+    await user.click(await screen.findByTitle('A組'));
+
     expect(screen.getByText('王大明')).toBeInTheDocument();
-    expect(screen.getByText('李小華')).toBeInTheDocument();
+    expect(screen.getByText('陳志成')).toBeInTheDocument();
+    expect(screen.queryByText('李小華')).not.toBeInTheDocument();
   });
 });

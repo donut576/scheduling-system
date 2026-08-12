@@ -22,7 +22,7 @@ const LICENSE_TYPES: LicenseType[] = [
   'SAFETY_MANAGER_C',
 ];
 
-const POSITION_TYPES = ['STAFF', 'LEADER', 'DIRECTOR', 'MANAGER', 'ADMIN_STAFF'] as const;
+const POSITION_TYPES = ['STAFF', 'LEADER', 'MANAGER', 'ADMIN_STAFF'] as const;
 
 // Generator for a valid date string in YYYY-MM-DD format
 const arbDateStr = fc

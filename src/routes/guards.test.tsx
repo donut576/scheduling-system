@@ -9,9 +9,7 @@ import { usePermissionStore } from '@/stores/usePermissionStore';
 function renderWithRouter(
   guardProps: {
     requiredPermissions?: string[];
-    requiredRoles?: (
-      'ADMIN' | 'ADMIN_STAFF' | 'MANAGER' | 'DIRECTOR' | 'LEADER' | 'STAFF' | 'SALES_OPS'
-    )[];
+    requiredRoles?: ('ADMIN' | 'ADMIN_STAFF' | 'MANAGER' | 'LEADER' | 'STAFF')[];
   },
   initialPath = '/protected',
 ) {
@@ -156,15 +154,7 @@ import type { RoleType } from '@/types/auth';
  * **Validates: Requirements 2.2**
  */
 
-const ALL_ROLES: RoleType[] = [
-  'ADMIN',
-  'ADMIN_STAFF',
-  'MANAGER',
-  'DIRECTOR',
-  'LEADER',
-  'STAFF',
-  'SALES_OPS',
-];
+const ALL_ROLES: RoleType[] = ['ADMIN', 'ADMIN_STAFF', 'MANAGER', 'LEADER', 'STAFF'];
 
 const ALL_PERMISSION_CODES = Object.values(PERMISSIONS);
 
@@ -240,7 +230,7 @@ describe('RouteGuard - Property 4: 未授權路由阻擋', () => {
     fc.assert(
       fc.property(
         arbRoleType,
-        fc.subarray(ALL_ROLES, { minLength: 1, maxLength: 6 }),
+        fc.subarray(ALL_ROLES, { minLength: 1, maxLength: ALL_ROLES.length - 1 }),
         (userRole, requiredRoles) => {
           // Only test when the user's role is NOT in the required roles list
           if (requiredRoles.includes(userRole)) return;

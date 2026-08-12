@@ -45,6 +45,8 @@ export interface BaseTableProps<T extends object> {
   onRowClick?: (record: T) => void;
   cardRender?: (record: T) => ReactNode;
   rowKey?: string | ((record: T) => string);
+  /** 依資料列回傳額外的 CSS class（例如標示已修改的資料列），桌面表格與行動卡片檢視皆會套用 */
+  rowClassName?: (record: T) => string;
 }
 
 function BaseTable<T extends object>({
@@ -54,6 +56,7 @@ function BaseTable<T extends object>({
   onRowClick,
   cardRender,
   rowKey = 'id',
+  rowClassName,
 }: BaseTableProps<T>) {
   const { data, isLoading, isError } = queryHook();
   const isMobile = useIsMobile();
@@ -160,6 +163,9 @@ function BaseTable<T extends object>({
             renderItem={(item) => (
               <div
                 key={getRowKey(item)}
+                className={['base-table-mobile-card', rowClassName?.(item)]
+                  .filter(Boolean)
+                  .join(' ')}
                 onClick={() => onRowClick?.(item)}
                 style={{ cursor: onRowClick ? 'pointer' : 'default' }}
                 role={onRowClick ? 'button' : undefined}
@@ -208,6 +214,7 @@ function BaseTable<T extends object>({
         dataSource={data?.list}
         loading={isLoading}
         rowKey={rowKey}
+        rowClassName={rowClassName}
         onChange={handleTableChange}
         onRow={(record) => ({
           onClick: () => onRowClick?.(record),

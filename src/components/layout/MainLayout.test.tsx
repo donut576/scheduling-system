@@ -113,7 +113,6 @@ describe('MainLayout', () => {
     useAppStore.setState({
       sidebarCollapsed: false,
       locale: 'zh-TW',
-      tabs: [{ key: '/dashboard', label: '儀表板', closable: false }],
     });
     usePermissionStore.setState({
       menuTree: [
@@ -222,69 +221,6 @@ describe('MainLayout', () => {
       renderLayout('/task');
       expect(screen.getByText('Task Content')).toBeInTheDocument();
       expect(screen.queryByText('Dashboard Content')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('Tab 多頁籤功能', () => {
-    it('adds a tab for the current route on initial navigation', () => {
-      renderLayout('/task');
-      // Tab bar should show both the default dashboard tab and the newly visited task tab
-      expect(useAppStore.getState().tabs.map((t) => t.key)).toEqual(
-        expect.arrayContaining(['/dashboard', '/task']),
-      );
-      expect(screen.getByTestId('page-tabs')).toBeInTheDocument();
-    });
-
-    it('marks the dashboard tab as non-closable and other tabs as closable', () => {
-      renderLayout('/task');
-      const dashboardTab = useAppStore.getState().tabs.find((t) => t.key === '/dashboard');
-      const taskTab = useAppStore.getState().tabs.find((t) => t.key === '/task');
-      expect(dashboardTab?.closable).toBe(false);
-      expect(taskTab?.closable).toBe(true);
-    });
-
-    it('does not duplicate a tab when revisiting the same route', () => {
-      renderLayout('/dashboard');
-      const countBefore = useAppStore.getState().tabs.length;
-      renderLayout('/dashboard');
-      expect(useAppStore.getState().tabs.length).toBe(countBefore);
-    });
-
-    it('navigates to the tab path when a tab is clicked', async () => {
-      useAppStore.setState({
-        tabs: [
-          { key: '/dashboard', label: '儀表板', closable: false },
-          { key: '/task', label: '任務管理', closable: true },
-        ],
-      });
-      const user = userEvent.setup();
-      renderLayout('/dashboard');
-
-      const tabsBar = screen.getByTestId('page-tabs');
-      const taskTabButton = tabsBar.querySelector('.ant-tabs-tab[data-node-key="/task"]');
-      expect(taskTabButton).toBeTruthy();
-      await user.click(taskTabButton!.querySelector('.ant-tabs-tab-btn') as HTMLElement);
-
-      expect(screen.getByText('Task Content')).toBeInTheDocument();
-    });
-
-    it('removes a tab and navigates to a remaining tab when closing the active tab', async () => {
-      useAppStore.setState({
-        tabs: [
-          { key: '/dashboard', label: '儀表板', closable: false },
-          { key: '/task', label: '任務管理', closable: true },
-        ],
-      });
-      const user = userEvent.setup();
-      renderLayout('/task');
-
-      const tabsBar = screen.getByTestId('page-tabs');
-      const taskTabButton = tabsBar.querySelector('.ant-tabs-tab[data-node-key="/task"]');
-      const closeBtn = taskTabButton!.querySelector('.ant-tabs-tab-remove') as HTMLElement;
-      await user.click(closeBtn);
-
-      expect(useAppStore.getState().tabs.find((t) => t.key === '/task')).toBeUndefined();
-      expect(screen.getByText('Dashboard Content')).toBeInTheDocument();
     });
   });
 });

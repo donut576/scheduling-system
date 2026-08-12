@@ -162,22 +162,34 @@ describe('TaskForm integration - 完整任務建立流程', () => {
 
     // 填寫欄位：日期、起訖時間
     setPickerValue('任務日期', '2026-02-10');
-    setPickerValue('起始時間', '09:00');
-    setPickerValue('結束時間', '17:00');
+
+    // 時間下拉選單為 48 筆虛擬捲動清單，先輸入搜尋文字縮小選項範圍再點選，
+    // 避免遠端選項因虛擬捲動未渲染而找不到。
+    const startTimeSelect = screen.getByRole('combobox', { name: '開始時間' });
+    await user.click(startTimeSelect);
+    await user.type(startTimeSelect, '09:00');
+    await user.click(await screen.findByTitle('09:00'));
+
+    const endTimeSelect = screen.getByRole('combobox', { name: '結束時間' });
+    await user.click(endTimeSelect);
+    await user.type(endTimeSelect, '17:00');
+    await user.click(await screen.findByTitle('17:00'));
+
+    // 班次為必填欄位
+    const shiftSelect = screen.getByRole('combobox', { name: '班次' });
+    await user.click(shiftSelect);
+    await user.click(await screen.findByTitle('早班'));
 
     // 人數：設為 2，但不指派任何員工，以確保觸發人數不足違規 (Requirement 7.6)
-    const headcountInput = screen.getByRole('spinbutton', { name: '人數' });
+    const headcountInput = screen.getByRole('spinbutton', { name: '人數需求' });
     await user.clear(headcountInput);
     await user.type(headcountInput, '2');
 
-    // 工作內容：至少選擇一項
-    const contentsSelect = screen.getByRole('combobox', { name: '工作內容' });
-    await user.click(contentsSelect);
-    await user.click(await screen.findByTitle('P'));
-    await user.keyboard('{Escape}');
+    // 內容：至少勾選一項
+    await user.click(screen.getByRole('checkbox', { name: 'P' }));
 
     // 儲存 - 觸發前端預檢 (Requirement 3.7)
-    await user.click(screen.getByRole('button', { name: '建立任務' }));
+    await user.click(screen.getByRole('button', { name: '儲存' }));
 
     // 預檢觸發：ConflictPanel（真實元件）顯示 HEADCOUNT_BELOW_MIN 違規 (Requirement 3.8)
     const violationItem = await screen.findByTestId('violation-item-HEADCOUNT_BELOW_MIN');
@@ -210,8 +222,7 @@ describe('TaskForm integration - 完整任務建立流程', () => {
       contents: ['P'],
       assignees: [],
     });
-  }, // This test exercises the real query hooks (via MSW), the real
-  // ConflictPanel, and multiple Ant Design pickers/selects - allow extra
+  }, // ConflictPanel, and multiple Ant Design pickers/selects - allow extra // This test exercises the real query hooks (via MSW), the real
   // time to avoid flakiness under parallel full-suite runs.
   15000);
 });
