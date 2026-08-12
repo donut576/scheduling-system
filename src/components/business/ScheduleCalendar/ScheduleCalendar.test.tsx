@@ -221,6 +221,10 @@ describe('ScheduleCalendar - 響應式個人/每日檢視模式（< 768px）', (
         },
       ],
     };
+    // Reset the shared mockIsMobile flag before each test in this block;
+    // individual tests below call setMockIsMobile explicitly for the value
+    // they need, but resetting here avoids relying on execution order.
+    setMockIsMobile(false);
     vi.clearAllMocks();
   });
 
@@ -284,6 +288,11 @@ describe('ScheduleCalendar - 響應式個人/每日檢視模式（< 768px）', (
  */
 describe('ScheduleCalendar - Property 19: 行事曆事件方塊資訊完整性', () => {
   beforeEach(() => {
+    // The preceding "響應式個人/每日檢視模式" describe block leaves the shared
+    // module-level `mockIsMobile` flag set to `true` after its last test.
+    // Explicitly reset it here so this describe block always exercises the
+    // desktop rendering path it assumes, regardless of test execution order.
+    setMockIsMobile(false);
     vi.clearAllMocks();
   });
 
@@ -293,10 +302,19 @@ describe('ScheduleCalendar - Property 19: 行事曆事件方塊資訊完整性',
 
   const pad = (n: number): string => n.toString().padStart(2, '0');
 
-  // Non-blank display names (group/branch names are always meaningful text in practice)
+  // Non-blank display names (group/branch names are always meaningful text in
+  // practice, with no leading/trailing whitespace). We generate then trim
+  // rather than merely filtering on `s.trim().length > 0`, because the
+  // rendered DOM text is whitespace-normalized by the browser/testing-library
+  // (`toHaveTextContent` collapses/trims whitespace), while the raw generated
+  // string is not. Names like " !" would pass the old filter but never
+  // exactly equal their own rendered representation, causing false failures
+  // unrelated to the property under test. Filtering out untrimmable strings
+  // (all-whitespace) after generation keeps the property meaningful.
   const arbNonBlankString = fc
     .string({ minLength: 1, maxLength: 12 })
-    .filter((s) => s.trim().length > 0);
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 
   // Arbitrary hour/minute-of-day. Since this event is non-overnight
   // (isOvernight: false), start and end must fall on the same calendar day
@@ -406,9 +424,10 @@ describe('ScheduleCalendar - Property 19: 行事曆事件方塊資訊完整性',
     );
   }, // Each of the 20 property runs mounts/unmounts a full FullCalendar instance
   // and waits (up to 5000ms each) for its async render, which is expensive
-  // under jsdom. The default 5000ms vitest test timeout is far too tight for
-  // this cumulative cost, especially under parallel test-suite load; raise
-  // it here rather than reducing numRuns or weakening the property.
+  // under jsdom, especially under full-suite parallel load. Raise this
+  // test's own timeout above the suite-wide default (see vitest.config.ts)
+  // to give the 20 cumulative runs enough headroom rather than reducing
+  // numRuns or weakening the property.
   60000);
 });
 
