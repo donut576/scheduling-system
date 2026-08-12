@@ -33,6 +33,8 @@
 npm install
 ```
 
+> **注意**：`xlsx`（SheetJS）套件的 npm registry 版本停留在 0.18.5 且含有已知安全漏洞，官方修復版本僅發布於 [SheetJS 官方 CDN](https://cdn.sheetjs.com/)，因此 `package.json` 中 `xlsx` 的版本為 CDN tarball 網址而非一般版本號，這是預期行為。
+
 ### 2. 設定環境變數
 
 專案已提供 `.env.development` 與 `.env.production`，開發時可依需求調整：
