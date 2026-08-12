@@ -1,4 +1,4 @@
-# 藝康排班系統前端 (EcoLab Scheduling System)
+# EcoLab Scheduling System
 
 藝康排班系統為一套以 React SPA 架構開發的前端應用程式，涵蓋客戶任務派工、員工排班、警示預防、通知審批等核心業務流程，支援桌面與行動瀏覽器。
 
