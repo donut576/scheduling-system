@@ -14,6 +14,7 @@ import {
   message,
 } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/BaseTable';
 import BaseModal from '@/components/base/BaseModal';
 import {
@@ -22,7 +23,7 @@ import {
   useNotificationTemplates,
   useUpdateTemplate,
 } from '@/queries/useNotificationQueries';
-import { NOTIFICATION_TYPE_MAP, NOTIFICATION_STATUS_MAP } from '@/constants/notificationTypes';
+import { NOTIFICATION_STATUS_MAP } from '@/constants/notificationTypes';
 import { isManualSendEnabled, isScheduleReminderDay } from '@/utils/notificationSchedule';
 import { formatDateTime } from '@/utils/date';
 import type { Notification, NotificationTemplate } from '@/types/notification';
@@ -30,6 +31,21 @@ import type { PaginatedResponse } from '@/types/common';
 
 const { TextArea } = Input;
 const { Text } = Typography;
+
+const NOTIFICATION_TYPE_KEYS = {
+  SCHEDULE_REMINDER: 'notification.types.scheduleReminder',
+  CUSTOMER_NOTIFY: 'notification.types.customerNotify',
+  EMPLOYEE_DISPATCH: 'notification.types.employeeDispatch',
+  CHANGE_APPROVAL: 'notification.types.changeApproval',
+  APPROVAL_RESULT: 'notification.types.approvalResult',
+} as const;
+
+const NOTIFICATION_STATUS_KEYS = {
+  NOTIFIED: 'notification.status.notified',
+  NOT_NOTIFIED: 'notification.status.notNotified',
+  CHANGED_NOTIFIED: 'notification.status.changedNotified',
+  CHANGED_NOT_NOTIFIED: 'notification.status.changedNotNotified',
+} as const;
 
 /**
  * 通知管理頁面
@@ -46,17 +62,17 @@ const DEFAULT_PARAMS = { page: 1, pageSize: 20 };
  *
  * Validates: Requirements 16.1
  */
-function renderNotificationCard(record: Notification) {
+function renderNotificationCard(record: Notification, t: (key: string) => string) {
   const statusConfig = NOTIFICATION_STATUS_MAP[record.status];
   return (
     <Card size="small" style={{ marginBottom: 8 }} data-testid={`notification-card-${record.id}`}>
       <Space direction="vertical" size={4} style={{ width: '100%' }}>
         <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
           <strong>{record.subject}</strong>
-          <Tag color={statusConfig.color}>{statusConfig.label}</Tag>
+          <Tag color={statusConfig.color}>{t(NOTIFICATION_STATUS_KEYS[record.status])}</Tag>
         </Space>
         <span>
-          {NOTIFICATION_TYPE_MAP[record.type] ?? record.type} ／ 收件者：
+          {t(NOTIFICATION_TYPE_KEYS[record.type])} ／ {t('notification.recipient')}：
           {record.recipientName}
         </span>
         <span>{formatDateTime(record.createdAt, 'YYYY-MM-DD HH:mm')}</span>
@@ -65,7 +81,12 @@ function renderNotificationCard(record: Notification) {
   );
 }
 
+/**
+ * 通知管理頁面主元件
+ * 負責通知列表、範本編輯 Modal 與手動發送邏輯之狀態管理
+ */
 const NotificationPage: FC = () => {
+  const { t } = useTranslation();
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<NotificationTemplate | null>(null);
   const [templateForm] = Form.useForm<Pick<NotificationTemplate, 'subject' | 'content'>>();
@@ -109,8 +130,8 @@ const NotificationPage: FC = () => {
         }),
       ),
     );
-    message.success('通知已發送');
-  }, [notificationData, sendMutation]);
+    message.success(t('notification.sentMessage'));
+  }, [notificationData, sendMutation, t]);
 
   const handleEditTemplate = useCallback(
     (template: NotificationTemplate) => {
@@ -138,56 +159,56 @@ const NotificationPage: FC = () => {
       id: editingTemplate.id,
       data: values,
     });
-    message.success('通知範本已更新');
+    message.success(t('notification.templateUpdated'));
 
     setTemplateModalOpen(false);
     setEditingTemplate(null);
     templateForm.resetFields();
-  }, [editingTemplate, templateForm, updateTemplateMutation]);
+  }, [editingTemplate, templateForm, updateTemplateMutation, t]);
 
   const columns: ColumnDef<Notification>[] = [
     {
-      title: '類型',
+      title: t('notification.type'),
       key: 'type',
       width: 120,
-      render: (_value, record) => NOTIFICATION_TYPE_MAP[record.type] ?? record.type,
-      exportHeader: '類型',
-      exportKey: (record) => NOTIFICATION_TYPE_MAP[record.type] ?? record.type,
+      render: (_value, record) => t(NOTIFICATION_TYPE_KEYS[record.type]),
+      exportHeader: t('notification.type'),
+      exportKey: (record) => t(NOTIFICATION_TYPE_KEYS[record.type]),
     },
     {
-      title: '收件者',
+      title: t('notification.recipient'),
       dataIndex: 'recipientName',
       key: 'recipientName',
       width: 120,
-      exportHeader: '收件者',
+      exportHeader: t('notification.recipient'),
       exportKey: 'recipientName',
     },
     {
-      title: '主旨',
+      title: t('notification.subject'),
       dataIndex: 'subject',
       key: 'subject',
       width: 220,
       ellipsis: true,
-      exportHeader: '主旨',
+      exportHeader: t('notification.subject'),
       exportKey: 'subject',
     },
     {
-      title: '狀態',
+      title: t('notification.statusLabel'),
       key: 'status',
       width: 140,
       render: (_value, record) => {
         const config = NOTIFICATION_STATUS_MAP[record.status];
-        return <Tag color={config.color}>{config.label}</Tag>;
+        return <Tag color={config.color}>{t(NOTIFICATION_STATUS_KEYS[record.status])}</Tag>;
       },
-      exportHeader: '狀態',
-      exportKey: (record) => NOTIFICATION_STATUS_MAP[record.status].label,
+      exportHeader: t('notification.statusLabel'),
+      exportKey: (record) => t(NOTIFICATION_STATUS_KEYS[record.status]),
     },
     {
-      title: '時間',
+      title: t('notification.time'),
       key: 'createdAt',
       width: 160,
       render: (_value, record) => formatDateTime(record.createdAt, 'YYYY-MM-DD HH:mm'),
-      exportHeader: '時間',
+      exportHeader: t('notification.time'),
       exportKey: (record) => formatDateTime(record.createdAt, 'YYYY-MM-DD HH:mm'),
     },
   ];
@@ -198,8 +219,8 @@ const NotificationPage: FC = () => {
         <Alert
           type="warning"
           showIcon
-          message="排班提醒"
-          description="今日為每月 15 日，請各組組長進行下月排班作業。"
+          message={t('notification.scheduleReminder')}
+          description={t('notification.scheduleReminderDescription')}
           style={{ marginBottom: 16 }}
           data-testid="schedule-reminder-banner"
         />
@@ -210,17 +231,13 @@ const NotificationPage: FC = () => {
         items={[
           {
             key: 'list',
-            label: '通知列表',
+            label: t('notification.list'),
             children: (
-              <>
-                <Space
-                  style={{
-                    marginBottom: 16,
-                    width: '100%',
-                    justifyContent: 'flex-end',
-                  }}
-                  wrap
-                >
+              <BaseTable<Notification>
+                columns={columns}
+                queryHook={useNotificationListQuery}
+                exportable
+                toolbarExtra={
                   <Button
                     type="primary"
                     icon={<SendOutlined />}
@@ -229,23 +246,17 @@ const NotificationPage: FC = () => {
                     onClick={handleManualSend}
                     data-testid="manual-send-button"
                   >
-                    手動發送通知
+                    {t('notification.manualSend')}
                   </Button>
-                </Space>
-
-                <BaseTable<Notification>
-                  columns={columns}
-                  queryHook={useNotificationListQuery}
-                  exportable
-                  cardRender={renderNotificationCard}
-                  rowKey="id"
-                />
-              </>
+                }
+                cardRender={(record) => renderNotificationCard(record, t)}
+                rowKey="id"
+              />
             ),
           },
           {
             key: 'templates',
-            label: '通知範本管理',
+            label: t('notification.templates'),
             children: (
               <List
                 dataSource={templates}
@@ -255,14 +266,14 @@ const NotificationPage: FC = () => {
                     key={template.id}
                     actions={[
                       <Button key="edit" type="link" onClick={() => handleEditTemplate(template)}>
-                        編輯
+                        {t('common.edit')}
                       </Button>,
                     ]}
                   >
                     <List.Item.Meta
                       title={
                         <Space>
-                          <Tag>{NOTIFICATION_TYPE_MAP[template.type] ?? template.type}</Tag>
+                          <Tag>{t(NOTIFICATION_TYPE_KEYS[template.type])}</Tag>
                           <Text strong>{template.name}</Text>
                         </Space>
                       }
@@ -277,7 +288,7 @@ const NotificationPage: FC = () => {
       />
 
       <BaseModal
-        title="編輯通知範本"
+        title={t('notification.editTemplate')}
         open={templateModalOpen}
         onOk={handleTemplateModalOk}
         onCancel={handleTemplateModalCancel}
@@ -286,17 +297,17 @@ const NotificationPage: FC = () => {
         <Form form={templateForm} layout="vertical">
           <Form.Item
             name="subject"
-            label="主旨"
-            rules={[{ required: true, message: '請輸入主旨' }]}
+            label={t('notification.subject')}
+            rules={[{ required: true, message: t('notification.subjectRequired') }]}
           >
-            <Input placeholder="請輸入通知主旨" />
+            <Input placeholder={t('notification.subjectPlaceholder')} />
           </Form.Item>
           <Form.Item
             name="content"
-            label="內容"
-            rules={[{ required: true, message: '請輸入內容' }]}
+            label={t('notification.content')}
+            rules={[{ required: true, message: t('notification.contentRequired') }]}
           >
-            <TextArea rows={6} placeholder="請輸入通知內容" />
+            <TextArea rows={6} placeholder={t('notification.contentPlaceholder')} />
           </Form.Item>
         </Form>
       </BaseModal>

@@ -1,3 +1,9 @@
+/**
+ * 測試對象：src/utils/colorContrast.ts
+ * 涵蓋 hex 轉 RGB、線性化、相對亮度、對比度比值計算及 WCAG AA 合規檢查，
+ * 包含一般案例測試與 property-based tests（fast-check）驗證數學性質
+ * （對稱性、範圍界限等）與設計 Token 實際色彩組合之合規性。
+ */
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import {

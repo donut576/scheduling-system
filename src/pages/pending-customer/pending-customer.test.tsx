@@ -1,3 +1,6 @@
+// 待定時間客戶管理頁面 (PendingCustomerPage) 單元測試
+// 測試對象：src/pages/pending-customer/index.tsx，涵蓋列表呈現、新增/編輯、
+// 轉換為正式任務流程與 Excel 匯出
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';

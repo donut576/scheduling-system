@@ -1,3 +1,4 @@
+// 測試對象：BaseSearchForm（通用搜尋表單元件）
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import BaseSearchForm, { type SearchFieldConfig } from './index';

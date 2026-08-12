@@ -2,12 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FC } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Select, Space, Typography } from 'antd';
+import { useTranslation } from 'react-i18next';
 import MapView from '@/components/business/MapView';
 import { useCustomerList, useCustomerGroups } from '@/queries/useCustomerQueries';
+import { useEmployeeList } from '@/queries/useEmployeeQueries';
+import { useTaskList } from '@/queries/useTaskQueries';
 import { filterCustomersByLocation } from '@/utils/mapFilter';
+import { getGroupColor } from '@/utils/groupColor';
 import type { Customer } from '@/types/customer';
 
 const { Text } = Typography;
+const ECOLAB_BLUE = '#0067a0';
 
 interface MapNavigationState {
   groupId?: string;
@@ -28,7 +33,12 @@ interface MapNavigationState {
  *
  * Validates: Requirements 15.3, 15.4
  */
+/**
+ * 地圖檢視頁面主元件
+ * 負責集團/分店篩選狀態、導覽帶入定位與標記顏色計算
+ */
 const MapPage: FC = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const navState = (location.state as MapNavigationState | null) ?? null;
 
@@ -37,7 +47,11 @@ const MapPage: FC = () => {
 
   const { data: customerGroups = [] } = useCustomerGroups();
   const { data: customerData } = useCustomerList({ page: 1, pageSize: 1000 });
+  const { data: taskData } = useTaskList({ page: 1, pageSize: 1000 });
+  const { data: employeeData } = useEmployeeList({ page: 1, pageSize: 1000 });
   const customers = useMemo(() => customerData?.list ?? [], [customerData]);
+  const tasks = useMemo(() => taskData?.list ?? [], [taskData]);
+  const employees = useMemo(() => employeeData?.list ?? [], [employeeData]);
 
   // 從導覽帶入之 state 初始化篩選條件（例如自排班總覽/任務列表/任務建立點擊地圖按鈕）
   useEffect(() => {
@@ -61,6 +75,7 @@ const MapPage: FC = () => {
     return (group?.branches ?? []).map((b) => ({ label: b.name, value: b.id }));
   }, [groupId, customerGroups]);
 
+  // 切換集團篩選時，重置分店篩選（避免殘留不屬於新集團的分店選項）
   const handleGroupChange = (value: string | undefined) => {
     setGroupId(value);
     setBranchId(undefined);
@@ -71,6 +86,25 @@ const MapPage: FC = () => {
     () => filterCustomersByLocation(customers, { groupId, branchId }),
     [customers, groupId, branchId],
   );
+
+  const markerColorByCustomerId = useMemo(() => {
+    const employeeColorById = new Map(
+      employees.map((employee) => [
+        employee.id,
+        employee.groupColor || getGroupColor(employee.groupId),
+      ]),
+    );
+
+    return Object.fromEntries(
+      filteredCustomers.map((customer) => {
+        const task = tasks.find(
+          (item) => item.branchId === customer.branchId && item.assignees.length > 0,
+        );
+        const assigneeId = task?.assignees[0]?.employeeId;
+        return [customer.id, (assigneeId && employeeColorById.get(assigneeId)) || ECOLAB_BLUE];
+      }),
+    );
+  }, [employees, filteredCustomers, tasks]);
 
   // 若帶有 branchId，定位至該分店；否則使用預設中心
   const center = useMemo(() => {
@@ -86,10 +120,10 @@ const MapPage: FC = () => {
   return (
     <div className="map-page" data-testid="map-page" style={{ height: '100%' }}>
       <Space wrap style={{ marginBottom: 16 }} data-testid="map-filter-panel">
-        <Text strong>篩選：</Text>
+        <Text strong>{t('map.filter')}：</Text>
         <Select
-          aria-label="集團篩選"
-          placeholder="集團"
+          aria-label={t('schedule.groupFilter')}
+          placeholder={t('task.group')}
           allowClear
           style={{ minWidth: 160 }}
           options={groupOptions}
@@ -97,8 +131,8 @@ const MapPage: FC = () => {
           onChange={handleGroupChange}
         />
         <Select
-          aria-label="分店篩選"
-          placeholder="分店"
+          aria-label={t('schedule.branchFilter')}
+          placeholder={t('task.branch')}
           allowClear
           style={{ minWidth: 160 }}
           options={branchOptions}
@@ -109,7 +143,11 @@ const MapPage: FC = () => {
       </Space>
 
       <div style={{ height: 'calc(100vh - 220px)' }}>
-        <MapView customers={filteredCustomers} center={center} />
+        <MapView
+          customers={filteredCustomers}
+          center={center}
+          markerColorByCustomerId={markerColorByCustomerId}
+        />
       </div>
     </div>
   );

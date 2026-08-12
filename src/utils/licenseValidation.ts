@@ -1,3 +1,9 @@
+/**
+ * 證照衝突驗證工具模組。
+ *
+ * 依據 constants/licenseTypes.ts 定義之衝突規則，檢查員工選擇的
+ * 證照組合是否存在互斥（衝突）情況。
+ */
 import type { LicenseType } from '@/types/alert';
 import { LICENSE_CONFLICT_RULES } from '@/constants/licenseTypes';
 

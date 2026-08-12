@@ -1,3 +1,8 @@
+/**
+ * 測試對象：src/utils/employeeFilter.ts
+ * 涵蓋員工多條件篩選函式 filterEmployees，包含 property-based tests
+ * （fast-check）驗證群組、證照、休假等多重篩選條件之 AND 邏輯正確性。
+ */
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import { filterEmployees, type EmployeeFilterCriteria } from './employeeFilter';

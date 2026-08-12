@@ -1,3 +1,4 @@
+// 測試對象：BaseTable（通用資料表格元件，含桌面表格與行動卡片檢視兩種模式）
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import BaseTable, { type QueryResult, type ColumnDef } from './index';

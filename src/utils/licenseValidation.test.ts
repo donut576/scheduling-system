@@ -1,3 +1,9 @@
+/**
+ * 測試對象：src/utils/licenseValidation.ts
+ * 涵蓋 hasLicenseConflict 證照衝突檢查函式，包含 property-based tests
+ * （fast-check）驗證與 LICENSE_CONFLICT_RULES 規則計算結果一致，
+ * 以及 NONE 與其他證照類型混選之衝突判斷邊界情境。
+ */
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import type { LicenseType } from '@/types/alert';

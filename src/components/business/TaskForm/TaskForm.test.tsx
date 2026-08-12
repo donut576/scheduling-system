@@ -1,15 +1,14 @@
+/**
+ * 測試對象：TaskForm 元件（單元測試）
+ * 使用 mock 的 ConflictPanel、EmployeeSelect、RecurrenceEditor 及查詢 hooks，
+ * 驗證表單欄位渲染、集團→分店連動、必填驗證等表單層行為。
+ */
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import TaskForm from './index';
 import type { Task } from '@/types/task';
-
-// Mock react-router-dom's useNavigate (used by the 地圖 button, Requirement 15.4)
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', () => ({
-  useNavigate: () => mockNavigate,
-}));
 
 // Mock matchMedia for Ant Design
 beforeAll(() => {
@@ -283,7 +282,7 @@ describe('TaskForm', () => {
     expect(screen.queryByTestId('recurrence-editor')).not.toBeInTheDocument();
 
     // Toggle on
-    const toggle = screen.getByRole('checkbox', { name: '週期' });
+    const toggle = screen.getByRole('checkbox', { name: '啟用週期' });
     await user.click(toggle);
 
     await waitFor(() => {
@@ -297,7 +296,7 @@ describe('TaskForm', () => {
 
     // Enable recurrence (local component state, independent of AntD Form internals)
     // so we can reliably observe it being reset back to off.
-    await user.click(screen.getByRole('checkbox', { name: '週期' }));
+    await user.click(screen.getByRole('checkbox', { name: '啟用週期' }));
     await waitFor(() => {
       expect(screen.getByTestId('recurrence-editor')).toBeInTheDocument();
     });
@@ -307,7 +306,7 @@ describe('TaskForm', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('recurrence-editor')).not.toBeInTheDocument();
     });
-    expect(screen.getByRole('checkbox', { name: '週期' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: '啟用週期' })).not.toBeChecked();
   });
 
   it('shows the free-text note field only when 其他 is checked in 內容', async () => {
@@ -327,27 +326,9 @@ describe('TaskForm', () => {
     expect(screen.getByTestId('task-form')).toBeInTheDocument();
   });
 
-  it('disables the map button until a group is selected', () => {
+  it('does not render the map button in the task form', () => {
     renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
 
-    expect(screen.getByRole('button', { name: '地圖檢視' })).toBeDisabled();
-  });
-
-  it('navigates to /map with selected group/branch when map button is clicked', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
-
-    const groupSelect = screen.getByRole('combobox', { name: '集團' });
-    await user.click(groupSelect);
-    await user.click(await screen.findByTitle('集團A'));
-
-    const mapButton = screen.getByRole('button', { name: '地圖檢視' });
-    expect(mapButton).not.toBeDisabled();
-
-    await user.click(mapButton);
-
-    expect(mockNavigate).toHaveBeenCalledWith('/map', {
-      state: { groupId: 'group-1', branchId: undefined },
-    });
+    expect(screen.queryByRole('button', { name: '地圖檢視' })).not.toBeInTheDocument();
   });
 });

@@ -1,3 +1,7 @@
+// 測試對象：RouteGuard 路由守衛元件
+// 涵蓋未登入導向 /login、角色不符與權限不足導向 /403、
+// 以及條件皆滿足時正常渲染子內容等情境，並包含基於 property-based
+// testing 的未授權路由阻擋驗證（Property 4）
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';

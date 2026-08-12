@@ -1,3 +1,9 @@
+/**
+ * 錯誤代碼與錯誤訊息對照表
+ *
+ * 定義系統各類錯誤（登入、權限、驗證、業務邏輯、伺服器）之數值代碼，
+ * 並提供代碼對應之中文錯誤訊息，供 API 錯誤處理統一顯示使用。
+ */
 export const ERROR_CODES = {
   // Auth errors
   INVALID_CREDENTIALS: 40001,
@@ -23,6 +29,7 @@ export const ERROR_CODES = {
   INTERNAL_ERROR: 50001,
 } as const;
 
+/** 錯誤代碼對應之中文錯誤訊息 */
 export const ERROR_MESSAGES: Record<number, string> = {
   [ERROR_CODES.INVALID_CREDENTIALS]: '帳號或密碼錯誤',
   [ERROR_CODES.TOKEN_EXPIRED]: '登入已過期，請重新登入',

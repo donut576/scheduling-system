@@ -1,3 +1,7 @@
+/**
+ * 測試對象：RecurrenceModifyScopeDialog 元件
+ * 驗證對話框開啟時之標題與選項渲染、預設選取值、確認/取消按鈕之回呼行為。
+ */
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeAll } from 'vitest';

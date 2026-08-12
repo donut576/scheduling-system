@@ -1,3 +1,10 @@
+/**
+ * 應用程式路由設定
+ *
+ * 定義整個應用程式的路由樹，包含公開路由（登入、403）與需登入保護的
+ * 業務模組路由（統一巢狀於 MainLayout 之下），並使用 lazy loading 搭配
+ * Suspense/PageErrorBoundary 包裝每個頁面元件。
+ */
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
@@ -13,6 +20,7 @@ import { notificationRoutes } from '@/routes/modules/notification';
 import { approvalRoutes } from '@/routes/modules/approval';
 import { pendingCustomerRoutes } from '@/routes/modules/pending-customer';
 import { mapRoutes } from '@/routes/modules/map';
+import i18n from '@/i18n';
 
 // Lazy loaded pages
 const LoginPage = lazy(() => import('@/pages/login/index'));
@@ -27,7 +35,9 @@ const ForbiddenPage = lazy(() => import('@/pages/403'));
  */
 const LazyLoad = ({ children }: { children: React.ReactNode }) => (
   <PageErrorBoundary>
-    <Suspense fallback={<div style={{ padding: 24, textAlign: 'center' }}>載入中...</div>}>
+    <Suspense
+      fallback={<div style={{ padding: 24, textAlign: 'center' }}>{i18n.t('common.loading')}</div>}
+    >
       {children}
     </Suspense>
   </PageErrorBoundary>
@@ -152,6 +162,7 @@ const routes: RouteObject[] = [
   },
 ];
 
+// 使用 React Router 的 createBrowserRouter 建立最終的路由器實例
 export const router = createBrowserRouter(routes);
 
 export default router;

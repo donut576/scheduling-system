@@ -1,3 +1,8 @@
+/**
+ * 測試對象：src/utils/debounce.ts
+ * 涵蓋通用防抖動函式 debounce，包含 property-based tests（fast-check）
+ * 驗證快速連續呼叫時，僅在最後一次呼叫後延遲觸發一次，且中間呼叫不應執行。
+ */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fc from 'fast-check';
 import { debounce } from './debounce';

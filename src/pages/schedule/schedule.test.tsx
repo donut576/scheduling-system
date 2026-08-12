@@ -1,4 +1,8 @@
+// 排班總覽頁面 (SchedulePage) 單元測試
+// 測試對象：src/pages/schedule/index.tsx，涵蓋檢視切換（日/週/月）、工具列篩選、
+// 事件點擊開啟詳情小框與拖拉放大至日檢視
 import { render, screen, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -54,11 +58,25 @@ vi.mock('@/components/business/ScheduleCalendar', () => ({
   default: (props: Record<string, unknown>) => {
     lastScheduleCalendarProps = props;
     const onEventClick = props.onEventClick as (event: ScheduleEvent) => void;
+    const onZoomToDay = props.onZoomToDay as ((dateTime: string) => void) | undefined;
+    const renderEventDetail = props.renderEventDetail as
+      ((event: ScheduleEvent) => ReactNode) | undefined;
+    const onEventDetailClose = props.onEventDetailClose as (() => void) | undefined;
+    const openEventId = props.openEventId as string | undefined;
     return (
       <div data-testid="mock-schedule-calendar">
         <button type="button" onClick={() => onEventClick(sampleEvent)}>
           觸發事件點擊
         </button>
+        <button type="button" onClick={() => onZoomToDay?.('2025-03-12T13:30:00')}>
+          觸發拖拉放大
+        </button>
+        {openEventId === sampleEvent.id && renderEventDetail?.(sampleEvent)}
+        {openEventId === sampleEvent.id && (
+          <button type="button" onClick={onEventDetailClose}>
+            關閉小框
+          </button>
+        )}
       </div>
     );
   },
@@ -215,76 +233,67 @@ describe('SchedulePage', () => {
         expect(useScheduleStore.getState().currentView).toBe('day');
       });
     });
+
+    it('zooms to day view when the calendar table is dragged', async () => {
+      renderPage();
+
+      const user = userEvent.setup();
+      await user.click(screen.getByText('觸發拖拉放大'));
+
+      await waitFor(() => {
+        expect(useScheduleStore.getState().currentView).toBe('day');
+        expect(useScheduleStore.getState().dateRange).toEqual({
+          start: '2025-03-12',
+          end: '2025-03-12',
+        });
+      });
+
+      expect(lastScheduleCalendarProps?.scrollTime).toBe('13:30');
+    });
   });
 
   describe('工具列篩選 (Toolbar Filters) - Requirement 8.2', () => {
-    it('renders group, branch, employee and area filter selects', () => {
+    it('renders customer branch, employee and area filter selects', () => {
       renderPage();
-      expect(screen.getByRole('combobox', { name: '集團篩選' })).toBeInTheDocument();
-      expect(screen.getByRole('combobox', { name: '分店篩選' })).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: '搜尋集團 / 分店' })).toBeInTheDocument();
       expect(screen.getByRole('combobox', { name: '員工篩選' })).toBeInTheDocument();
       expect(screen.getByRole('combobox', { name: '區域篩選' })).toBeInTheDocument();
     });
 
-    it('disables branch filter when no group is selected', () => {
-      renderPage();
-      const branchSelect = screen.getByRole('combobox', { name: '分店篩選' });
-      expect(branchSelect).toBeDisabled();
-    });
-
-    it('enables branch filter after a group is selected', async () => {
+    it('passes selected customer branch filter through to ScheduleCalendar filters prop', async () => {
       renderPage();
 
       const user = userEvent.setup();
-      const groupSelect = screen.getByRole('combobox', { name: '集團篩選' });
-      await user.click(groupSelect);
-      await user.click(await screen.findByTitle('集團A'));
-
-      await waitFor(() => {
-        const branchSelect = screen.getByRole('combobox', { name: '分店篩選' });
-        expect(branchSelect).not.toHaveAttribute('aria-disabled', 'true');
-      });
-    });
-
-    it('passes selected group filter through to ScheduleCalendar filters prop', async () => {
-      renderPage();
-
-      const user = userEvent.setup();
-      const groupSelect = screen.getByRole('combobox', { name: '集團篩選' });
-      await user.click(groupSelect);
-      await user.click(await screen.findByTitle('集團A'));
+      const customerBranchSelect = screen.getByRole('combobox', { name: '搜尋集團 / 分店' });
+      await user.click(customerBranchSelect);
+      await user.click(await screen.findByTitle('集團A 分店A'));
 
       await waitFor(() => {
         expect((lastScheduleCalendarProps?.filters as { groupId?: string })?.groupId).toBe('g1');
+        expect((lastScheduleCalendarProps?.filters as { branchId?: string })?.branchId).toBe('b1');
       });
     });
 
-    it('resets branch filter when group selection changes', async () => {
+    it('clears group and branch filters when customer branch filter is cleared', async () => {
       renderPage();
 
       const user = userEvent.setup();
-      const groupSelect = screen.getByRole('combobox', { name: '集團篩選' });
-      await user.click(groupSelect);
-      await user.click(await screen.findByTitle('集團A'));
-
-      await waitFor(() => {
-        const branchSelect = screen.getByRole('combobox', { name: '分店篩選' });
-        expect(branchSelect).not.toHaveAttribute('aria-disabled', 'true');
-      });
-
-      const branchSelect = screen.getByRole('combobox', { name: '分店篩選' });
-      await user.click(branchSelect);
-      await user.click(await screen.findByTitle('分店A'));
+      const customerBranchSelect = screen.getByRole('combobox', { name: '搜尋集團 / 分店' });
+      await user.click(customerBranchSelect);
+      await user.click(await screen.findByTitle('集團A 分店A'));
 
       await waitFor(() => {
         expect((lastScheduleCalendarProps?.filters as { branchId?: string })?.branchId).toBe('b1');
       });
 
-      // Changing group again should reset branch filter and disable branch select
-      await user.click(groupSelect);
-      await user.click(await screen.findByTitle('集團B'));
+      const clearButton = document.querySelector('.ant-select-clear');
+      expect(clearButton).toBeInTheDocument();
+      await user.click(clearButton!);
 
       await waitFor(() => {
+        expect(
+          (lastScheduleCalendarProps?.filters as { groupId?: string })?.groupId,
+        ).toBeUndefined();
         expect(
           (lastScheduleCalendarProps?.filters as { branchId?: string })?.branchId,
         ).toBeUndefined();
@@ -320,28 +329,28 @@ describe('SchedulePage', () => {
     });
   });
 
-  describe('事件點擊開啟詳情面板 (Event Click Opens Detail Panel) - Requirement 9.1', () => {
-    it('does not show the detail drawer initially', () => {
+  describe('事件點擊開啟詳情小框 (Event Click Opens Detail Popover) - Requirement 9.1', () => {
+    it('does not show the detail popover initially', () => {
       renderPage();
       expect(screen.queryByText('任務詳情')).not.toBeInTheDocument();
+      expect(screen.queryByText('集團: 集團A')).not.toBeInTheDocument();
     });
 
-    it('opens the detail drawer showing task info when an event block is clicked', async () => {
+    it('opens the detail popover showing task info when an event block is clicked', async () => {
       renderPage();
 
       const user = userEvent.setup();
       await user.click(screen.getByText('觸發事件點擊'));
 
       await waitFor(() => {
-        expect(screen.getByText('任務詳情')).toBeInTheDocument();
+        expect(screen.getByText('集團: 集團A')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('集團A')).toBeInTheDocument();
-      expect(screen.getByText('分店A')).toBeInTheDocument();
-      expect(screen.getByText('員工A')).toBeInTheDocument();
+      expect(screen.getByText('分店: 分店A')).toBeInTheDocument();
+      expect(screen.getByText('指派人員: 員工A')).toBeInTheDocument();
     });
 
-    it('shows edit and cancel buttons in the detail drawer footer', async () => {
+    it('shows edit and cancel buttons in the detail popover', async () => {
       renderPage();
 
       const user = userEvent.setup();
@@ -353,21 +362,20 @@ describe('SchedulePage', () => {
       expect(screen.getByLabelText('取消任務')).toBeInTheDocument();
     });
 
-    it('closes the detail drawer when close is triggered', async () => {
+    it('closes the detail popover when close is triggered', async () => {
       renderPage();
 
       const user = userEvent.setup();
       await user.click(screen.getByText('觸發事件點擊'));
 
       await waitFor(() => {
-        expect(screen.getByText('任務詳情')).toBeInTheDocument();
+        expect(screen.getByText('集團: 集團A')).toBeInTheDocument();
       });
 
-      const closeButton = screen.getByLabelText('Close');
-      await user.click(closeButton);
+      await user.click(screen.getByText('關閉小框'));
 
       await waitFor(() => {
-        expect(screen.queryByText('任務詳情')).not.toBeInTheDocument();
+        expect(screen.queryByText('集團: 集團A')).not.toBeInTheDocument();
       });
     });
   });

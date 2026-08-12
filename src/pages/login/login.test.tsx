@@ -1,3 +1,6 @@
+// 登入頁面 (LoginPage) 單元測試
+// 測試對象：src/pages/login/index.tsx，涵蓋表單渲染、驗證碼觸發條件、
+// 登入失敗計數與登入成功後的 token/使用者資料儲存
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';

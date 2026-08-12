@@ -1,3 +1,9 @@
+/**
+ * 測試對象：src/utils/excel.ts
+ * 涵蓋 exportToExcel 匯出功能，透過 mock XLSX.writeFile 攔截產生之工作簿，
+ * 並使用 property-based tests（fast-check）驗證匯出資料筆數、表頭、
+ * 各儲存格數值轉換（含函式型欄位對應）與來源資料完全一致。
+ */
 import { describe, it, expect, vi } from 'vitest';
 import * as fc from 'fast-check';
 import * as XLSX from 'xlsx';

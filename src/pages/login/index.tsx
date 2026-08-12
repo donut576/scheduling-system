@@ -3,6 +3,7 @@ import type { FC } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Checkbox, Card, Typography, Space, message } from 'antd';
 import { UserOutlined, LockOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { useUserStore } from '@/stores/useUserStore';
 import { usePermissionStore } from '@/stores/usePermissionStore';
 import { authApi } from '@/api/auth';
@@ -17,8 +18,14 @@ interface LoginFormValues {
   rememberMe?: boolean;
 }
 
+/**
+ * 登入頁面
+ * 提供帳號密碼登入表單，連續登入失敗達 3 次後顯示驗證碼欄位，
+ * 登入成功後儲存 token/使用者資料並建立權限，最後導向 Dashboard。
+ */
 const LoginPage: FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [form] = Form.useForm<LoginFormValues>();
   const [loading, setLoading] = useState(false);
   const [captchaUrl, setCaptchaUrl] = useState<string>('');
@@ -26,8 +33,10 @@ const LoginPage: FC = () => {
   const { loginFailCount, setToken, setUser, incrementLoginFail, resetLoginFail } = useUserStore();
   const { buildPermissions } = usePermissionStore();
 
+  // 連續登入失敗達 3 次以上才顯示驗證碼欄位
   const showCaptcha = loginFailCount >= 3;
 
+  // 產生帶有防快取時間戳的驗證碼圖片網址，用於初次顯示或使用者點擊/按 Enter 刷新驗證碼
   const refreshCaptcha = useCallback(() => {
     // Generate a new captcha URL with a cache-busting timestamp
     const baseUrl = (import.meta.env.VITE_API_BASE_URL || '') + '/api/v1/auth/captcha';
@@ -41,6 +50,8 @@ const LoginPage: FC = () => {
     }
   });
 
+  // 表單送出：呼叫登入 API，成功則儲存 token/使用者資料並導向 Dashboard，
+  // 失敗則遞增失敗次數並視需要刷新驗證碼
   const handleSubmit = async (values: LoginFormValues) => {
     setLoading(true);
     try {
@@ -67,7 +78,7 @@ const LoginPage: FC = () => {
       // Step 5: Reset login fail count
       resetLoginFail();
 
-      message.success('登入成功');
+      message.success(t('auth.loginSuccess'));
 
       // Step 6: Navigate to dashboard
       navigate('/dashboard', { replace: true });
@@ -79,7 +90,7 @@ const LoginPage: FC = () => {
         refreshCaptcha();
       }
 
-      message.error('帳號或密碼錯誤，請重新嘗試');
+      message.error(t('auth.invalidCredentials'));
     } finally {
       setLoading(false);
     }
@@ -92,7 +103,7 @@ const LoginPage: FC = () => {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #005EB8 0%, #0072CE 48%, #EAF7EF 100%)',
         padding: 16,
       }}
     >
@@ -116,7 +127,7 @@ const LoginPage: FC = () => {
               height: 64,
               margin: '0 auto',
               borderRadius: '50%',
-              background: '#1677ff',
+              background: '#005EB8',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -125,9 +136,9 @@ const LoginPage: FC = () => {
             <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }}>E</Text>
           </div>
           <Title level={3} style={{ margin: 0 }}>
-            藝康排班系統
+            {t('app.title')}
           </Title>
-          <Text type="secondary">EcoLab Scheduling System</Text>
+          <Text type="secondary">{t('app.subtitle')}</Text>
         </Space>
 
         <Form<LoginFormValues>
@@ -141,40 +152,44 @@ const LoginPage: FC = () => {
         >
           <Form.Item
             name="account"
-            label="帳號 / 員工編號"
-            rules={[{ required: true, message: '請輸入帳號或員工編號' }]}
+            label={t('auth.account')}
+            rules={[{ required: true, message: t('auth.accountRequired') }]}
           >
             <Input
               prefix={<UserOutlined />}
-              placeholder="請輸入帳號或員工編號"
-              aria-label="帳號或員工編號"
+              placeholder={t('auth.accountPlaceholder')}
+              aria-label={t('auth.accountAriaLabel')}
             />
           </Form.Item>
 
           <Form.Item
             name="password"
-            label="密碼"
-            rules={[{ required: true, message: '請輸入密碼' }]}
+            label={t('auth.password')}
+            rules={[{ required: true, message: t('auth.passwordRequired') }]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="請輸入密碼" aria-label="密碼" />
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder={t('auth.passwordPlaceholder')}
+              aria-label={t('auth.password')}
+            />
           </Form.Item>
 
           {showCaptcha && (
             <Form.Item
               name="captcha"
-              label="驗證碼"
-              rules={[{ required: true, message: '請輸入驗證碼' }]}
+              label={t('auth.captcha')}
+              rules={[{ required: true, message: t('auth.captchaRequired') }]}
             >
               <Space.Compact style={{ width: '100%' }}>
                 <Input
                   prefix={<SafetyCertificateOutlined />}
-                  placeholder="請輸入驗證碼"
-                  aria-label="驗證碼"
+                  placeholder={t('auth.captchaPlaceholder')}
+                  aria-label={t('auth.captcha')}
                   style={{ flex: 1 }}
                 />
                 <img
                   src={captchaUrl}
-                  alt="驗證碼圖片，點擊或按 Enter 鍵刷新"
+                  alt={t('auth.captchaImageAlt')}
                   onClick={refreshCaptcha}
                   role="button"
                   tabIndex={0}
@@ -191,26 +206,32 @@ const LoginPage: FC = () => {
                     borderRadius: '0 6px 6px 0',
                     marginLeft: -1,
                   }}
-                  title="點擊刷新驗證碼"
+                  title={t('auth.refreshCaptcha')}
                 />
               </Space.Compact>
             </Form.Item>
           )}
 
           <Form.Item name="rememberMe" valuePropName="checked">
-            <Checkbox>記住我</Checkbox>
+            <Checkbox>{t('auth.rememberMe')}</Checkbox>
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} block aria-label="登入">
-              登入
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading}
+              block
+              aria-label={t('auth.login')}
+            >
+              {t('auth.login')}
             </Button>
           </Form.Item>
         </Form>
 
         {showCaptcha && (
           <Text type="warning" style={{ display: 'block', textAlign: 'center' }}>
-            連續登入失敗 {loginFailCount} 次，請輸入驗證碼
+            {t('auth.captchaNotice', { count: loginFailCount })}
           </Text>
         )}
       </Card>

@@ -1,3 +1,8 @@
+/**
+ * 測試對象：AlertBadge 元件
+ * 驗證各狀態（normal/warning/overridden/recurring）之顯示文字、色彩、
+ * 自訂與預設 tooltip 內容，以及無障礙 aria-label 屬性是否正確。
+ */
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect } from 'vitest';

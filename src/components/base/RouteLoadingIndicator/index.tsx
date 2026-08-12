@@ -17,6 +17,8 @@ NProgress.configure({ showSpinner: false });
  * Validates: Requirements 17.3（路由切換時，僅顯示全域載入指示器）
  */
 function RouteLoadingIndicator() {
+  // navigation.state 可能為 'idle'、'loading' 或 'submitting'，
+  // 只要不是 'idle' 就代表正在進行路由切換或表單提交，需顯示進度條
   const navigation = useNavigation();
 
   useEffect(() => {

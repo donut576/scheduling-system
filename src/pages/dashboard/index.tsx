@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { FC } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Row, Col, Card, Statistic, List, Button, Space, Tag, Typography, Empty } from 'antd';
 import {
   CalendarOutlined,
@@ -44,8 +45,13 @@ const { Text, Title } = Typography;
  *
  * Validates: Requirements 2.1
  */
+/**
+ * Dashboard 首頁主元件
+ * 彙整今日排班、待審核項目、近期警示三張概要卡片與快捷入口按鈕
+ */
 const DashboardPage: FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const today = getToday();
   const recentStart = dayjs(today).subtract(7, 'day').format('YYYY-MM-DD');
 
@@ -90,7 +96,7 @@ const DashboardPage: FC = () => {
   return (
     <div className="dashboard-page" data-testid="dashboard-page">
       <Title level={4} style={{ marginBottom: 16 }}>
-        儀表板
+        {t('menu.dashboard')}
       </Title>
 
       <Row gutter={[16, 16]}>
@@ -100,22 +106,28 @@ const DashboardPage: FC = () => {
             title={
               <Space>
                 <CalendarOutlined />
-                今日排班概要
+                {t('dashboard.todaySchedule')}
               </Space>
             }
             loading={scheduleLoading}
             data-testid="today-schedule-card"
             extra={
               <Button type="link" onClick={() => navigate('/schedule')}>
-                查看排班總覽
+                {t('dashboard.viewSchedule')}
               </Button>
             }
           >
-            <Statistic title="今日任務數" value={todaySummary.total} />
+            <Statistic title={t('dashboard.todayTaskCount')} value={todaySummary.total} />
             <Space style={{ marginTop: 12 }} wrap>
-              <Tag color="success">正常 {todaySummary.clean}</Tag>
-              <Tag color="error">警示 {todaySummary.violated}</Tag>
-              <Tag color="warning">已覆蓋 {todaySummary.overridden}</Tag>
+              <Tag color="success">
+                {t('dashboard.clean')} {todaySummary.clean}
+              </Tag>
+              <Tag color="error">
+                {t('dashboard.warning')} {todaySummary.violated}
+              </Tag>
+              <Tag color="warning">
+                {t('dashboard.overridden')} {todaySummary.overridden}
+              </Tag>
             </Space>
           </Card>
         </Col>
@@ -126,20 +138,23 @@ const DashboardPage: FC = () => {
             title={
               <Space>
                 <AuditOutlined />
-                待審核項目
+                {t('dashboard.pendingApprovals')}
               </Space>
             }
             loading={approvalLoading}
             data-testid="pending-approval-card"
             extra={
-              <Button type="link" onClick={() => navigate('/approval')}>
-                前往審批
+              <Button type="link" onClick={() => navigate('/task?tab=approval')}>
+                {t('dashboard.goApproval')}
               </Button>
             }
           >
-            <Statistic title="待審核件數" value={approvalData?.total ?? 0} />
+            <Statistic
+              title={t('dashboard.pendingApprovalCount')}
+              value={approvalData?.total ?? 0}
+            />
             {pendingApprovals.length === 0 ? (
-              <Empty description="目前無待審核項目" style={{ marginTop: 12 }} />
+              <Empty description={t('dashboard.noPendingApprovals')} style={{ marginTop: 12 }} />
             ) : (
               <List
                 style={{ marginTop: 12 }}
@@ -164,19 +179,19 @@ const DashboardPage: FC = () => {
             title={
               <Space>
                 <AlertOutlined />
-                近期警示
+                {t('dashboard.recentAlerts')}
               </Space>
             }
             loading={taskLoading}
             data-testid="recent-alerts-card"
             extra={
               <Button type="link" onClick={() => navigate('/task')}>
-                查看任務列表
+                {t('dashboard.viewTasks')}
               </Button>
             }
           >
             {recentAlerts.length === 0 ? (
-              <Empty description="近期無警示項目" />
+              <Empty description={t('dashboard.noRecentAlerts')} />
             ) : (
               <List
                 size="small"
@@ -200,16 +215,20 @@ const DashboardPage: FC = () => {
       </Row>
 
       {/* 快捷入口 */}
-      <Card title="快捷入口" style={{ marginTop: 16 }} data-testid="quick-entry-card">
+      <Card
+        title={t('dashboard.quickEntry')}
+        style={{ marginTop: 16 }}
+        data-testid="quick-entry-card"
+      >
         <Space wrap size="middle">
           <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/task')}>
-            任務建立
+            {t('task.create')}
           </Button>
           <Button icon={<ScheduleOutlined />} onClick={() => navigate('/schedule')}>
-            排班總覽
+            {t('menu.schedule')}
           </Button>
           <Button icon={<BellOutlined />} onClick={() => navigate('/notification')}>
-            通知中心
+            {t('notification.center')}
           </Button>
         </Space>
       </Card>

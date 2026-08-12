@@ -2,6 +2,7 @@ import React from 'react';
 import { FloatButton } from 'antd';
 import { EnvironmentOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { usePermissionStore } from '@/stores/usePermissionStore';
 
 /**
@@ -11,10 +12,13 @@ import { usePermissionStore } from '@/stores/usePermissionStore';
  * 任何頁面皆可快速開啟地圖（權限判斷與 /map 路由本身一致，仍需 map:view）。
  */
 const MapFloatingButton: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  // 需具備 map:view 權限才能顯示浮動按鈕
   const hasMapPermission = usePermissionStore((state) => state.hasPermission('map:view'));
 
+  // 無權限，或目前已在地圖頁面時，不顯示浮動按鈕（避免在地圖頁面上重複顯示入口）
   if (!hasMapPermission || location.pathname === '/map') {
     return null;
   }
@@ -22,8 +26,8 @@ const MapFloatingButton: React.FC = () => {
   return (
     <FloatButton
       icon={<EnvironmentOutlined />}
-      tooltip="地圖檢視"
-      aria-label="地圖檢視"
+      tooltip={t('menu.map')}
+      aria-label={t('menu.map')}
       onClick={() => navigate('/map')}
     />
   );

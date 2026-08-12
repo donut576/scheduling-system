@@ -2,17 +2,31 @@ import { useCallback, useState } from 'react';
 import type { FC } from 'react';
 import { Button, Card, Form, Input, Space, Tag, message } from 'antd';
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/BaseTable';
 import BaseModal from '@/components/base/BaseModal';
 import { useApprovalList, useApproveRequest, useRejectRequest } from '@/queries/useApprovalQueries';
 import { useSendNotification } from '@/queries/useNotificationQueries';
-import { APPROVAL_TYPE_MAP, APPROVAL_STATUS_MAP } from '@/constants/approvalTypes';
+import { APPROVAL_STATUS_MAP } from '@/constants/approvalTypes';
 import { POSITION_MAP } from '@/constants/positions';
 import { formatDateTime } from '@/utils/date';
 import type { Approval } from '@/types/notification';
 import type { PaginatedResponse } from '@/types/common';
 
 const { TextArea } = Input;
+
+const APPROVAL_TYPE_KEYS = {
+  SCHEDULE_CHANGE: 'approval.types.scheduleChange',
+  SHIFT_CHANGE: 'approval.types.shiftChange',
+  ALERT_OVERRIDE: 'approval.types.alertOverride',
+} as const;
+
+const APPROVAL_STATUS_KEYS = {
+  PENDING: 'approval.status.pending',
+  APPROVED: 'approval.status.approved',
+  REJECTED: 'approval.status.rejected',
+  WITHDRAWN: 'approval.status.withdrawn',
+} as const;
 
 /**
  * 審批流程頁面
@@ -39,43 +53,48 @@ function renderApprovalCard(
   record: Approval,
   onApprove: (record: Approval) => void,
   onReject: (record: Approval) => void,
+  t: (key: string) => string,
 ) {
   const statusConfig = APPROVAL_STATUS_MAP[record.status];
+  const typeLabel = t(APPROVAL_TYPE_KEYS[record.type]);
+  const statusLabel = t(APPROVAL_STATUS_KEYS[record.status]);
   return (
     <Card size="small" style={{ marginBottom: 8 }} data-testid={`approval-card-${record.id}`}>
       <Space direction="vertical" size={4} style={{ width: '100%' }}>
         <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
-          <strong>{APPROVAL_TYPE_MAP[record.type] ?? record.type}</strong>
-          <Tag color={statusConfig.color}>{statusConfig.label}</Tag>
+          <strong>{typeLabel}</strong>
+          <Tag color={statusConfig.color}>{statusLabel}</Tag>
         </Space>
-        <span>申請人：{record.requestedByName}</span>
+        <span>
+          {t('approval.requester')}：{record.requestedByName}
+        </span>
         <span>{formatDateTime(record.createdAt, 'YYYY-MM-DD HH:mm')}</span>
         {record.status === 'PENDING' && (
           <Space>
             <Button
               type="link"
               icon={<CheckOutlined />}
-              aria-label="核准"
+              aria-label={t('approval.approve')}
               style={{ padding: 0 }}
               onClick={(e) => {
                 e.stopPropagation();
                 onApprove(record);
               }}
             >
-              核准
+              {t('approval.approve')}
             </Button>
             <Button
               type="link"
               danger
               icon={<CloseOutlined />}
-              aria-label="駁回"
+              aria-label={t('approval.reject')}
               style={{ padding: 0 }}
               onClick={(e) => {
                 e.stopPropagation();
                 onReject(record);
               }}
             >
-              駁回
+              {t('approval.reject')}
             </Button>
           </Space>
         )}
@@ -84,7 +103,12 @@ function renderApprovalCard(
   );
 }
 
+/**
+ * 審批流程頁面主元件
+ * 負責審批列表呈現、核准操作與駁回 Modal 之狀態管理
+ */
 const ApprovalPage: FC = () => {
+  const { t } = useTranslation();
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectingApproval, setRejectingApproval] = useState<Approval | null>(null);
   const [rejectForm] = Form.useForm<{ comment: string }>();
@@ -107,40 +131,44 @@ const ApprovalPage: FC = () => {
    */
   const notifyApprovalResult = useCallback(
     async (approval: Approval) => {
-      const typeLabel = APPROVAL_TYPE_MAP[approval.type] ?? approval.type;
+      const typeLabel = t(APPROVAL_TYPE_KEYS[approval.type]);
       await sendNotificationMutation.mutateAsync({
         templateId: 'approval-result',
         recipientType: 'CUSTOMER',
         recipientIds: [],
         taskId: approval.taskId,
         variables: {
-          subject: `【已核准】${typeLabel}審批通過通知`,
+          subject: t('approval.approvedSubject', { type: typeLabel }),
         },
       });
     },
-    [sendNotificationMutation],
+    [sendNotificationMutation, t],
   );
 
+  // 核准審批：呼叫核准 API 後觸發客戶重新通知
   const handleApprove = useCallback(
     async (record: Approval) => {
       await approveMutation.mutateAsync({ id: record.id });
       await notifyApprovalResult(record);
-      message.success('審批已核准');
+      message.success(t('approval.approvedMessage'));
     },
-    [approveMutation, notifyApprovalResult],
+    [approveMutation, notifyApprovalResult, t],
   );
 
+  // 開啟駁回原因填寫 Modal
   const handleRejectClick = useCallback((record: Approval) => {
     setRejectingApproval(record);
     setRejectModalOpen(true);
   }, []);
 
+  // 取消駁回操作並清空表單
   const handleRejectModalCancel = useCallback(() => {
     setRejectModalOpen(false);
     setRejectingApproval(null);
     rejectForm.resetFields();
   }, [rejectForm]);
 
+  // 送出駁回原因並呼叫駁回 API
   const handleRejectModalOk = useCallback(async () => {
     if (!rejectingApproval) return;
     const values = await rejectForm.validateFields();
@@ -149,43 +177,43 @@ const ApprovalPage: FC = () => {
       id: rejectingApproval.id,
       comment: values.comment,
     });
-    message.success('審批已駁回');
+    message.success(t('approval.rejectedMessage'));
 
     setRejectModalOpen(false);
     setRejectingApproval(null);
     rejectForm.resetFields();
-  }, [rejectingApproval, rejectForm, rejectMutation]);
+  }, [rejectingApproval, rejectForm, rejectMutation, t]);
 
   const columns: ColumnDef<Approval>[] = [
     {
-      title: '類型',
+      title: t('approval.type'),
       key: 'type',
       width: 100,
-      render: (_value, record) => APPROVAL_TYPE_MAP[record.type] ?? record.type,
-      exportHeader: '類型',
-      exportKey: (record) => APPROVAL_TYPE_MAP[record.type] ?? record.type,
+      render: (_value, record) => t(APPROVAL_TYPE_KEYS[record.type]),
+      exportHeader: t('approval.type'),
+      exportKey: (record) => t(APPROVAL_TYPE_KEYS[record.type]),
     },
     {
-      title: '申請人',
+      title: t('approval.requester'),
       dataIndex: 'requestedByName',
       key: 'requestedByName',
       width: 100,
-      exportHeader: '申請人',
+      exportHeader: t('approval.requester'),
       exportKey: 'requestedByName',
     },
     {
-      title: '狀態',
+      title: t('approval.statusLabel'),
       key: 'status',
       width: 100,
       render: (_value, record) => {
         const config = APPROVAL_STATUS_MAP[record.status];
-        return <Tag color={config.color}>{config.label}</Tag>;
+        return <Tag color={config.color}>{t(APPROVAL_STATUS_KEYS[record.status])}</Tag>;
       },
-      exportHeader: '狀態',
-      exportKey: (record) => APPROVAL_STATUS_MAP[record.status].label,
+      exportHeader: t('approval.statusLabel'),
+      exportKey: (record) => t(APPROVAL_STATUS_KEYS[record.status]),
     },
     {
-      title: '審批人',
+      title: t('approval.approver'),
       key: 'approvers',
       width: 260,
       render: (_value, record) => (
@@ -193,10 +221,10 @@ const ApprovalPage: FC = () => {
           {record.approvers.map((step) => {
             const stepStatusConfig =
               step.status === 'APPROVED'
-                ? { label: '已核准', color: '#52C41A' }
+                ? { label: t('approval.status.approved'), color: '#52C41A' }
                 : step.status === 'REJECTED'
-                  ? { label: '已駁回', color: '#F5222D' }
-                  : { label: '待審批', color: '#FAAD14' };
+                  ? { label: t('approval.status.rejected'), color: '#F5222D' }
+                  : { label: t('approval.status.pending'), color: '#FAAD14' };
             return (
               <Tag key={step.approverId} color={stepStatusConfig.color}>
                 {step.approverName}（
@@ -207,7 +235,7 @@ const ApprovalPage: FC = () => {
           })}
         </Space>
       ),
-      exportHeader: '審批人',
+      exportHeader: t('approval.approver'),
       exportKey: (record) =>
         record.approvers
           .map(
@@ -217,15 +245,15 @@ const ApprovalPage: FC = () => {
           .join(', '),
     },
     {
-      title: '建立時間',
+      title: t('approval.createdAt'),
       key: 'createdAt',
       width: 160,
       render: (_value, record) => formatDateTime(record.createdAt, 'YYYY-MM-DD HH:mm'),
-      exportHeader: '建立時間',
+      exportHeader: t('approval.createdAt'),
       exportKey: (record) => formatDateTime(record.createdAt, 'YYYY-MM-DD HH:mm'),
     },
     {
-      title: '操作',
+      title: t('common.actions'),
       key: 'actions',
       width: 140,
       fixed: 'right',
@@ -236,25 +264,25 @@ const ApprovalPage: FC = () => {
             <Button
               type="link"
               icon={<CheckOutlined />}
-              aria-label="核准"
+              aria-label={t('approval.approve')}
               onClick={(e) => {
                 e.stopPropagation();
                 void handleApprove(record);
               }}
             >
-              核准
+              {t('approval.approve')}
             </Button>
             <Button
               type="link"
               danger
               icon={<CloseOutlined />}
-              aria-label="駁回"
+              aria-label={t('approval.reject')}
               onClick={(e) => {
                 e.stopPropagation();
                 handleRejectClick(record);
               }}
             >
-              駁回
+              {t('approval.reject')}
             </Button>
           </Space>
         );
@@ -269,13 +297,13 @@ const ApprovalPage: FC = () => {
         queryHook={useApprovalListQuery}
         exportable
         cardRender={(record) =>
-          renderApprovalCard(record, (r) => void handleApprove(r), handleRejectClick)
+          renderApprovalCard(record, (r) => void handleApprove(r), handleRejectClick, t)
         }
         rowKey="id"
       />
 
       <BaseModal
-        title="駁回審批"
+        title={t('approval.rejectTitle')}
         open={rejectModalOpen}
         onOk={handleRejectModalOk}
         onCancel={handleRejectModalCancel}
@@ -284,10 +312,10 @@ const ApprovalPage: FC = () => {
         <Form form={rejectForm} layout="vertical">
           <Form.Item
             name="comment"
-            label="駁回原因"
-            rules={[{ required: true, message: '請輸入駁回原因' }]}
+            label={t('approval.rejectReason')}
+            rules={[{ required: true, message: t('approval.rejectReasonRequired') }]}
           >
-            <TextArea rows={4} placeholder="請輸入駁回原因" />
+            <TextArea rows={4} placeholder={t('approval.rejectReasonPlaceholder')} />
           </Form.Item>
         </Form>
       </BaseModal>

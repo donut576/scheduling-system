@@ -1,3 +1,9 @@
+/**
+ * 測試對象：src/utils/date.ts
+ * 涵蓋日期時間格式化、跨日（夜班）判斷、時長計算、時段重疊偵測、
+ * 連續工作天數計算等函式，包含一般案例測試與 property-based tests
+ * （fast-check）驗證跨日邊界與 ISO 8601 格式等演算法性質。
+ */
 import { describe, it, expect } from 'vitest';
 import {
   isOvernight,

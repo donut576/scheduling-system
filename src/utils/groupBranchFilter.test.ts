@@ -1,3 +1,8 @@
+/**
+ * 測試對象：src/utils/groupBranchFilter.ts
+ * 涵蓋 getBranchesForGroup 集團分店連動篩選函式，包含 property-based tests
+ * （fast-check）驗證結果僅含選定集團之分店，且不遺漏、不混入其他集團分店。
+ */
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { getBranchesForGroup } from './groupBranchFilter';

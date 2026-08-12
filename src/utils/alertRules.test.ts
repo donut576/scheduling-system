@@ -1,3 +1,9 @@
+/**
+ * 測試對象：src/utils/alertRules.ts
+ * 涵蓋六項排班警示規則檢查器（證照要求、連續工作日、每日工時、
+ * 時段重複、指定休假、人數不足）以及 runAlertChecks 主入口，
+ * 包含一般案例測試與 property-based tests（fast-check）驗證規則邊界行為。
+ */
 import { describe, it, expect } from 'vitest';
 import {
   checkLicenseRequired,

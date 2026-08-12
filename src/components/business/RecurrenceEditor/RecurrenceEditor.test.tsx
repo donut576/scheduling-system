@@ -1,3 +1,8 @@
+/**
+ * 測試對象：RecurrenceEditor 元件
+ * 驗證預設值渲染、頻率切換時相關欄位（週幾/每月幾號）顯示與隱藏、
+ * 結束條件（永不/指定日期/指定次數）切換行為，以及各欄位變更時的 onChange 回呼。
+ */
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';

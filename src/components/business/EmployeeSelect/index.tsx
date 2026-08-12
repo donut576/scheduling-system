@@ -1,11 +1,26 @@
+/**
+ * EmployeeSelect 元件
+ *
+ * 業務用途：於任務表單中提供員工指派選擇介面，支援依群組、證照、休假狀態
+ * 篩選員工，並以視覺化方式標示員工是否符合客戶要求證照，或該員工於指定
+ * 日期是否已排定休假（休假員工將無法被選取）。
+ */
 import React, { useMemo, useState } from 'react';
 import { Select, Tag, Space, Tooltip } from 'antd';
 import { StarFilled, WarningFilled } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import type { Employee } from '@/types/employee';
 import type { LicenseType } from '@/types/alert';
 import { LICENSE_TYPE_MAP } from '@/constants/licenseTypes';
 import { useEmployeeList } from '@/queries/useEmployeeQueries';
 
+/**
+ * EmployeeSelectProps
+ * - value：已選取之員工 id 清單
+ * - onChange：選取狀態變更時的回呼，帶入更新後的員工 id 清單
+ * - date：指定日期（YYYY-MM-DD），用於判斷員工是否於當日休假
+ * - requiredLicenses：客戶／分店要求之證照清單，用於標示員工是否符合資格
+ */
 export interface EmployeeSelectProps {
   value: string[];
   onChange: (ids: string[]) => void;
@@ -13,6 +28,12 @@ export interface EmployeeSelectProps {
   requiredLicenses?: LicenseType[];
 }
 
+/**
+ * EmployeeSelectFilters - 篩選條件
+ * - groupId：依員工所屬群組篩選
+ * - licenseType：依員工持有證照類型篩選
+ * - hideOnLeave：是否隱藏指定日期已休假之員工
+ */
 export interface EmployeeSelectFilters {
   groupId?: string;
   licenseType?: LicenseType;
@@ -33,6 +54,7 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
   date,
   requiredLicenses = [],
 }) => {
+  const { t } = useTranslation();
   const [filters, setFilters] = useState<EmployeeSelectFilters>({});
 
   // Fetch all employees (large page size to get all for selection)
@@ -47,13 +69,13 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
     return employeeData?.list ?? [];
   }, [employeeData]);
 
-  // Determine if an employee is on designated leave for the given date
+  // 判斷該員工於指定日期是否為指定休假日（designatedLeaves 命中即視為休假）
   const isOnLeave = (employee: Employee): boolean => {
     if (!date) return false;
     return employee.designatedLeaves.includes(date);
   };
 
-  // Determine if an employee has all required licenses
+  // 判斷該員工是否持有全部客戶要求之證照；若無證照要求則視為不符合（不特別標示為合格）
   const hasRequiredLicenses = (employee: Employee): boolean => {
     if (requiredLicenses.length === 0) return false;
     return requiredLicenses.every((lic) => employee.licenses.includes(lic));
@@ -93,6 +115,7 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
     return result;
   }, [employees, filters, date]);
 
+  // 切換員工選取狀態：休假中之員工直接忽略操作，避免被誤選為指派人員
   const handleToggle = (employee: Employee, checked: boolean) => {
     if (isOnLeave(employee)) return;
     const next = checked ? [...value, employee.id] : value.filter((id) => id !== employee.id);
@@ -109,7 +132,7 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
       {/* Filter bar */}
       <Space wrap size="small">
         <Select
-          placeholder="篩選群組"
+          placeholder={t('employee.filterGroup')}
           allowClear
           style={{ minWidth: 120 }}
           value={filters.groupId}
@@ -118,28 +141,28 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
             label: g.name,
             value: g.id,
           }))}
-          aria-label="篩選群組"
+          aria-label={t('employee.filterGroup')}
         />
         <Select
-          placeholder="篩選證照"
+          placeholder={t('employee.filterLicense')}
           allowClear
           style={{ minWidth: 140 }}
           value={filters.licenseType}
           onChange={(val) => setFilters((prev) => ({ ...prev, licenseType: val }))}
           options={licenseFilterOptions}
-          aria-label="篩選證照"
+          aria-label={t('employee.filterLicense')}
         />
         <Select
-          placeholder="休假狀態"
+          placeholder={t('employee.leaveStatus')}
           allowClear
           style={{ minWidth: 120 }}
           value={filters.hideOnLeave ? 'hide' : undefined}
           onChange={(val) => setFilters((prev) => ({ ...prev, hideOnLeave: val === 'hide' }))}
           options={[
-            { label: '隱藏休假員工', value: 'hide' },
-            { label: '顯示全部', value: 'all' },
+            { label: t('employee.hideOnLeave'), value: 'hide' },
+            { label: t('employee.showAll'), value: 'all' },
           ]}
-          aria-label="休假狀態篩選"
+          aria-label={t('employee.leaveStatusFilter')}
         />
       </Space>
 
@@ -148,7 +171,7 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
         wrap
         size={[8, 8]}
         role="group"
-        aria-label="指派員工"
+        aria-label={t('employee.assignEmployees')}
         style={{
           border: '1px solid #d9d9d9',
           borderRadius: 6,
@@ -157,8 +180,10 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
           width: '100%',
         }}
       >
-        {isLoading && <span>載入中...</span>}
-        {!isLoading && filteredEmployees.length === 0 && <span>無符合條件之員工</span>}
+        {isLoading && <span>{t('common.loading')}</span>}
+        {!isLoading && filteredEmployees.length === 0 && (
+          <span>{t('employee.noMatchingEmployees')}</span>
+        )}
         {filteredEmployees.map((employee) => {
           const onLeave = isOnLeave(employee);
           const qualified = hasRequiredLicenses(employee);
@@ -181,19 +206,19 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
             >
               <Space size={4}>
                 {qualified && (
-                  <Tooltip title="符合客戶要求證照">
+                  <Tooltip title={t('employee.licenseQualified')}>
                     <StarFilled
                       style={{ color: '#52c41a' }}
-                      aria-label="符合客戶要求證照"
+                      aria-label={t('employee.licenseQualified')}
                       role="img"
                     />
                   </Tooltip>
                 )}
                 {unqualified && (
-                  <Tooltip title="不符合客戶要求證照">
+                  <Tooltip title={t('employee.licenseUnqualified')}>
                     <WarningFilled
                       style={{ color: '#faad14' }}
-                      aria-label="不符合客戶要求證照"
+                      aria-label={t('employee.licenseUnqualified')}
                       role="img"
                     />
                   </Tooltip>
@@ -202,13 +227,13 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
                 <Tag color={employee.groupColor} style={{ marginInlineEnd: 0 }}>
                   {employee.groupName}
                 </Tag>
-                {onLeave && <Tag color="default">休假</Tag>}
+                {onLeave && <Tag color="default">{t('employee.onLeave')}</Tag>}
               </Space>
             </Tag.CheckableTag>
           );
 
           return onLeave ? (
-            <Tooltip key={employee.id} title="該員工於指定日期休假，無法指派">
+            <Tooltip key={employee.id} title={t('employee.onLeaveDisabled')}>
               {tag}
             </Tooltip>
           ) : (

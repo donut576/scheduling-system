@@ -1,3 +1,7 @@
+/**
+ * Node.js（測試）環境下的 MSW server 設定檔。
+ * 用於在 Vitest 測試執行期間攔截 HTTP 請求並回傳 mock 資料。
+ */
 import { setupServer } from 'msw/node';
 import { handlers } from './handlers';
 

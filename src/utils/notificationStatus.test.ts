@@ -1,3 +1,9 @@
+/**
+ * 測試對象：src/utils/notificationStatus.ts
+ * 涵蓋通知狀態合法性檢查（isValidNotificationStatus）與狀態轉換規則
+ * 檢查（isValidStatusTransition），包含 property-based tests（fast-check）
+ * 驗證狀態機規則之完整性。
+ */
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import type { NotificationStatus } from '@/types/notification';

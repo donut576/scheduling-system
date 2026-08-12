@@ -1,8 +1,12 @@
+/**
+ * 測試對象：MapView 元件
+ * 驗證僅具有效經緯度之客戶會顯示標記、標記色彩指派（自訂色彩／預設藍色）、
+ * 點擊標記彈出視窗內容，以及地圖中心點/縮放層級傳遞是否正確。
+ */
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import MapView from './index';
-import { resetGroupColorRegistry, getGroupColor } from '@/utils/groupColor';
 import type { Customer } from '@/types/customer';
 
 // react-leaflet renders real DOM/canvas elements that jsdom cannot fully support
@@ -77,8 +81,7 @@ describe('MapView', () => {
     expect(screen.queryByTestId('map-marker-cust-2')).not.toBeInTheDocument();
   });
 
-  it('color-codes markers by customer groupId using getGroupColor', () => {
-    resetGroupColorRegistry();
+  it('uses provided marker colors and falls back to Ecolab blue', () => {
     const customerA: Customer = { ...baseCustomer, id: 'cust-a', groupId: 'group-a' };
     const customerB: Customer = {
       ...baseCustomer,
@@ -88,14 +91,18 @@ describe('MapView', () => {
       longitude: 121.55,
     };
 
-    render(<MapView customers={[customerA, customerB]} />);
+    render(
+      <MapView
+        customers={[customerA, customerB]}
+        markerColorByCustomerId={{ 'cust-a': '#fa8c16' }}
+      />,
+    );
 
     const markerA = screen.getByTestId('map-marker-cust-a');
     const markerB = screen.getByTestId('map-marker-cust-b');
 
-    expect(markerA.getAttribute('data-color')).toBe(getGroupColor('group-a'));
-    expect(markerB.getAttribute('data-color')).toBe(getGroupColor('group-b'));
-    expect(markerA.getAttribute('data-color')).not.toBe(markerB.getAttribute('data-color'));
+    expect(markerA.getAttribute('data-color')).toBe('#fa8c16');
+    expect(markerB.getAttribute('data-color')).toBe('#0067a0');
   });
 
   it('shows a popup with group name, branch name and address on marker click', async () => {

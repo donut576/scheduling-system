@@ -1,3 +1,6 @@
+// 測試對象：App 根元件。
+// 驗證應用程式可正常渲染，且未登入的使用者會被導向登入頁面。
+//
 // React Router's data router (createBrowserRouter) internally constructs a
 // `Request` with an AbortSignal on every navigation. Node 24's undici-backed
 // `Request` implementation rejects jsdom's AbortSignal instances as invalid,

@@ -1,6 +1,13 @@
+/**
+ * 通知類型與狀態相關常數
+ *
+ * 提供通知類型/狀態之顯示文字與顏色對照表、下拉選單選項，
+ * 以及判斷通知是否為「未讀」之輔助函式。
+ */
 import type { NotificationType, NotificationStatus } from '@/types/notification';
 import type { SelectOption } from '@/types/common';
 
+/** 通知類型對應顯示文字 */
 export const NOTIFICATION_TYPE_MAP: Record<NotificationType, string> = {
   SCHEDULE_REMINDER: '排班提醒',
   CUSTOMER_NOTIFY: '客戶通知',
@@ -9,6 +16,7 @@ export const NOTIFICATION_TYPE_MAP: Record<NotificationType, string> = {
   APPROVAL_RESULT: '核准結果通知',
 };
 
+/** 通知狀態對應顯示文字與顏色 */
 export const NOTIFICATION_STATUS_MAP: Record<NotificationStatus, { label: string; color: string }> =
   {
     NOTIFIED: { label: '已通知', color: '#52C41A' },
@@ -17,6 +25,7 @@ export const NOTIFICATION_STATUS_MAP: Record<NotificationStatus, { label: string
     CHANGED_NOT_NOTIFIED: { label: '有異動未通知', color: '#F5222D' },
   };
 
+/** 通知類型下拉選單選項（由 NOTIFICATION_TYPE_MAP 轉換而來） */
 export const NOTIFICATION_TYPE_OPTIONS: SelectOption[] = Object.entries(NOTIFICATION_TYPE_MAP).map(
   ([value, label]) => ({ label, value }),
 );
@@ -36,5 +45,6 @@ export const UNREAD_NOTIFICATION_STATUSES: NotificationStatus[] = [
   'CHANGED_NOT_NOTIFIED',
 ];
 
+/** 判斷指定通知狀態是否為「未讀」 */
 export const isUnreadNotification = (status: NotificationStatus): boolean =>
   UNREAD_NOTIFICATION_STATUSES.includes(status);

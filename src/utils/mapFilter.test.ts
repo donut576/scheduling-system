@@ -1,3 +1,8 @@
+/**
+ * 測試對象：src/utils/mapFilter.ts
+ * 涵蓋 filterCustomersByLocation 地圖客戶篩選函式，包含 property-based tests
+ * （fast-check）驗證篩選結果之正確性與完整性（不多、不漏）。
+ */
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import type { Customer } from '@/types/customer';

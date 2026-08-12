@@ -1,111 +1,111 @@
+/**
+ * AppHeader - 頂部導覽列元件
+ *
+ * 顯示漢堡選單按鈕（開啟 Sidebar Drawer）、品牌名稱、語言切換下拉選單，
+ * 以及使用者資訊下拉選單（含員工編號、職位、登出按鈕）。
+ */
 import React from 'react';
-import { Layout, Button, Dropdown, Space, Badge, Typography, Popover } from 'antd';
+import { Layout, Button, Dropdown, Space, Typography } from 'antd';
 import {
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  BellOutlined,
+  DownOutlined,
   GlobalOutlined,
   LogoutOutlined,
+  MenuOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { useUserStore } from '@/stores/useUserStore';
 import { useAppStore } from '@/stores/useAppStore';
-import NotificationCenter, {
-  useUnreadNotificationCount,
-} from '@/components/business/NotificationCenter';
-import type { MenuProps } from 'antd';
+import { useUserStore } from '@/stores/useUserStore';
 
 const { Header } = Layout;
 const { Text } = Typography;
 
+// 頂部導覽列：包含側邊選單開關、品牌 Logo、語言切換與使用者選單
 const AppHeader: React.FC = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const { locale, setLocale, toggleSidebar } = useAppStore();
   const { user, logout } = useUserStore();
-  const { sidebarCollapsed, toggleSidebar, locale, setLocale } = useAppStore();
-  const unreadCount = useUnreadNotificationCount();
-
-  const handleLocaleChange = (newLocale: 'zh-TW' | 'en-US') => {
-    setLocale(newLocale);
-    i18n.changeLanguage(newLocale);
-  };
-
-  const localeMenuItems: MenuProps['items'] = [
-    {
-      key: 'zh-TW',
-      label: '繁體中文',
-      onClick: () => handleLocaleChange('zh-TW'),
-    },
-    {
-      key: 'en-US',
-      label: 'English',
-      onClick: () => handleLocaleChange('en-US'),
-    },
-  ];
-
-  const userMenuItems: MenuProps['items'] = [
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: t('auth.logout'),
-      onClick: logout,
-    },
-  ];
+  // 依目前語系顯示對應的語言標籤文字
+  const languageLabel = locale === 'zh-TW' ? '中文' : 'EN';
 
   return (
     <Header
       style={{
-        padding: '0 24px',
+        padding: '0 20px',
         background: '#fff',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        gap: 12,
         borderBottom: '1px solid #f0f0f0',
+        position: 'sticky',
+        top: 0,
+        zIndex: 20,
       }}
     >
       <Button
         type="text"
-        icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+        icon={<MenuOutlined />}
         onClick={toggleSidebar}
-        aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-label="Open sidebar"
       />
-
-      <Space size="middle">
-        <Popover
-          content={<NotificationCenter />}
-          trigger="click"
-          placement="bottomRight"
-          arrow={false}
+      <Text strong style={{ color: '#005EB8', fontSize: 18, letterSpacing: 0 }}>
+        Ecolab
+      </Text>
+      <Space size={8} style={{ marginLeft: 'auto' }}>
+        {/* 語言切換下拉選單：點選項目後直接呼叫 setLocale 切換語系 */}
+        <Dropdown
+          trigger={['click']}
+          menu={{
+            selectedKeys: [locale],
+            onClick: ({ key }) => setLocale(key as 'zh-TW' | 'en-US'),
+            items: [
+              { key: 'zh-TW', label: '中文' },
+              { key: 'en-US', label: 'English' },
+            ],
+          }}
         >
-          <Badge count={unreadCount} size="small">
-            <Button type="text" icon={<BellOutlined />} aria-label={t('notification.center')} />
-          </Badge>
-        </Popover>
-
-        <Dropdown menu={{ items: localeMenuItems, selectedKeys: [locale] }}>
-          <Button type="text" icon={<GlobalOutlined />}>
-            {locale === 'zh-TW' ? '中文' : 'EN'}
+          <Button icon={<GlobalOutlined />}>
+            <Space size={4}>
+              {languageLabel}
+              <DownOutlined />
+            </Space>
           </Button>
         </Dropdown>
-
-        <Dropdown menu={{ items: userMenuItems }}>
-          {/* Space 本身不具鍵盤可聚焦性，加上 role/tabIndex/onKeyDown 使其可透過
-              Tab 鍵聚焦並以 Enter/Space 觸發下拉選單，滿足鍵盤導航需求 */}
-          <Space
-            style={{ cursor: 'pointer' }}
-            role="button"
-            tabIndex={0}
-            aria-label={`使用者選單：${user?.name ?? ''}`}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                e.currentTarget.click();
-              }
-            }}
-          >
-            <UserOutlined />
-            <Text>{user?.name ?? ''}</Text>
-          </Space>
+        {/* 使用者資訊下拉選單：顯示姓名/員工編號/職位（不可點選），並提供登出按鈕 */}
+        <Dropdown
+          trigger={['click']}
+          menu={{
+            items: [
+              {
+                key: 'profile',
+                disabled: true,
+                label: (
+                  <Space direction="vertical" size={2} style={{ minWidth: 180 }}>
+                    <Text strong>{user?.name ?? '-'}</Text>
+                    <Text type="secondary">{`${t('employee.employeeNo')}：${user?.employeeNo ?? '-'}`}</Text>
+                    <Text type="secondary">{`${t('employee.position')}：${user?.role ?? '-'}`}</Text>
+                  </Space>
+                ),
+              },
+              { type: 'divider' },
+              {
+                key: 'logout',
+                danger: true,
+                icon: <LogoutOutlined />,
+                label: t('auth.logout'),
+                onClick: logout,
+              },
+            ],
+          }}
+        >
+          <Button icon={<UserOutlined />}>
+            <Space size={4}>
+              <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user?.name ?? ''}
+              </span>
+              <DownOutlined />
+            </Space>
+          </Button>
         </Dropdown>
       </Space>
     </Header>

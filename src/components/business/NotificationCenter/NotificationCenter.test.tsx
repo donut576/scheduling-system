@@ -1,3 +1,8 @@
+/**
+ * 測試對象：NotificationCenter 元件
+ * 驗證通知清單渲染（類型、收件者、主旨、狀態、時間）、
+ * 未讀通知標記邏輯，以及無通知時的空狀態顯示。
+ */
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeAll } from 'vitest';

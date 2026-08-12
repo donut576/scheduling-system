@@ -1,3 +1,8 @@
+/**
+ * 測試對象：ConflictPanel 元件
+ * 驗證違規清單渲染（規則名稱、嚴重度、訊息、受影響員工）、
+ * 覆蓋備註輸入與確認覆蓋按鈕行為，以及無覆蓋權限時的提示訊息。
+ */
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';

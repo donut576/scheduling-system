@@ -29,3 +29,130 @@ body {
   background-color: #e6f4ff;
   border-radius: 8px;
 }
+
+.base-table .ant-table-pagination.ant-pagination,
+.base-table-mobile .ant-list-pagination .ant-pagination {
+  justify-content: center;
+}
+
+.base-table-mobile .ant-list-pagination {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+}
+
+.schedule-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.schedule-view-toolbar {
+  justify-content: flex-start;
+}
+
+.schedule-filter-toolbar {
+  justify-content: center;
+}
+
+.schedule-filter-toolbar {
+  width: 100%;
+}
+
+.schedule-calendar-container .fc {
+  --fc-border-color: #d9e2ec;
+}
+
+.schedule-calendar-container .fc-datagrid-cell-frame,
+.schedule-calendar-container .fc-timeline-lane-frame {
+  min-height: 64px;
+}
+
+.schedule-calendar-container .fc-datagrid-cell-main {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: #1f2937;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-calendar-container .fc-datagrid-cell-cushion {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.schedule-calendar-container .fc-timeline-event {
+  border-radius: 8px;
+}
+
+.schedule-event-detail-popover {
+  width: 260px;
+  padding: 12px;
+  color: #fff;
+  background: #0067a0;
+  border-radius: 6px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
+}
+
+.schedule-event-detail-alert {
+  margin-bottom: 8px;
+}
+
+.schedule-event-detail-lines {
+  display: grid;
+  gap: 2px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.schedule-event-detail-actions {
+  justify-content: flex-end;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.management-card {
+  height: 100%;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.management-card .ant-card-body {
+  min-height: 210px;
+  padding: 16px;
+}
+
+.management-card-title {
+  color: #1f2937;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.management-card-subtitle {
+  margin-top: 2px;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.management-card-info {
+  display: grid;
+  gap: 4px;
+  color: #374151;
+  font-size: 14px;
+}
+
+.management-card-note {
+  color: #4b5563;
+  font-size: 13px;
+}

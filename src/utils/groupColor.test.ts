@@ -1,3 +1,8 @@
+/**
+ * 測試對象：src/utils/groupColor.ts
+ * 涵蓋 assignGroupColors 與 getGroupColor（含記憶化註冊表）之群組色彩指派邏輯，
+ * 包含 property-based tests（fast-check）驗證色彩唯一性與指派結果之一致性。
+ */
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as fc from 'fast-check';
 import {

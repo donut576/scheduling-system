@@ -1,21 +1,27 @@
+/**
+ * 任務（Task）相關的 React Query hooks。
+ * 提供任務列表查詢、單一任務詳情查詢、新增／更新任務，
+ * 以及依警示規則進行任務驗證的操作。
+ */
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { taskApi } from '@/api/task';
 import type { Task, TaskFormData, TaskListParams } from '@/types/task';
 import type { AlertValidationResult } from '@/types/alert';
 import type { PaginatedResponse } from '@/types/common';
 
-// Query key factory for task-related queries
+// 任務相關查詢的 query key 工廠函式，統一管理快取鍵值結構
 export const taskKeys = {
   all: ['tasks'] as const,
   lists: () => [...taskKeys.all, 'list'] as const,
+  // 依照篩選參數產生不同的快取鍵，讓不同篩選條件的結果各自快取
   list: (params: TaskListParams) => [...taskKeys.lists(), params] as const,
   details: () => [...taskKeys.all, 'detail'] as const,
   detail: (id: string) => [...taskKeys.details(), id] as const,
 };
 
 /**
- * Hook for fetching paginated task list with filtering and AbortSignal support.
- * Uses keepPreviousData for smooth pagination transitions.
+ * 取得分頁任務列表的 hook，支援篩選條件與 AbortSignal（可中斷請求）。
+ * 使用 keepPreviousData 讓分頁切換時畫面能平滑過渡，不會閃爍成 loading 狀態。
  *
  * Validates: Requirements 4.1, 4.3, 17.5
  */
@@ -31,8 +37,8 @@ export function useTaskList(params: TaskListParams) {
 }
 
 /**
- * Hook for fetching a single task detail by ID.
- * Only enabled when id is provided.
+ * 依 ID 取得單一任務詳情資料的 hook。
+ * 只有在提供 id 時才會啟用查詢（enabled: !!id）。
  */
 export function useTaskDetail(id: string | undefined) {
   return useQuery<Task>({
@@ -46,8 +52,8 @@ export function useTaskDetail(id: string | undefined) {
 }
 
 /**
- * Mutation hook for creating a new task.
- * Invalidates task list queries on success.
+ * 新增任務的變更（mutation）hook。
+ * 成功後會讓任務列表查詢的快取失效，以重新取得最新資料。
  */
 export function useCreateTask() {
   const queryClient = useQueryClient();
@@ -64,8 +70,9 @@ export function useCreateTask() {
 }
 
 /**
- * Mutation hook for updating an existing task.
- * Invalidates both the task list and the specific task detail on success.
+ * 更新既有任務資料的變更（mutation）hook。
+ * 成功後會同時讓任務列表快取與該任務的詳情快取失效，
+ * 確保列表與詳情頁都能反映最新資料。
  */
 export function useUpdateTask() {
   const queryClient = useQueryClient();
@@ -85,8 +92,8 @@ export function useUpdateTask() {
 }
 
 /**
- * Mutation hook for validating a task against alert rules (server-side).
- * Does not invalidate cache as validation is a read-like operation.
+ * 依警示規則驗證任務內容（伺服器端驗證）的變更（mutation）hook。
+ * 驗證屬於類似「讀取」的操作，不會實際變更資料，因此不會使任何快取失效。
  */
 export function useValidateTask() {
   return useMutation<AlertValidationResult, Error, { id: string; data: TaskFormData }>({

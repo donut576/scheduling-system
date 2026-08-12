@@ -6,7 +6,7 @@ import type { Customer, CustomerGroup, PendingCustomer } from '@/types/customer'
 import type { Notification, NotificationTemplate, Approval } from '@/types/notification';
 import type { UserProfile, LoginResponse } from '@/types/auth';
 import type { AlertValidationResult } from '@/types/alert';
-import type { ScheduleData } from '@/types/schedule';
+import type { ScheduleData, ScheduleEvent } from '@/types/schedule';
 import { PERMISSIONS } from '@/constants/permissions';
 
 /**
@@ -21,8 +21,10 @@ import { PERMISSIONS } from '@/constants/permissions';
  * Validates: Requirements 17.1
  */
 
+/** 將任意資料包裝成 ApiResponse<T> 的成功回應格式 */
 const ok = <T>(data: T): ApiResponse<T> => ({ code: 0, message: 'success', data });
 
+/** 將陣列資料包裝成 PaginatedResponse<T> 分頁回應格式（固定回傳第 1 頁、每頁 20 筆） */
 const paginated = <T>(list: T[]): PaginatedResponse<T> => ({
   list,
   total: list.length,
@@ -208,6 +210,7 @@ const demoCustomerGroups: CustomerGroup[] = [
   },
 ];
 
+// 合併基本測試用集團與額外的 demo 集團，供各端點共用
 const mockCustomerGroups: CustomerGroup[] = [mockCustomerGroup, ...demoCustomerGroups];
 
 // 將額外集團之分店攤平為 Customer 記錄，供客戶列表／地圖檢視等端點使用
@@ -228,6 +231,7 @@ const demoCustomers: Customer[] = demoCustomerGroups.flatMap((group) =>
   })),
 );
 
+// 合併基本測試用客戶與攤平後的 demo 客戶清單，供客戶列表／地圖端點使用
 const mockCustomers: Customer[] = [mockCustomer, ...demoCustomers];
 
 // 額外的員工假資料，分散於不同集團／職位／證照，供指派員工下拉選單使用
@@ -240,7 +244,7 @@ const demoEmployees: Employee[] = [
     position: 'LEADER',
     groupId: 'group-002',
     groupName: '星耀科技股份有限公司',
-    groupColor: '#52c41a',
+    groupColor: '#0067a0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
     isActive: true,
@@ -279,30 +283,34 @@ const demoEmployees: Employee[] = [
     position: 'STAFF',
     groupId: 'group-002',
     groupName: '星耀科技股份有限公司',
-    groupColor: '#52c41a',
+    groupColor: '#0067a0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
     isActive: true,
   },
 ];
 
+// 合併基本測試用員工與額外的 demo 員工，供指派員工下拉選單等端點使用
 const mockEmployees: Employee[] = [mockEmployee, ...demoEmployees];
 
 // 任務清單改為可變狀態，讓新增／編輯任務後重新查詢時能看到實際變化（例如編輯後狀態變為「更改」）
 let mockTasks: Task[] = [mockTask];
 
+/** 判斷結束時間是否早於或等於開始時間，藉此判斷任務是否為跨日（overnight）任務 */
 const isOvernightRange = (startTime: string, endTime: string): boolean => {
   const [sh = 0, sm = 0] = startTime.split(':').map(Number);
   const [eh = 0, em = 0] = endTime.split(':').map(Number);
   return eh * 60 + em <= sh * 60 + sm;
 };
 
+/** 依員工 id 陣列查出對應的員工資料，轉換為任務指派人員（TaskAssignee）格式 */
 const resolveAssignees = (employeeIds: string[]): TaskAssignee[] =>
   employeeIds
     .map((id) => mockEmployees.find((emp) => emp.id === id))
     .filter((emp): emp is Employee => !!emp)
     .map((emp) => ({ employeeId: emp.id, employeeName: emp.name, licenses: emp.licenses }));
 
+/** 依集團/分店 id 查出對應的名稱；找不到時退回使用 id 本身作為顯示名稱 */
 const resolveGroupBranchNames = (groupId: string, branchId: string) => {
   const group = mockCustomerGroups.find((g) => g.id === groupId);
   const branch = group?.branches.find((b) => b.id === branchId);
@@ -365,6 +373,8 @@ const applyTaskUpdate = (existing: Task, data: Partial<TaskFormData>): Task => {
   };
 };
 
+// --- 其他模組的假資料（待排時間客戶、通知、審批、警示、班表） ---
+
 const mockPendingCustomer: PendingCustomer = {
   id: 'pending-001',
   groupId: 'group-001',
@@ -423,31 +433,149 @@ const mockAlertValidationResult: AlertValidationResult = {
   canOverride: true,
 };
 
+const mockScheduleEvents: ScheduleEvent[] = [
+  {
+    id: 'event-001',
+    taskId: 'task-001',
+    resourceId: 'branch-001',
+    title: '測試集團 - 測試分店',
+    start: '2026-08-10T09:00:00+08:00',
+    end: '2026-08-10T17:00:00+08:00',
+    groupName: '測試集團',
+    branchName: '測試分店',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '早班',
+      assignees: [
+        { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+      ],
+      contents: ['P', 'R'],
+    },
+  },
+  {
+    id: 'event-002',
+    taskId: 'task-demo-002',
+    resourceId: 'branch-002-1',
+    title: '星耀科技 - 內湖三期辦公室',
+    start: '2026-08-11T13:30:00+08:00',
+    end: '2026-08-11T17:30:00+08:00',
+    groupName: '星耀科技股份有限公司',
+    branchName: '內湖三期辦公室',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'ONETIME',
+      shift: '午班',
+      assignees: [
+        { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
+      ],
+      contents: ['S', 'TERMITE'],
+    },
+  },
+  {
+    id: 'event-003',
+    taskId: 'task-demo-003',
+    resourceId: 'branch-003-1',
+    title: '陽光餐飲 - 台中西屯門市',
+    start: '2026-08-12T08:30:00+08:00',
+    end: '2026-08-12T12:00:00+08:00',
+    groupName: '陽光連鎖餐飲集團',
+    branchName: '台中西屯門市',
+    alertStatus: 'VIOLATED',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'ESR',
+      shift: '早班',
+      assignees: [
+        { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
+      ],
+      contents: ['P', 'OTHER'],
+    },
+  },
+  {
+    id: 'event-004',
+    taskId: 'task-demo-004',
+    resourceId: 'branch-004-1',
+    title: '綠地物業 - 板橋大樓管理處',
+    start: '2026-08-13T22:00:00+08:00',
+    end: '2026-08-14T04:00:00+08:00',
+    groupName: '綠地物業管理顧問',
+    branchName: '板橋大樓管理處',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: true,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '大夜班',
+      assignees: [
+        { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
+      ],
+      contents: ['R'],
+    },
+  },
+  {
+    id: 'event-005',
+    taskId: 'task-demo-005',
+    resourceId: 'branch-002-2',
+    title: '星耀科技 - 新竹科學園區廠',
+    start: '2026-08-14T09:00:00+08:00',
+    end: '2026-08-14T16:30:00+08:00',
+    groupName: '星耀科技股份有限公司',
+    branchName: '新竹科學園區廠',
+    alertStatus: 'OVERRIDDEN',
+    isRecurring: true,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '早班',
+      assignees: [
+        {
+          employeeId: 'emp-005',
+          employeeName: '陳雅婷',
+          licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
+        },
+      ],
+      contents: ['P', 'S'],
+    },
+  },
+];
+
 const mockScheduleData: ScheduleData = {
-  events: [
+  events: mockScheduleEvents,
+  resources: [
     {
-      id: 'event-001',
-      taskId: 'task-001',
-      resourceId: 'emp-001',
-      title: '測試集團 - 測試分店',
-      start: '2026-01-15T09:00:00+08:00',
-      end: '2026-01-15T17:00:00+08:00',
-      groupName: '測試集團',
-      branchName: '測試分店',
-      alertStatus: 'CLEAN',
-      isRecurring: false,
-      isOvernight: false,
-      extendedProps: {
-        taskType: 'CONTRACT',
-        shift: '早班',
-        assignees: [
-          { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
-        ],
-        contents: ['P', 'R'],
-      },
+      id: 'group-001',
+      title: '測試集團',
+      groupColor: '#1677ff',
+      children: [{ id: 'branch-001', title: '測試分店', groupColor: '#1677ff' }],
+    },
+    {
+      id: 'group-002',
+      title: '星耀科技股份有限公司',
+      groupColor: '#0067a0',
+      children: [
+        { id: 'branch-002-1', title: '內湖三期辦公室', groupColor: '#0067a0' },
+        { id: 'branch-002-2', title: '新竹科學園區廠', groupColor: '#0067a0' },
+      ],
+    },
+    {
+      id: 'group-003',
+      title: '陽光連鎖餐飲集團',
+      groupColor: '#fa8c16',
+      children: [{ id: 'branch-003-1', title: '台中西屯門市', groupColor: '#fa8c16' }],
+    },
+    {
+      id: 'group-004',
+      title: '綠地物業管理顧問',
+      groupColor: '#722ed1',
+      children: [{ id: 'branch-004-1', title: '板橋大樓管理處', groupColor: '#722ed1' }],
     },
   ],
-  resources: [{ id: 'emp-001', title: '測試使用者', groupColor: '#1677ff' }],
 };
 
 // --- Handlers -----------------------------------------------------------
@@ -525,6 +653,7 @@ export const handlers = [
   http.get('*/api/v1/employees/:id', () => HttpResponse.json(ok<Employee>(mockEmployee))),
   http.post('*/api/v1/employees', () => HttpResponse.json(ok<Employee>(mockEmployee))),
   http.patch('*/api/v1/employees/:id', () => HttpResponse.json(ok<Employee>(mockEmployee))),
+  http.delete('*/api/v1/employees/:id', () => HttpResponse.json(ok(null))),
 
   // notification.ts
   http.get('*/api/v1/notifications', () =>

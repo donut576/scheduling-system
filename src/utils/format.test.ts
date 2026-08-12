@@ -1,3 +1,7 @@
+/**
+ * 測試對象：src/utils/format.ts
+ * 涵蓋電話號碼格式化、數字千分位、文字截斷與檔案大小格式化等函式。
+ */
 import { describe, it, expect } from 'vitest';
 import { formatPhone, formatNumber, truncateText, formatFileSize } from './format';
 

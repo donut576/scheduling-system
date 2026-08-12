@@ -1,4 +1,7 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+// 測試對象：MainLayout 主版面配置元件
+// 涵蓋頂部導覽列渲染、側邊選單 Drawer 開關、語言切換、使用者選單、
+// 以及巢狀路由 Outlet 內容渲染等情境
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -11,7 +14,15 @@ import { useUserStore } from '@/stores/useUserStore';
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string) =>
+      ({
+        'menu.dashboard': '儀表板',
+        'menu.task': '任務管理',
+        'menu.schedule': '班表總覽',
+        'auth.logout': '登出',
+        'employee.employeeNo': '員工編號',
+        'employee.position': '職位',
+      })[key] ?? key,
     i18n: { changeLanguage: vi.fn() },
   }),
 }));
@@ -58,31 +69,6 @@ beforeAll(() => {
     })),
   });
 });
-
-// Mock notification query so AppHeader's bell badge/NotificationCenter don't hit real API
-vi.mock('@/queries/useNotificationQueries', () => ({
-  useNotificationList: () => ({
-    data: {
-      list: [
-        {
-          id: 'notif-1',
-          type: 'CUSTOMER_NOTIFY',
-          recipientType: 'CUSTOMER',
-          recipientId: 'cust-1',
-          recipientName: '藝康股份有限公司',
-          subject: '12月排班通知',
-          content: '通知內容',
-          status: 'NOT_NOTIFIED',
-          createdAt: '2024-11-20T10:00:00+08:00',
-        },
-      ],
-      total: 1,
-      page: 1,
-      pageSize: 10,
-    },
-    isLoading: false,
-  }),
-}));
 
 function createTestQueryClient() {
   return new QueryClient({
@@ -136,85 +122,70 @@ describe('MainLayout', () => {
     mockMediaQueryListeners.length = 0;
   });
 
-  it('renders Sidebar with menu items', () => {
+  it('renders top navbar with hamburger, brand, language dropdown and user dropdown', () => {
     renderLayout();
-    // '儀表板' also appears in the Tabs bar (default dashboard tab), so scope the
-    // assertion to the sidebar menu specifically.
-    const sidebarMenu = document.querySelector('.ant-menu');
-    expect(sidebarMenu).not.toBeNull();
-    expect(sidebarMenu!.textContent).toContain('儀表板');
+    expect(screen.getByRole('button', { name: 'Open sidebar' })).toBeInTheDocument();
+    expect(screen.getByText('Ecolab')).toBeInTheDocument();
+    expect(screen.getByText('中文')).toBeInTheDocument();
+    expect(screen.getByText('測試用戶')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /登出/ })).not.toBeInTheDocument();
+  });
+
+  it('opens sidebar drawer from hamburger with menu items', async () => {
+    const user = userEvent.setup();
+    renderLayout();
+
+    await user.click(screen.getByRole('button', { name: 'Open sidebar' }));
+
+    expect(document.querySelector('.ant-drawer')).toBeInTheDocument();
+    expect(screen.getByText('儀表板')).toBeInTheDocument();
     expect(screen.getByText('任務管理')).toBeInTheDocument();
     expect(screen.getByText('班表總覽')).toBeInTheDocument();
   });
 
-  it('renders AppHeader with user name', () => {
-    renderLayout();
-    expect(screen.getByText('測試用戶')).toBeInTheDocument();
-  });
-
-  it('renders brand name EcoLab in sidebar', () => {
-    renderLayout();
-    expect(screen.getByText('EcoLab')).toBeInTheDocument();
-  });
-
-  it('toggles sidebar collapsed state on button click', () => {
-    renderLayout();
-    const toggleBtn = screen.getByLabelText('Collapse sidebar');
-    fireEvent.click(toggleBtn);
-    expect(useAppStore.getState().sidebarCollapsed).toBe(true);
-  });
-
-  it('renders Drawer when window is < 768px', () => {
-    setMockMatches(true);
-
-    // Need to re-render to pick up mobile state
-    useAppStore.setState({ sidebarCollapsed: false });
-    renderLayout();
-
-    // Ant Design Drawer renders into document.body via portal
-    expect(document.querySelector('.ant-drawer')).toBeInTheDocument();
-  });
-
-  it('collapses sidebar on resize to mobile', () => {
-    useAppStore.setState({ sidebarCollapsed: false });
-    renderLayout();
-
-    act(() => {
-      setMockMatches(true);
-    });
-
-    expect(useAppStore.getState().sidebarCollapsed).toBe(true);
-  });
-
-  it('renders locale switch button', () => {
-    renderLayout();
-    expect(screen.getByText('中文')).toBeInTheDocument();
-  });
-
-  it('shows unread notification badge count on bell icon', () => {
-    renderLayout();
-    // Badge count reflects unread notifications (1 NOT_NOTIFIED item from mock)
-    expect(screen.getByText('1')).toBeInTheDocument();
-  });
-
-  it('opens NotificationCenter when bell icon is clicked', async () => {
+  it('updates locale from the top language dropdown', async () => {
     const user = userEvent.setup();
     renderLayout();
 
-    const bellButton = screen.getByLabelText('notification.center');
-    await user.click(bellButton);
+    await user.click(screen.getByRole('button', { name: /中文/ }));
+    await user.click(await screen.findByText('English'));
+    expect(useAppStore.getState().locale).toBe('en-US');
+  });
 
-    expect(await screen.findByRole('region', { name: '通知中心' })).toBeInTheDocument();
-    expect(screen.getByText('12月排班通知')).toBeInTheDocument();
+  it('shows account details and logout in the user dropdown', async () => {
+    const user = userEvent.setup();
+    renderLayout();
+
+    await user.click(screen.getByRole('button', { name: /測試用戶/ }));
+
+    expect(await screen.findByText('員工編號：E001')).toBeInTheDocument();
+    expect(screen.getByText('職位：ADMIN')).toBeInTheDocument();
+    expect(screen.getByText('登出')).toBeInTheDocument();
+  });
+
+  it('toggles sidebar state on hamburger click', () => {
+    renderLayout();
+    const toggleBtn = screen.getByRole('button', { name: 'Open sidebar' });
+    fireEvent.click(toggleBtn);
+    expect(useAppStore.getState().sidebarCollapsed).toBe(false);
+  });
+
+  it('closes the sidebar after menu navigation', async () => {
+    const user = userEvent.setup();
+    renderLayout();
+
+    await user.click(screen.getByRole('button', { name: 'Open sidebar' }));
+    await user.click(screen.getByText('任務管理'));
+
+    expect(useAppStore.getState().sidebarCollapsed).toBe(true);
+    expect(screen.getByText('Task Content')).toBeInTheDocument();
   });
 
   describe('巢狀路由 Outlet 渲染', () => {
     it('renders the matched child route content inside the layout shell', () => {
       renderLayout('/dashboard');
       expect(screen.getByText('Dashboard Content')).toBeInTheDocument();
-      // Sidebar/Header persist alongside the routed content
-      expect(screen.getByText('EcoLab')).toBeInTheDocument();
-      expect(screen.getByText('測試用戶')).toBeInTheDocument();
+      expect(screen.getByText('Ecolab')).toBeInTheDocument();
     });
 
     it('renders different child content when navigating to another nested route', () => {

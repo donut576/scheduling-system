@@ -1,15 +1,36 @@
+/**
+ * NotificationCenter 元件
+ *
+ * 業務用途：於應用程式頁首鈴鐺圖標點擊後顯示的通知中心面板，列出最近的
+ * 系統通知（排班提醒、客戶通知、員工派工、異動審核、審核結果等），並標記
+ * 尚未完成通知/待處理之項目。
+ */
 import React, { useMemo } from 'react';
 import { List, Tag, Typography, Empty, Spin, Badge } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { useNotificationList } from '@/queries/useNotificationQueries';
-import {
-  NOTIFICATION_TYPE_MAP,
-  NOTIFICATION_STATUS_MAP,
-  isUnreadNotification,
-} from '@/constants/notificationTypes';
+import { NOTIFICATION_STATUS_MAP, isUnreadNotification } from '@/constants/notificationTypes';
 import { formatDateTime } from '@/utils/date';
 
 const { Text } = Typography;
 
+/** 通知類型對應之 i18n 翻譯鍵值 */
+const NOTIFICATION_TYPE_KEYS = {
+  SCHEDULE_REMINDER: 'notification.types.scheduleReminder',
+  CUSTOMER_NOTIFY: 'notification.types.customerNotify',
+  EMPLOYEE_DISPATCH: 'notification.types.employeeDispatch',
+  CHANGE_APPROVAL: 'notification.types.changeApproval',
+  APPROVAL_RESULT: 'notification.types.approvalResult',
+} as const;
+
+const NOTIFICATION_STATUS_KEYS = {
+  NOTIFIED: 'notification.status.notified',
+  NOT_NOTIFIED: 'notification.status.notNotified',
+  CHANGED_NOTIFIED: 'notification.status.changedNotified',
+  CHANGED_NOT_NOTIFIED: 'notification.status.changedNotNotified',
+} as const;
+
+/** NotificationCenterProps - limit：顯示之最近通知筆數上限 */
 export interface NotificationCenterProps {
   /** Maximum number of recent notifications to display, defaults to 10 */
   limit?: number;
@@ -28,6 +49,7 @@ export interface NotificationCenterProps {
  * Validates: Requirements 12.6
  */
 const NotificationCenter: React.FC<NotificationCenterProps> = ({ limit = 10 }) => {
+  const { t } = useTranslation();
   const { data, isLoading } = useNotificationList({ page: 1, pageSize: limit });
 
   const notifications = useMemo(() => data?.list ?? [], [data]);
@@ -43,7 +65,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ limit = 10 }) =
   if (notifications.length === 0) {
     return (
       <div style={{ padding: 16 }} data-testid="notification-center">
-        <Empty description="尚無通知" />
+        <Empty description={t('notification.noNotifications')} />
       </div>
     );
   }
@@ -52,7 +74,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ limit = 10 }) =
     <div
       style={{ width: 360, maxHeight: 480, overflowY: 'auto' }}
       role="region"
-      aria-label="通知中心"
+      aria-label={t('notification.center')}
       data-testid="notification-center"
     >
       <List
@@ -76,17 +98,25 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ limit = 10 }) =
                 <div
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                 >
-                  <Tag color="default">{NOTIFICATION_TYPE_MAP[notification.type]}</Tag>
+                  <Tag color="default">{t(NOTIFICATION_TYPE_KEYS[notification.type])}</Tag>
                   {unread && (
-                    <Badge status="processing" text="未讀" data-testid="unread-indicator" />
+                    <Badge
+                      status="processing"
+                      text={t('notification.unread')}
+                      data-testid="unread-indicator"
+                    />
                   )}
                 </div>
                 <Text strong>{notification.subject}</Text>
-                <Text type="secondary">收件者：{notification.recipientName}</Text>
+                <Text type="secondary">
+                  {t('notification.recipient')}：{notification.recipientName}
+                </Text>
                 <div
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                 >
-                  <Tag color={statusConfig.color}>{statusConfig.label}</Tag>
+                  <Tag color={statusConfig.color}>
+                    {t(NOTIFICATION_STATUS_KEYS[notification.status])}
+                  </Tag>
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     {formatDateTime(notification.createdAt, 'YYYY-MM-DD HH:mm')}
                   </Text>

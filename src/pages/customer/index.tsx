@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import type { FC } from 'react';
 import { Button, Card, Form, Input, Select, Space, Tag, message, Modal } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/BaseTable';
 import BaseSearchForm, { type SearchFieldConfig } from '@/components/base/BaseSearchForm';
 import BaseModal from '@/components/base/BaseModal';
@@ -25,15 +26,6 @@ const { TextArea } = Input;
  * Validates: Requirements 10.1, 10.2, 10.3, 10.4
  */
 
-const searchFields: SearchFieldConfig[] = [
-  {
-    name: 'keyword',
-    label: '關鍵字',
-    type: 'input',
-    placeholder: '搜尋集團/分店名稱',
-  },
-];
-
 const DEFAULT_FILTERS: CustomerListParams = { page: 1, pageSize: 20 };
 
 /**
@@ -41,17 +33,40 @@ const DEFAULT_FILTERS: CustomerListParams = { page: 1, pageSize: 20 };
  *
  * Validates: Requirements 16.1
  */
-function renderCustomerCard(record: Customer) {
+function renderCustomerCard(
+  record: Customer,
+  onDelete: (record: Customer) => void,
+  t: (key: string) => string,
+) {
   return (
-    <Card size="small" style={{ marginBottom: 8 }} data-testid={`customer-card-${record.id}`}>
-      <Space direction="vertical" size={4} style={{ width: '100%' }}>
-        <strong>
-          {record.groupName} {record.branchName}
-        </strong>
-        <span>{record.address}</span>
-        <span>
-          聯絡窗口：{record.contactName} ／ 電話：{record.contactPhone}
-        </span>
+    <Card
+      hoverable
+      className="management-card customer-management-card"
+      data-testid={`customer-card-${record.id}`}
+    >
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Space align="start" style={{ justifyContent: 'space-between', width: '100%' }}>
+          <div>
+            <div className="management-card-title">
+              {record.groupName} {record.branchName}
+            </div>
+            <div className="management-card-subtitle">{record.branchName}</div>
+          </div>
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            aria-label={t('customer.deleteCustomer')}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(record);
+            }}
+          />
+        </Space>
+        <div className="management-card-info">{record.address}</div>
+        <div className="management-card-info">
+          {`${t('customer.contactName')}：${record.contactName} ／ ${t('customer.contactPhoneShort')}：${record.contactPhone}`}
+        </div>
         {(record.requiredLicenses ?? []).length > 0 && (
           <Space size={[4, 4]} wrap>
             {(record.requiredLicenses ?? []).map((lic) => (
@@ -59,20 +74,38 @@ function renderCustomerCard(record: Customer) {
             ))}
           </Space>
         )}
-        {record.remarks && <span>備註：{record.remarks}</span>}
+        {record.remarks && (
+          <div className="management-card-note">
+            {t('customer.remarks')}：{record.remarks}
+          </div>
+        )}
       </Space>
     </Card>
   );
 }
 
+/**
+ * 客戶資料管理頁面主元件
+ * 負責搜尋條件、分頁、新增/編輯 Modal 與刪除確認的狀態管理
+ */
 const CustomerPage: FC = () => {
+  const { t } = useTranslation();
   const [filters, setFilters] = useState<CustomerListParams>({
     ...DEFAULT_FILTERS,
   });
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [form] = Form.useForm<CustomerFormData>();
+  const localizedSearchFields: SearchFieldConfig[] = [
+    {
+      name: 'keyword',
+      label: t('common.keyword'),
+      type: 'input',
+      placeholder: t('customer.searchPlaceholder'),
+    },
+  ];
 
+  // 建立/更新/刪除客戶資料的 mutation hooks
   const createMutation = useCreateCustomer();
   const updateMutation = useUpdateCustomer();
   const deleteMutation = useDeleteCustomer();
@@ -83,6 +116,7 @@ const CustomerPage: FC = () => {
     return useCustomerList(filters) as QueryResult<PaginatedResponse<Customer>>;
   }
 
+  // 依關鍵字搜尋，重設回第一頁
   const handleSearch = useCallback((values: Record<string, unknown>) => {
     setFilters((prev) => ({
       ...prev,
@@ -91,16 +125,19 @@ const CustomerPage: FC = () => {
     }));
   }, []);
 
+  // 重置搜尋條件為預設值
   const handleReset = useCallback(() => {
     setFilters({ ...DEFAULT_FILTERS });
   }, []);
 
+  // 開啟新增客戶的 Modal
   const handleAddClick = useCallback(() => {
     setEditingCustomer(null);
     form.resetFields();
     setModalOpen(true);
   }, [form]);
 
+  // 點擊資料列時，帶入現有資料並開啟編輯 Modal
   const handleEditClick = useCallback(
     (record: Customer) => {
       setEditingCustomer(record);
@@ -118,91 +155,96 @@ const CustomerPage: FC = () => {
     [form],
   );
 
+  // 取消 Modal 並清空表單
   const handleModalCancel = useCallback(() => {
     setModalOpen(false);
     setEditingCustomer(null);
     form.resetFields();
   }, [form]);
 
+  // 送出表單：依是否為編輯模式呼叫更新或建立 API
   const handleModalOk = useCallback(async () => {
     const values = await form.validateFields();
 
     if (editingCustomer) {
       await updateMutation.mutateAsync({ id: editingCustomer.id, data: values });
-      message.success('客戶資料已更新');
+      message.success(t('customer.updateSuccess'));
     } else {
       await createMutation.mutateAsync(values);
-      message.success('客戶資料已新增');
+      message.success(t('customer.createSuccess'));
     }
 
     setModalOpen(false);
     setEditingCustomer(null);
     form.resetFields();
-  }, [form, editingCustomer, createMutation, updateMutation]);
+  }, [form, editingCustomer, createMutation, updateMutation, t]);
 
+  // 彈出刪除確認 Modal，確認後呼叫刪除 API
   const handleDelete = useCallback(
     (record: Customer) => {
       Modal.confirm({
-        title: '刪除客戶資料',
-        content: `確定要刪除「${record.groupName} ${record.branchName}」的客戶資料嗎？`,
-        okText: '確定刪除',
-        cancelText: '取消',
+        title: t('customer.deleteTitle'),
+        content: t('customer.deleteConfirm', {
+          name: `${record.groupName} ${record.branchName}`,
+        }),
+        okText: t('customer.confirmDelete'),
+        cancelText: t('common.cancel'),
         okButtonProps: { danger: true },
         onOk: async () => {
           await deleteMutation.mutateAsync(record.id);
-          message.success('客戶資料已刪除');
+          message.success(t('customer.deleteSuccess'));
         },
       });
     },
-    [deleteMutation],
+    [deleteMutation, t],
   );
 
   const columns: ColumnDef<Customer>[] = [
     {
-      title: '集團名稱',
+      title: t('customer.groupName'),
       dataIndex: 'groupName',
       key: 'groupName',
       width: 120,
       ellipsis: true,
-      exportHeader: '集團名稱',
+      exportHeader: t('customer.groupName'),
       exportKey: 'groupName',
     },
     {
-      title: '分店名稱',
+      title: t('customer.branchName'),
       dataIndex: 'branchName',
       key: 'branchName',
       width: 120,
       ellipsis: true,
-      exportHeader: '分店名稱',
+      exportHeader: t('customer.branchName'),
       exportKey: 'branchName',
     },
     {
-      title: '地址',
+      title: t('customer.address'),
       dataIndex: 'address',
       key: 'address',
       width: 220,
       ellipsis: true,
-      exportHeader: '地址',
+      exportHeader: t('customer.address'),
       exportKey: 'address',
     },
     {
-      title: '聯絡窗口',
+      title: t('customer.contactName'),
       dataIndex: 'contactName',
       key: 'contactName',
       width: 100,
-      exportHeader: '聯絡窗口',
+      exportHeader: t('customer.contactName'),
       exportKey: 'contactName',
     },
     {
-      title: '電話',
+      title: t('customer.contactPhone'),
       dataIndex: 'contactPhone',
       key: 'contactPhone',
       width: 120,
-      exportHeader: '電話',
+      exportHeader: t('customer.contactPhone'),
       exportKey: 'contactPhone',
     },
     {
-      title: '證照限制',
+      title: t('customer.requiredLicenses'),
       key: 'requiredLicenses',
       width: 220,
       render: (_value, record) => (
@@ -212,21 +254,21 @@ const CustomerPage: FC = () => {
           ))}
         </Space>
       ),
-      exportHeader: '證照限制',
+      exportHeader: t('customer.requiredLicenses'),
       exportKey: (record) =>
         (record.requiredLicenses ?? []).map((lic) => LICENSE_TYPE_MAP[lic] ?? lic).join(', '),
     },
     {
-      title: '備註',
+      title: t('customer.remarks'),
       dataIndex: 'remarks',
       key: 'remarks',
       width: 150,
       ellipsis: true,
-      exportHeader: '備註',
+      exportHeader: t('customer.remarks'),
       exportKey: 'remarks',
     },
     {
-      title: '操作',
+      title: t('common.actions'),
       key: 'actions',
       width: 90,
       fixed: 'right',
@@ -235,7 +277,7 @@ const CustomerPage: FC = () => {
           type="link"
           danger
           icon={<DeleteOutlined />}
-          aria-label="刪除客戶"
+          aria-label={t('customer.deleteCustomer')}
           onClick={(e) => {
             e.stopPropagation();
             handleDelete(record);
@@ -247,24 +289,29 @@ const CustomerPage: FC = () => {
 
   return (
     <div className="customer-page">
-      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
-        <BaseSearchForm fields={searchFields} onSearch={handleSearch} onReset={handleReset} />
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick}>
-          新增客戶
-        </Button>
-      </Space>
+      <BaseSearchForm
+        fields={localizedSearchFields}
+        onSearch={handleSearch}
+        onReset={handleReset}
+      />
 
       <BaseTable<Customer>
         columns={columns}
         queryHook={useCustomerListQuery}
         exportable
+        toolbarExtra={
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick}>
+            {t('customer.createButton')}
+          </Button>
+        }
         onRowClick={handleEditClick}
-        cardRender={renderCustomerCard}
+        cardRender={(record) => renderCustomerCard(record, handleDelete, t)}
+        cardLayout="always"
         rowKey="id"
       />
 
       <BaseModal
-        title={editingCustomer ? '編輯客戶資料' : '新增客戶資料'}
+        title={editingCustomer ? t('customer.edit') : t('customer.create')}
         open={modalOpen}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
@@ -273,49 +320,49 @@ const CustomerPage: FC = () => {
         <Form form={form} layout="vertical">
           <Form.Item
             name="groupName"
-            label="集團名稱"
-            rules={[{ required: true, message: '請輸入集團名稱' }]}
+            label={t('customer.groupName')}
+            rules={[{ required: true, message: t('customer.groupNameRequired') }]}
           >
-            <Input placeholder="請輸入集團名稱" />
+            <Input placeholder={t('customer.groupNamePlaceholder')} />
           </Form.Item>
           <Form.Item
             name="branchName"
-            label="分店名稱"
-            rules={[{ required: true, message: '請輸入分店名稱' }]}
+            label={t('customer.branchName')}
+            rules={[{ required: true, message: t('customer.branchNameRequired') }]}
           >
-            <Input placeholder="請輸入分店名稱" />
+            <Input placeholder={t('customer.branchNamePlaceholder')} />
           </Form.Item>
           <Form.Item
             name="address"
-            label="地址"
-            rules={[{ required: true, message: '請輸入地址' }]}
+            label={t('customer.address')}
+            rules={[{ required: true, message: t('customer.addressRequired') }]}
           >
-            <Input placeholder="請輸入地址" />
+            <Input placeholder={t('customer.addressPlaceholder')} />
           </Form.Item>
           <Form.Item
             name="contactName"
-            label="聯絡窗口"
-            rules={[{ required: true, message: '請輸入聯絡窗口' }]}
+            label={t('customer.contactName')}
+            rules={[{ required: true, message: t('customer.contactNameRequired') }]}
           >
-            <Input placeholder="請輸入聯絡窗口" />
+            <Input placeholder={t('customer.contactNamePlaceholder')} />
           </Form.Item>
           <Form.Item
             name="contactPhone"
-            label="電話"
-            rules={[{ required: true, message: '請輸入電話' }]}
+            label={t('customer.contactPhone')}
+            rules={[{ required: true, message: t('customer.contactPhoneRequired') }]}
           >
-            <Input placeholder="請輸入電話" />
+            <Input placeholder={t('customer.contactPhonePlaceholder')} />
           </Form.Item>
-          <Form.Item name="requiredLicenses" label="證照限制">
+          <Form.Item name="requiredLicenses" label={t('customer.requiredLicenses')}>
             <Select
               mode="multiple"
-              placeholder="請選擇證照限制"
+              placeholder={t('customer.requiredLicensesPlaceholder')}
               options={LICENSE_TYPE_OPTIONS}
               allowClear
             />
           </Form.Item>
-          <Form.Item name="remarks" label="備註">
-            <TextArea rows={3} placeholder="請輸入備註" />
+          <Form.Item name="remarks" label={t('customer.remarks')}>
+            <TextArea rows={3} placeholder={t('customer.remarksPlaceholder')} />
           </Form.Item>
         </Form>
       </BaseModal>

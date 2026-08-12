@@ -1,3 +1,9 @@
+/**
+ * 測試對象：ScheduleCalendar 元件（含 toEventInputs 轉換函式）
+ * 驗證行事曆容器渲染、事件方塊資訊完整性（集團/分店/時間）、週期任務角標、
+ * 違規覆蓋標記、跨日事件延伸邏輯、響應式個人/每日檢視模式（< 768px），
+ * 並包含以 fast-check 進行之屬性測試（事件方塊資訊完整性、跨日事件時間跨度）。
+ */
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -135,10 +141,10 @@ describe('ScheduleCalendar', () => {
     const eventEl = screen.getByTestId('schedule-event-evt-1');
     expect(eventEl).toHaveTextContent('集團A');
     expect(eventEl).toHaveTextContent('分店A');
-    expect(eventEl).toHaveTextContent('09:00 - 17:00');
+    expect(eventEl).toHaveTextContent('3/10 09:00-17:00');
   });
 
-  it('shows recurring badge (∞) for recurring events', async () => {
+  it('shows recurring infinity mark in the event corner', async () => {
     mockScheduleData = {
       events: [recurringEvent],
       resources: [{ id: 'branch-1', title: '集團A_分店A' }],
@@ -150,7 +156,7 @@ describe('ScheduleCalendar', () => {
       expect(screen.getByTestId('schedule-event-evt-3')).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId('alert-badge-recurring')).toBeInTheDocument();
+    expect(screen.getByTestId('schedule-recurring-corner-evt-3')).toHaveTextContent('∞');
   });
 
   it('shows overridden badge for overridden events', async () => {
@@ -192,7 +198,7 @@ describe('ScheduleCalendar', () => {
 
   it('renders customer dimension resource header', () => {
     renderWithProviders(<ScheduleCalendar {...defaultProps} dimension="customer" />);
-    expect(screen.getByText('集團_分店')).toBeInTheDocument();
+    expect(screen.getByText('集團 / 分店')).toBeInTheDocument();
   });
 
   it('renders employee dimension resource header', () => {
@@ -215,8 +221,8 @@ describe('ScheduleCalendar - 響應式個人/每日檢視模式（< 768px）', (
           id: 'group-1',
           title: '集團A',
           children: [
-            { id: 'branch-1', title: '集團A_分店A' },
-            { id: 'branch-2', title: '集團A_分店B' },
+            { id: 'branch-1', title: '分店A' },
+            { id: 'branch-2', title: '分店B' },
           ],
         },
       ],
@@ -233,24 +239,24 @@ describe('ScheduleCalendar - 響應式個人/每日檢視模式（< 768px）', (
     renderWithProviders(<ScheduleCalendar {...defaultProps} dimension="customer" />);
 
     expect(screen.getByText('個人')).toBeInTheDocument();
-    expect(screen.queryByText('集團_分店')).not.toBeInTheDocument();
+    expect(screen.queryByText('集團 / 分店')).not.toBeInTheDocument();
   });
 
   it('keeps the dimension label (not "個人") when viewport is desktop-sized', () => {
     setMockIsMobile(false);
     renderWithProviders(<ScheduleCalendar {...defaultProps} dimension="customer" />);
 
-    expect(screen.getByText('集團_分店')).toBeInTheDocument();
+    expect(screen.getByText('集團 / 分店')).toBeInTheDocument();
     expect(screen.queryByText('個人')).not.toBeInTheDocument();
   });
 
-  it('flattens nested resources into a single-level list under 個人 view on mobile', () => {
+  it('flattens nested resources into group and branch labels under 個人 view on mobile', () => {
     setMockIsMobile(true);
     renderWithProviders(<ScheduleCalendar {...defaultProps} dimension="customer" />);
 
     // Flattened leaf resources should be present as resource rows
-    expect(screen.getByText('集團A_分店A')).toBeInTheDocument();
-    expect(screen.getByText('集團A_分店B')).toBeInTheDocument();
+    expect(screen.getByText('集團A 分店A')).toBeInTheDocument();
+    expect(screen.getByText('集團A 分店B')).toBeInTheDocument();
     // The group-level parent node title itself should not appear as its own row
     // (it was flattened away, leaving only its children)
     expect(screen.queryByText('集團A')).not.toBeInTheDocument();
@@ -380,7 +386,7 @@ describe('ScheduleCalendar - Property 19: 行事曆事件方塊資訊完整性',
         },
       };
 
-      const expectedTimeLabel = `${pad(startTime.hour)}:${pad(startTime.minute)} - ${pad(
+      const expectedTimeLabel = `3/10 ${pad(startTime.hour)}:${pad(startTime.minute)}-${pad(
         endTime.hour,
       )}:${pad(endTime.minute)}`;
 
@@ -410,20 +416,20 @@ describe('ScheduleCalendar - Property 19: 行事曆事件方塊資訊完整性',
           );
 
           const eventEl = screen.getByTestId(`schedule-event-${event.id}`);
-          expect(eventEl).toHaveTextContent(event.groupName);
-          expect(eventEl).toHaveTextContent(event.branchName);
+          const normalizedEventText = eventEl.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+          expect(normalizedEventText).toContain(event.groupName.replace(/\s+/g, ' ').trim());
+          expect(normalizedEventText).toContain(event.branchName.replace(/\s+/g, ' ').trim());
           expect(eventEl).toHaveTextContent(expectedTimeLabel);
 
           // Sanity check: expectedTimeLabel derived independently matches component's dayjs formatting
-          expect(dayjs(event.start).format('HH:mm')).toBe(expectedTimeLabel.split(' - ')[0]);
+          expect(dayjs(event.start).format('M/D HH:mm')).toBe(expectedTimeLabel.split('-')[0]);
         } finally {
           unmount();
         }
       }),
       { numRuns: 20 },
     );
-  }, // Each of the 20 property runs mounts/unmounts a full FullCalendar instance
-  // and waits (up to 5000ms each) for its async render, which is expensive
+  }, // and waits (up to 5000ms each) for its async render, which is expensive // Each of the 20 property runs mounts/unmounts a full FullCalendar instance
   // under jsdom, especially under full-suite parallel load. Raise this
   // test's own timeout above the suite-wide default (see vitest.config.ts)
   // to give the 20 cumulative runs enough headroom rather than reducing

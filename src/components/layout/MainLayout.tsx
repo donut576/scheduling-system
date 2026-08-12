@@ -1,13 +1,12 @@
-import React, { useEffect, useRef } from 'react';
-import { Layout, Drawer } from 'antd';
+import React, { useEffect } from 'react';
+import { Drawer, Layout } from 'antd';
 import { Outlet } from 'react-router-dom';
 import { useAppStore } from '@/stores/useAppStore';
-import { useIsMobile } from '@/hooks/useMediaQuery';
 import SideMenu from './SideMenu';
 import AppHeader from './AppHeader';
 import MapFloatingButton from './MapFloatingButton';
 
-const { Sider, Content } = Layout;
+const { Content } = Layout;
 
 /**
  * MainLayout - 主版面配置
@@ -19,83 +18,47 @@ const { Sider, Content } = Layout;
  */
 const MainLayout: React.FC = () => {
   const { sidebarCollapsed, setSidebarCollapsed } = useAppStore();
-  const isMobile = useIsMobile();
-  const wasMobileRef = useRef(isMobile);
 
-  // 進入行動裝置寬度時，預設收起 Drawer（避免版面切換時 Sidebar 意外展開覆蓋畫面）
+  // 元件掛載時預設收合側邊選單，避免進入頁面時 Drawer 自動展開
   useEffect(() => {
-    if (isMobile && !wasMobileRef.current && !sidebarCollapsed) {
-      setSidebarCollapsed(true);
-    }
-    wasMobileRef.current = isMobile;
-  }, [isMobile, sidebarCollapsed, setSidebarCollapsed]);
+    setSidebarCollapsed(true);
+  }, [setSidebarCollapsed]);
 
+  // 關閉側邊選單 Drawer（點選選單項目或點擊遮罩時觸發）
   const handleDrawerClose = () => {
     setSidebarCollapsed(true);
   };
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {isMobile ? (
-        <Drawer
-          placement="left"
-          open={!sidebarCollapsed}
-          onClose={handleDrawerClose}
-          styles={{ body: { padding: 0 } }}
-          width={220}
-        >
-          <div
-            style={{
-              height: 48,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 600,
-              fontSize: 16,
-              borderBottom: '1px solid #f0f0f0',
-            }}
-          >
-            EcoLab
-          </div>
-          <SideMenu />
-        </Drawer>
-      ) : (
-        <Sider
-          trigger={null}
-          collapsible
-          collapsed={sidebarCollapsed}
-          collapsedWidth={0}
-          width={220}
-          theme="light"
+      {/* 側邊選單以 Drawer 形式呈現，透過 sidebarCollapsed 狀態控制開關 */}
+      <Drawer
+        placement="left"
+        open={!sidebarCollapsed}
+        onClose={handleDrawerClose}
+        styles={{ body: { padding: 0 } }}
+        width={260}
+      >
+        <div
           style={{
-            overflow: 'auto',
-            height: '100vh',
-            position: 'sticky',
-            top: 0,
-            left: 0,
-            borderRight: '1px solid #f0f0f0',
+            height: 56,
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0 20px',
+            fontWeight: 700,
+            fontSize: 18,
+            color: '#005EB8',
+            borderBottom: '1px solid #f0f0f0',
           }}
         >
-          <div
-            style={{
-              height: 48,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 600,
-              fontSize: sidebarCollapsed ? 14 : 16,
-              overflow: 'hidden',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {sidebarCollapsed ? 'EL' : 'EcoLab'}
-          </div>
-          <SideMenu />
-        </Sider>
-      )}
+          Ecolab
+        </div>
+        <SideMenu onNavigate={handleDrawerClose} />
+      </Drawer>
 
       <Layout>
         <AppHeader />
+        {/* Content 區域渲染實際匹配的子路由頁面內容，Header/Sidebar 保持不變 */}
         <Content
           style={{
             margin: 16,
@@ -109,6 +72,7 @@ const MainLayout: React.FC = () => {
         </Content>
       </Layout>
 
+      {/* 全域地圖浮動按鈕，依權限與目前路徑決定是否顯示 */}
       <MapFloatingButton />
     </Layout>
   );

@@ -1,18 +1,32 @@
+// 地圖檢視頁面 (MapPage) 單元測試
+// 測試對象：src/pages/map/index.tsx，涵蓋篩選面板、標記顏色計算與導覽帶入定位
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MapPage from './index';
 import type { Customer, CustomerGroup } from '@/types/customer';
+import type { Employee } from '@/types/employee';
+import type { Task } from '@/types/task';
 
 // Mock the heavy MapView (which itself wraps react-leaflet) so this test can
 // focus on MapPage's filter panel + data wiring, exposing the filtered
 // customers list passed down for assertions.
 vi.mock('@/components/business/MapView', () => ({
-  default: ({ customers }: { customers: Customer[] }) => (
+  default: ({
+    customers,
+    markerColorByCustomerId,
+  }: {
+    customers: Customer[];
+    markerColorByCustomerId?: Record<string, string>;
+  }) => (
     <div data-testid="mock-map-view">
       {customers.map((c) => (
-        <div key={c.id} data-testid={`mock-marker-${c.id}`}>
+        <div
+          key={c.id}
+          data-testid={`mock-marker-${c.id}`}
+          data-color={markerColorByCustomerId?.[c.id]}
+        >
           {c.groupName}-{c.branchName}
         </div>
       ))}
@@ -110,10 +124,65 @@ const customerGroups: CustomerGroup[] = [
   },
 ];
 
+const employees: Employee[] = [
+  {
+    id: 'emp-1',
+    name: '王大明',
+    phone: '0912345678',
+    employeeNo: 'E001',
+    position: 'STAFF',
+    groupId: 'area-1',
+    groupName: '北區',
+    groupColor: '#fa8c16',
+    designatedLeaves: [],
+    licenses: [],
+    isActive: true,
+  },
+];
+
+const tasks: Task[] = [
+  {
+    id: 'task-1',
+    groupId: 'group-1',
+    groupName: '集團A',
+    branchId: 'branch-1',
+    branchName: '分店A1',
+    taskType: 'CONTRACT',
+    date: '2026-08-12',
+    startTime: '09:00',
+    endTime: '10:00',
+    isOvernight: false,
+    headcount: 1,
+    shift: '早班',
+    route: '',
+    contents: ['P'],
+    assignees: [{ employeeId: 'emp-1', employeeName: '王大明', licenses: [] }],
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'admin',
+    createdAt: '2026-08-12T09:00:00+08:00',
+    updatedAt: '2026-08-12T09:00:00+08:00',
+  },
+];
+
 vi.mock('@/queries/useCustomerQueries', () => ({
   useCustomerGroups: () => ({ data: customerGroups, isLoading: false }),
   useCustomerList: () => ({
     data: { list: customers, total: customers.length, page: 1, pageSize: 1000 },
+    isLoading: false,
+  }),
+}));
+
+vi.mock('@/queries/useTaskQueries', () => ({
+  useTaskList: () => ({
+    data: { list: tasks, total: tasks.length, page: 1, pageSize: 1000 },
+    isLoading: false,
+  }),
+}));
+
+vi.mock('@/queries/useEmployeeQueries', () => ({
+  useEmployeeList: () => ({
+    data: { list: employees, total: employees.length, page: 1, pageSize: 1000 },
     isLoading: false,
   }),
 }));
@@ -148,6 +217,13 @@ describe('MapPage', () => {
     expect(screen.getByTestId('mock-marker-cust-1')).toBeInTheDocument();
     expect(screen.getByTestId('mock-marker-cust-2')).toBeInTheDocument();
     expect(screen.getByTestId('mock-marker-cust-3')).toBeInTheDocument();
+  });
+
+  it('colors map markers by assigned employee group when a task has assignees', () => {
+    renderWithProviders();
+
+    expect(screen.getByTestId('mock-marker-cust-1').getAttribute('data-color')).toBe('#fa8c16');
+    expect(screen.getByTestId('mock-marker-cust-2').getAttribute('data-color')).toBe('#0067a0');
   });
 
   it('applies group filter and only shows matching customers', async () => {

@@ -1,3 +1,9 @@
+/**
+ * 測試對象：src/utils/notificationSchedule.ts
+ * 涵蓋通知發送日期區間判斷（isManualSendWindow）、手動發送啟用邏輯
+ * （isManualSendEnabled）與排班提醒日判斷（isScheduleReminderDay），
+ * 包含 property-based tests（fast-check）與邊界日期案例測試。
+ */
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import dayjs from 'dayjs';

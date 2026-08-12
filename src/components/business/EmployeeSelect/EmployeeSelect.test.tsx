@@ -1,3 +1,8 @@
+/**
+ * 測試對象：EmployeeSelect 元件
+ * 驗證篩選控制項與員工按鈕渲染、休假員工停用邏輯、
+ * 證照符合／不符合圖示顯示，以及選取/取消選取回呼行為。
+ */
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

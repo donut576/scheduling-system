@@ -1,15 +1,19 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Button, Modal, Card, Space, Tag } from 'antd';
-import { EnvironmentOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { Button, Modal, Card, Space, Tag, Dropdown, Select, DatePicker, Tabs } from 'antd';
+import { PlusOutlined, EditOutlined, DownOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/BaseTable';
-import BaseSearchForm, { type SearchFieldConfig } from '@/components/base/BaseSearchForm';
 import TaskForm from '@/components/business/TaskForm';
+import PendingCustomerPage from '@/pages/pending-customer';
+import ApprovalPage from '@/pages/approval';
 import { useTaskList, useCreateTask, useUpdateTask } from '@/queries/useTaskQueries';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useTaskStore } from '@/stores/useTaskStore';
+import { usePermissionStore } from '@/stores/usePermissionStore';
 import { TASK_STATUS_MAP } from '@/constants/taskStatus';
+import { exportToExcel, type ExcelColumn } from '@/utils/excel';
 import type { Task, TaskFormData, TaskStatus } from '@/types/task';
 import type { CustomerGroup } from '@/types/customer';
 import type { PaginatedResponse } from '@/types/common';
@@ -26,109 +30,195 @@ const TASK_STATUS_OPTIONS = Object.entries(TASK_STATUS_MAP).map(([value, { label
   value,
 }));
 
-const columns: ColumnDef<Task>[] = [
+const getTaskExportColumns = (t: (key: string) => string): ExcelColumn<Task>[] => [
   {
-    title: '狀態',
-    dataIndex: 'status',
-    key: 'status',
-    width: 90,
-    render: (value) => {
-      const config = TASK_STATUS_MAP[value as TaskStatus];
-      return <Tag color={config?.color}>{config?.label ?? (value as string)}</Tag>;
-    },
-    exportHeader: '狀態',
-    exportKey: (record) => TASK_STATUS_MAP[record.status]?.label ?? record.status,
+    header: t('task.status'),
+    key: (record) => TASK_STATUS_MAP[record.status]?.label ?? record.status,
+    width: 12,
+  },
+  { header: t('task.group'), key: 'groupName', width: 22 },
+  { header: t('task.branch'), key: 'branchName', width: 18 },
+  { header: t('task.date'), key: 'date', width: 14 },
+  { header: t('task.startTime'), key: 'startTime', width: 12 },
+  {
+    header: t('task.endTime'),
+    key: (record) => `${record.endTime}${record.isOvernight ? ` (${t('task.overnight')})` : ''}`,
+    width: 14,
+  },
+  { header: t('task.headcount'), key: 'headcount', width: 12 },
+  { header: t('task.shift'), key: 'shift', width: 12 },
+  { header: t('task.route'), key: (record) => record.route ?? '', width: 16 },
+  {
+    header: t('task.content'),
+    key: (record) => (Array.isArray(record.contents) ? record.contents.join(', ') : ''),
+    width: 20,
   },
   {
-    title: '集團',
-    dataIndex: 'groupName',
-    key: 'groupName',
-    width: 120,
-    ellipsis: true,
-    exportHeader: '集團',
-    exportKey: 'groupName',
-  },
-  {
-    title: '分店',
-    dataIndex: 'branchName',
-    key: 'branchName',
-    width: 120,
-    ellipsis: true,
-    exportHeader: '分店',
-    exportKey: 'branchName',
-  },
-  {
-    title: '日期',
-    dataIndex: 'date',
-    key: 'date',
-    width: 110,
-    sorter: true,
-    exportHeader: '日期',
-    exportKey: 'date',
-  },
-  {
-    title: '開始時間',
-    dataIndex: 'startTime',
-    key: 'startTime',
-    width: 90,
-    exportHeader: '開始時間',
-    exportKey: 'startTime',
-  },
-  {
-    title: '結束時間',
-    dataIndex: 'endTime',
-    key: 'endTime',
-    width: 90,
-    render: (value, record) => `${value as string}${record.isOvernight ? '（跨日）' : ''}`,
-    exportHeader: '結束時間',
-    exportKey: (record) => `${record.endTime}${record.isOvernight ? '（跨日）' : ''}`,
-  },
-  {
-    title: '人數需求',
-    dataIndex: 'headcount',
-    key: 'headcount',
-    width: 90,
-    exportHeader: '人數需求',
-    exportKey: 'headcount',
-  },
-  {
-    title: '班次',
-    dataIndex: 'shift',
-    key: 'shift',
-    width: 100,
-    exportHeader: '班次',
-    exportKey: 'shift',
-  },
-  {
-    title: '路次',
-    dataIndex: 'route',
-    key: 'route',
-    width: 100,
-    ellipsis: true,
-    exportHeader: '路次',
-    exportKey: 'route',
-  },
-  {
-    title: '內容',
-    key: 'contents',
-    width: 140,
-    ellipsis: true,
-    render: (_value, record) => (Array.isArray(record.contents) ? record.contents.join(', ') : ''),
-    exportHeader: '內容',
-    exportKey: (record) => (Array.isArray(record.contents) ? record.contents.join(', ') : ''),
-  },
-  {
-    title: '指派人員',
-    key: 'assignees',
-    width: 150,
-    ellipsis: true,
-    render: (_value, record) =>
-      Array.isArray(record.assignees) ? record.assignees.map((a) => a.employeeName).join(', ') : '',
-    exportHeader: '指派人員',
-    exportKey: (record) =>
-      Array.isArray(record.assignees) ? record.assignees.map((a) => a.employeeName).join(', ') : '',
+    header: t('task.assignees'),
+    key: (record) =>
+      Array.isArray(record.assignees)
+        ? record.assignees.map((assignee) => assignee.employeeName).join(', ')
+        : '',
+    width: 24,
   },
 ];
+
+interface ColumnFilterTitleProps {
+  label: string;
+  active?: boolean;
+  children: React.ReactNode;
+}
+
+function ColumnFilterTitle({ label, active, children }: ColumnFilterTitleProps) {
+  return (
+    <Space size={4} onClick={(e) => e.stopPropagation()}>
+      <span>{label}</span>
+      <Dropdown
+        trigger={['click']}
+        dropdownRender={() => (
+          <div
+            style={{
+              padding: 8,
+              background: '#fff',
+              borderRadius: 6,
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {children}
+          </div>
+        )}
+      >
+        <Button
+          type={active ? 'primary' : 'text'}
+          size="small"
+          icon={<DownOutlined />}
+          aria-label={`${label} filter`}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </Dropdown>
+    </Space>
+  );
+}
+
+function baseColumns(
+  statusTitle: React.ReactNode,
+  groupTitle: React.ReactNode,
+  branchTitle: React.ReactNode,
+  dateTitle: React.ReactNode,
+  t: (key: string) => string,
+): ColumnDef<Task>[] {
+  return [
+    {
+      title: statusTitle,
+      dataIndex: 'status',
+      key: 'status',
+      width: 90,
+      render: (value) => {
+        const config = TASK_STATUS_MAP[value as TaskStatus];
+        return <Tag color={config?.color}>{config?.label ?? (value as string)}</Tag>;
+      },
+      exportHeader: t('task.status'),
+      exportKey: (record) => TASK_STATUS_MAP[record.status]?.label ?? record.status,
+    },
+    {
+      title: groupTitle,
+      dataIndex: 'groupName',
+      key: 'groupName',
+      width: 120,
+      ellipsis: true,
+      exportHeader: t('task.group'),
+      exportKey: 'groupName',
+    },
+    {
+      title: branchTitle,
+      dataIndex: 'branchName',
+      key: 'branchName',
+      width: 120,
+      ellipsis: true,
+      exportHeader: t('task.branch'),
+      exportKey: 'branchName',
+    },
+    {
+      title: dateTitle,
+      dataIndex: 'date',
+      key: 'date',
+      width: 110,
+      sorter: true,
+      exportHeader: t('task.date'),
+      exportKey: 'date',
+    },
+    {
+      title: t('task.startTime'),
+      dataIndex: 'startTime',
+      key: 'startTime',
+      width: 90,
+      exportHeader: t('task.startTime'),
+      exportKey: 'startTime',
+    },
+    {
+      title: t('task.endTime'),
+      dataIndex: 'endTime',
+      key: 'endTime',
+      width: 90,
+      render: (value, record) =>
+        `${value as string}${record.isOvernight ? `（${t('task.overnight')}）` : ''}`,
+      exportHeader: t('task.endTime'),
+      exportKey: (record) =>
+        `${record.endTime}${record.isOvernight ? `（${t('task.overnight')}）` : ''}`,
+    },
+    {
+      title: t('task.headcount'),
+      dataIndex: 'headcount',
+      key: 'headcount',
+      width: 90,
+      exportHeader: t('task.headcount'),
+      exportKey: 'headcount',
+    },
+    {
+      title: t('task.shift'),
+      dataIndex: 'shift',
+      key: 'shift',
+      width: 100,
+      exportHeader: t('task.shift'),
+      exportKey: 'shift',
+    },
+    {
+      title: t('task.route'),
+      dataIndex: 'route',
+      key: 'route',
+      width: 100,
+      ellipsis: true,
+      exportHeader: t('task.route'),
+      exportKey: 'route',
+    },
+    {
+      title: t('task.content'),
+      key: 'contents',
+      width: 140,
+      ellipsis: true,
+      render: (_value, record) =>
+        Array.isArray(record.contents) ? record.contents.join(', ') : '',
+      exportHeader: t('task.content'),
+      exportKey: (record) => (Array.isArray(record.contents) ? record.contents.join(', ') : ''),
+    },
+    {
+      title: t('task.assignees'),
+      key: 'assignees',
+      width: 150,
+      ellipsis: true,
+      render: (_value, record) =>
+        Array.isArray(record.assignees)
+          ? record.assignees.map((a) => a.employeeName).join(', ')
+          : '',
+      exportHeader: t('task.assignees'),
+      exportKey: (record) =>
+        Array.isArray(record.assignees)
+          ? record.assignees.map((a) => a.employeeName).join(', ')
+          : '',
+    },
+  ];
+}
 
 /**
  * 行動裝置（< 768px）卡片檢視渲染函式，將任務列表欄位資訊以卡片形式呈現，
@@ -136,7 +226,7 @@ const columns: ColumnDef<Task>[] = [
  *
  * Validates: Requirements 16.1
  */
-function renderTaskCard(record: Task) {
+function renderTaskCard(record: Task, t: (key: string) => string) {
   const statusConfig = TASK_STATUS_MAP[record.status];
   return (
     <Card size="small" style={{ marginBottom: 8 }} data-testid={`task-card-${record.id}`}>
@@ -149,16 +239,20 @@ function renderTaskCard(record: Task) {
         </Space>
         <span>
           {record.date} {record.startTime} - {record.endTime}
-          {record.isOvernight ? '（跨日）' : ''}
+          {record.isOvernight ? `（${t('task.overnight')}）` : ''}
         </span>
         <span>
-          班次：{record.shift || '-'} ／ 人數需求：{record.headcount}
+          {t('task.shift')}：{record.shift || '-'} ／ {t('task.headcount')}：{record.headcount}
         </span>
         {Array.isArray(record.contents) && record.contents.length > 0 && (
-          <span>內容：{record.contents.join('、')}</span>
+          <span>
+            {t('task.content')}：{record.contents.join('、')}
+          </span>
         )}
         {Array.isArray(record.assignees) && record.assignees.length > 0 && (
-          <span>指派人員：{record.assignees.map((a) => a.employeeName).join('、')}</span>
+          <span>
+            {t('task.assignees')}：{record.assignees.map((a) => a.employeeName).join('、')}
+          </span>
         )}
       </Space>
     </Card>
@@ -173,10 +267,10 @@ function renderTaskCard(record: Task) {
  */
 function buildActionColumn(
   onEditClick: (record: Task) => void,
-  onMapClick: (record: Task) => void,
+  t: (key: string) => string,
 ): ColumnDef<Task> {
   return {
-    title: '功能',
+    title: t('common.actions'),
     key: 'actions',
     width: 120,
     fixed: 'right',
@@ -185,40 +279,29 @@ function buildActionColumn(
         <Button
           type="link"
           icon={<EditOutlined />}
-          aria-label="編輯"
+          aria-label={t('common.edit')}
           onClick={(e) => {
             e.stopPropagation();
             onEditClick(record);
           }}
         >
-          編輯
+          {t('common.edit')}
         </Button>
-        <Button
-          type="link"
-          icon={<EnvironmentOutlined />}
-          aria-label="在地圖上檢視"
-          onClick={(e) => {
-            e.stopPropagation();
-            onMapClick(record);
-          }}
-        />
       </Space>
     ),
   };
 }
 
 /**
- * Custom hook that wraps useTaskList with store-based filters.
- * This satisfies BaseTable's queryHook signature: () => QueryResult<PaginatedResponse<T>>
+ * 任務頁面主元件
+ * 以 Tabs 整合任務列表、待定時間客戶、審批流程三個子頁面（依權限決定顯示的分頁）
  */
-function useTaskListQuery(): QueryResult<PaginatedResponse<Task>> {
-  const filters = useTaskStore((state) => state.filters);
-  return useTaskList(filters) as QueryResult<PaginatedResponse<Task>>;
-}
-
 function TaskPage() {
-  const navigate = useNavigate();
-  const { setFilters, resetFilters } = useTaskStore();
+  const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const hasPermission = usePermissionStore((state) => state.hasPermission);
+  const { filters, setFilters } = useTaskStore();
+  const taskListQuery = useTaskList(filters) as QueryResult<PaginatedResponse<Task>>;
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const createMutation = useCreateTask();
@@ -232,59 +315,69 @@ function TaskPage() {
     [customerGroups],
   );
 
-  const branchOptions = useMemo(
-    () =>
-      customerGroups.flatMap((g: CustomerGroup) =>
-        g.branches.map((b) => ({ label: b.name, value: b.id })),
-      ),
-    [customerGroups],
-  );
+  const branchOptions = useMemo(() => {
+    const groups = filters.groupId
+      ? customerGroups.filter((g: CustomerGroup) => g.id === filters.groupId)
+      : customerGroups;
 
-  const searchFields: SearchFieldConfig[] = useMemo(
-    () => [
-      { name: 'status', label: '狀態', type: 'select', options: TASK_STATUS_OPTIONS },
-      { name: 'groupId', label: '集團', type: 'select', options: groupOptions },
-      { name: 'branchId', label: '分店', type: 'select', options: branchOptions },
-      { name: 'dateRange', label: '日期', type: 'rangePicker' },
-    ],
-    [groupOptions, branchOptions],
-  );
+    return groups.flatMap((g: CustomerGroup) =>
+      g.branches.map((b) => ({ label: b.name, value: b.id })),
+    );
+  }, [customerGroups, filters.groupId]);
 
-  const handleSearch = useCallback(
-    (values: Record<string, unknown>) => {
-      const dateRange = values.dateRange as [dayjs.Dayjs, dayjs.Dayjs] | undefined;
-
-      setFilters({
-        status: (values.status as TaskStatus) || undefined,
-        groupId: (values.groupId as string) || undefined,
-        branchId: (values.branchId as string) || undefined,
-        startDate: dateRange?.[0] ? dateRange[0].format('YYYY-MM-DD') : undefined,
-        endDate: dateRange?.[1] ? dateRange[1].format('YYYY-MM-DD') : undefined,
-        page: 1,
-      });
-    },
+  // 依狀態欄位篩選（表格欄位標題內建之下拉篩選）
+  const handleStatusFilter = useCallback(
+    (status?: TaskStatus) => setFilters({ status, page: 1 }),
     [setFilters],
   );
 
-  const handleReset = useCallback(() => {
-    resetFilters();
-  }, [resetFilters]);
+  // 依集團篩選，切換集團時重置分店篩選避免殘留不相關的分店條件
+  const handleGroupFilter = useCallback(
+    (groupId?: string) => setFilters({ groupId, branchId: undefined, page: 1 }),
+    [setFilters],
+  );
 
+  // 依分店篩選
+  const handleBranchFilter = useCallback(
+    (branchId?: string) => setFilters({ branchId, page: 1 }),
+    [setFilters],
+  );
+
+  // 依日期區間篩選
+  const handleDateFilter = useCallback(
+    (dates: null | [dayjs.Dayjs | null, dayjs.Dayjs | null]) =>
+      setFilters({
+        startDate: dates?.[0] ? dates[0].format('YYYY-MM-DD') : undefined,
+        endDate: dates?.[1] ? dates[1].format('YYYY-MM-DD') : undefined,
+        page: 1,
+      }),
+    [setFilters],
+  );
+
+  // 點擊資料列開啟編輯任務 Modal，帶入該筆任務資料
   const handleRowClick = useCallback((record: Task) => {
     setEditingTask(record);
     setModalOpen(true);
   }, []);
 
+  // 開啟新增任務 Modal
   const handleCreateClick = useCallback(() => {
     setEditingTask(null);
     setModalOpen(true);
   }, []);
 
+  // 匯出目前查詢結果之任務列表為 Excel 檔案
+  const handleExportTasks = useCallback(() => {
+    exportToExcel(taskListQuery.data?.list ?? [], getTaskExportColumns(t), `tasks_${Date.now()}`);
+  }, [taskListQuery.data?.list, t]);
+
+  // 關閉新增/編輯任務 Modal
   const handleModalClose = useCallback(() => {
     setModalOpen(false);
     setEditingTask(null);
   }, []);
 
+  // 送出任務表單：依是否為編輯模式呼叫更新或建立 API
   const handleTaskSubmit = useCallback(
     async (data: TaskFormData) => {
       if (editingTask) {
@@ -298,53 +391,120 @@ function TaskPage() {
     [editingTask, createMutation, updateMutation],
   );
 
-  // 從任務列表點擊「在地圖上檢視」按鈕後，定位至該任務對應之集團/分店
-  // Validates: Requirements 15.4
-  const handleMapClick = useCallback(
-    (record: Task) => {
-      navigate('/map', {
-        state: { groupId: record.groupId, branchId: record.branchId },
-      });
-    },
-    [navigate],
-  );
+  // 組合表格欄位定義，將狀態/集團/分店/日期篩選 UI 注入對應欄位標題
+  const tableColumns = useMemo(() => {
+    const statusTitle = (
+      <ColumnFilterTitle label={t('task.status')} active={!!filters.status}>
+        <Select
+          value={filters.status}
+          options={TASK_STATUS_OPTIONS}
+          placeholder={t('task.selectStatus')}
+          allowClear
+          style={{ width: 160 }}
+          onChange={handleStatusFilter}
+        />
+      </ColumnFilterTitle>
+    );
+    const groupTitle = (
+      <ColumnFilterTitle label={t('task.group')} active={!!filters.groupId}>
+        <Select
+          value={filters.groupId}
+          options={groupOptions}
+          placeholder={t('task.selectGroup')}
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          style={{ width: 180 }}
+          onChange={handleGroupFilter}
+        />
+      </ColumnFilterTitle>
+    );
+    const branchTitle = (
+      <ColumnFilterTitle label={t('task.branch')} active={!!filters.branchId}>
+        <Select
+          value={filters.branchId}
+          options={branchOptions}
+          placeholder={t('task.selectBranch')}
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          style={{ width: 180 }}
+          onChange={handleBranchFilter}
+        />
+      </ColumnFilterTitle>
+    );
+    const dateTitle = (
+      <ColumnFilterTitle label={t('task.date')} active={!!filters.startDate || !!filters.endDate}>
+        <DatePicker.RangePicker
+          value={[
+            filters.startDate ? dayjs(filters.startDate) : null,
+            filters.endDate ? dayjs(filters.endDate) : null,
+          ]}
+          format="YYYY-MM-DD"
+          onChange={handleDateFilter}
+        />
+      </ColumnFilterTitle>
+    );
 
-  const tableColumns = useMemo(
-    () => [...columns, buildActionColumn(handleRowClick, handleMapClick)],
-    [handleRowClick, handleMapClick],
-  );
+    return [
+      ...baseColumns(statusTitle, groupTitle, branchTitle, dateTitle, t),
+      buildActionColumn(handleRowClick, t),
+    ];
+  }, [
+    branchOptions,
+    filters.branchId,
+    filters.endDate,
+    filters.groupId,
+    filters.startDate,
+    filters.status,
+    groupOptions,
+    handleBranchFilter,
+    handleDateFilter,
+    handleGroupFilter,
+    handleRowClick,
+    handleStatusFilter,
+    t,
+  ]);
 
   const rowClassName = useCallback(
     (record: Task) => (record.status === 'MODIFIED' ? 'row-modified' : ''),
     [],
   );
 
-  return (
-    <div className="task-page">
-      <BaseSearchForm fields={searchFields} onSearch={handleSearch} onReset={handleReset} />
+  const useCurrentTaskListQuery = useCallback(() => taskListQuery, [taskListQuery]);
 
-      <div style={{ marginBottom: 16 }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateClick}>
-          新增任務
-        </Button>
+  const taskListContent = (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateClick}>
+            {t('task.create')}
+          </Button>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={handleExportTasks}
+            disabled={!taskListQuery.data?.list?.length}
+          >
+            {t('common.export')}
+          </Button>
+        </Space>
       </div>
 
       <BaseTable<Task>
         columns={tableColumns}
-        queryHook={useTaskListQuery}
-        exportable
+        queryHook={useCurrentTaskListQuery}
         onRowClick={handleRowClick}
-        cardRender={renderTaskCard}
+        cardRender={(record) => renderTaskCard(record, t)}
         rowKey="id"
         rowClassName={rowClassName}
       />
 
       <Modal
-        title={editingTask ? '任務詳情 / 編輯' : '新增任務'}
+        title={editingTask ? t('task.detailEdit') : t('task.create')}
         open={modalOpen}
         onCancel={handleModalClose}
         footer={null}
-        width={800}
+        width={1040}
         destroyOnClose
       >
         {modalOpen && (
@@ -356,6 +516,42 @@ function TaskPage() {
           />
         )}
       </Modal>
+    </>
+  );
+
+  const tabItems = [
+    {
+      key: 'tasks',
+      label: t('task.list'),
+      children: taskListContent,
+    },
+    hasPermission('pending_customer:view')
+      ? {
+          key: 'pending-customer',
+          label: t('menu.pendingCustomer'),
+          children: <PendingCustomerPage />,
+        }
+      : null,
+    hasPermission('approval:view')
+      ? {
+          key: 'approval',
+          label: t('menu.approval'),
+          children: <ApprovalPage />,
+        }
+      : null,
+  ].filter((item): item is Exclude<typeof item, null> => item !== null);
+
+  const requestedTab = searchParams.get('tab') ?? 'tasks';
+  const activeTab = tabItems.some((item) => item.key === requestedTab) ? requestedTab : 'tasks';
+
+  // 切換分頁時同步更新網址查詢參數（tab），任務列表分頁為預設分頁不加參數
+  const handleTabChange = (key: string) => {
+    setSearchParams(key === 'tasks' ? {} : { tab: key });
+  };
+
+  return (
+    <div className="task-page">
+      <Tabs activeKey={activeTab} items={tabItems} onChange={handleTabChange} />
     </div>
   );
 }

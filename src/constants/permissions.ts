@@ -1,3 +1,10 @@
+/**
+ * 權限代碼與角色預設權限對照表
+ *
+ * PERMISSIONS 定義系統中所有權限代碼常數（供路由與 UI 元素存取控制使用）；
+ * ROLE_PERMISSIONS 定義各角色預設擁有之權限代碼清單，
+ * 於登入或還原登入狀態時與 API 授予之權限合併使用（見 usePermissionStore.buildPermissions）。
+ */
 // Permission codes for route and UI element access control
 export const PERMISSIONS = {
   // Task Management
@@ -47,6 +54,7 @@ export const PERMISSIONS = {
   SYSTEM_SETTINGS: 'system:settings',
 } as const;
 
+/** 角色預設權限對照表（角色代碼 -> 該角色預設擁有之權限代碼清單） */
 // Role-based permission mapping
 export const ROLE_PERMISSIONS: Record<string, string[]> = {
   // Admin：全部的功能

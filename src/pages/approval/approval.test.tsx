@@ -1,3 +1,5 @@
+// 審批流程頁面 (ApprovalPage) 單元測試
+// 測試對象：src/pages/approval/index.tsx，涵蓋審批列表呈現、核准操作觸發客戶重新通知、駁回流程驗證
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';

@@ -1,6 +1,10 @@
+// 客戶資料管理頁面 (CustomerPage) 單元測試
+// 測試對象：src/pages/customer/index.tsx，涵蓋客戶列表卡片呈現、新增/編輯、刪除確認、
+// 搜尋篩選與行動裝置卡片模式
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { Modal } from 'antd';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import CustomerPage from './index';
 import type { Customer } from '@/types/customer';
 import type { PaginatedResponse } from '@/types/common';
@@ -82,6 +86,10 @@ const listResult: PaginatedResponse<Customer> = {
  * Validates: Requirements 10.1, 10.2, 10.3, 10.4
  */
 describe('CustomerPage', () => {
+  afterEach(() => {
+    Modal.destroyAll();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsMobile = false;
@@ -108,19 +116,15 @@ describe('CustomerPage', () => {
   });
 
   describe('客戶資料列表 - Requirement 10.1', () => {
-    it('renders table with required columns and data', () => {
+    it('renders customer records as cards with required data', () => {
       render(<CustomerPage />);
 
-      expect(screen.getAllByText('集團名稱').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('分店名稱').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('地址').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('聯絡窗口').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('電話').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('證照限制').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('備註').length).toBeGreaterThanOrEqual(1);
-
-      expect(screen.getByText('集團A')).toBeInTheDocument();
-      expect(screen.getByText('集團B')).toBeInTheDocument();
+      expect(screen.getByTestId('customer-card-c1')).toBeInTheDocument();
+      expect(screen.getByTestId('customer-card-c2')).toBeInTheDocument();
+      expect(screen.getByText('集團A 分店A')).toBeInTheDocument();
+      expect(screen.getByText('集團B 分店B')).toBeInTheDocument();
+      expect(screen.getByText('台北市信義路 1 號')).toBeInTheDocument();
+      expect(screen.getByText('聯絡窗口：王小明 ／ 電話：0900000000')).toBeInTheDocument();
     });
   });
 
@@ -140,7 +144,7 @@ describe('CustomerPage', () => {
       const user = userEvent.setup();
       render(<CustomerPage />);
 
-      await user.click(screen.getByText('集團A'));
+      await user.click(screen.getByTestId('customer-card-c1'));
 
       await waitFor(() => {
         expect(screen.getByText('編輯客戶資料')).toBeInTheDocument();
@@ -223,6 +227,7 @@ describe('CustomerPage', () => {
   describe('搜尋篩選 - Requirement 10.4', () => {
     it('renders search input for group/branch keyword', () => {
       render(<CustomerPage />);
+
       expect(screen.getByPlaceholderText('搜尋集團/分店名稱')).toBeInTheDocument();
     });
 

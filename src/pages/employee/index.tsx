@@ -1,7 +1,20 @@
 import { useCallback, useState } from 'react';
 import type { FC } from 'react';
-import { Button, Card, Form, Input, Select, Space, Tag, message, DatePicker } from 'antd';
-import { PlusOutlined, CloseOutlined } from '@ant-design/icons';
+import {
+  Avatar,
+  Button,
+  Card,
+  Form,
+  Input,
+  Select,
+  Space,
+  Tag,
+  message,
+  DatePicker,
+  Modal,
+} from 'antd';
+import { PlusOutlined, CloseOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import type { Dayjs } from 'dayjs';
 import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/BaseTable';
 import BaseModal from '@/components/base/BaseModal';
@@ -9,13 +22,14 @@ import {
   useEmployeeList,
   useCreateEmployee,
   useUpdateEmployee,
+  useDeleteEmployee,
 } from '@/queries/useEmployeeQueries';
 import { useDictStore } from '@/stores/useDictStore';
 import { LICENSE_TYPE_MAP, LICENSE_TYPE_OPTIONS } from '@/constants/licenseTypes';
 import { POSITION_MAP, POSITION_OPTIONS } from '@/constants/positions';
 import { hasLicenseConflict } from '@/utils/licenseValidation';
 import { getGroupColor } from '@/utils/groupColor';
-import type { EmployeeFormData } from '@/api/employee';
+import type { EmployeeFormData, EmployeeListParams } from '@/api/employee';
 import type { Employee } from '@/types/employee';
 import type { LicenseType } from '@/types/alert';
 import type { PaginatedResponse } from '@/types/common';
@@ -37,6 +51,8 @@ interface DesignatedLeavesEditorProps {
  * 提供 DatePicker 選取日期新增，並以可移除之 Tag 列表呈現已選日期
  */
 const DesignatedLeavesEditor: FC<DesignatedLeavesEditorProps> = ({ value = [], onChange }) => {
+  const { t } = useTranslation();
+  // 新增一筆指定休假日期，並依日期字串排序，避免重複加入相同日期
   const handleAdd = useCallback(
     (date: Dayjs | null) => {
       if (!date) return;
@@ -48,6 +64,7 @@ const DesignatedLeavesEditor: FC<DesignatedLeavesEditorProps> = ({ value = [], o
     [value, onChange],
   );
 
+  // 移除指定的休假日期
   const handleRemove = useCallback(
     (dateStr: string) => {
       onChange?.(value.filter((d) => d !== dateStr));
@@ -62,8 +79,8 @@ const DesignatedLeavesEditor: FC<DesignatedLeavesEditorProps> = ({ value = [], o
         format="YYYY-MM-DD"
         value={null}
         onChange={handleAdd}
-        placeholder="選擇日期以新增指定休假"
-        aria-label="新增指定休假日期"
+        placeholder={t('employee.addDesignatedLeave')}
+        aria-label={t('employee.addDesignatedLeave')}
       />
       <Space size={[4, 4]} wrap>
         {value.map((d) => (
@@ -71,7 +88,9 @@ const DesignatedLeavesEditor: FC<DesignatedLeavesEditorProps> = ({ value = [], o
             key={d}
             closable
             onClose={() => handleRemove(d)}
-            closeIcon={<CloseOutlined aria-label={`移除休假日 ${d}`} />}
+            closeIcon={
+              <CloseOutlined aria-label={t('employee.removeDesignatedLeave', { date: d })} />
+            }
           >
             {d}
           </Tag>
@@ -88,20 +107,52 @@ const DEFAULT_PARAMS = { page: 1, pageSize: 20 };
  *
  * Validates: Requirements 16.1
  */
-function renderEmployeeCard(record: Employee) {
+function renderEmployeeCard(
+  record: Employee,
+  onDelete: (record: Employee) => void,
+  t: (key: string) => string,
+) {
+  const groupColor = record.groupColor || getGroupColor(record.groupId);
+
   return (
-    <Card size="small" style={{ marginBottom: 8 }} data-testid={`employee-card-${record.id}`}>
-      <Space direction="vertical" size={4} style={{ width: '100%' }}>
-        <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
-          <strong>{record.name}</strong>
-          <Tag color={record.groupColor || getGroupColor(record.groupId)}>{record.groupName}</Tag>
+    <Card
+      hoverable
+      className="management-card employee-management-card"
+      data-testid={`employee-card-${record.id}`}
+    >
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Space align="start" style={{ justifyContent: 'space-between', width: '100%' }}>
+          <Space align="center">
+            <Avatar style={{ backgroundColor: groupColor }}>{record.name.slice(0, 1)}</Avatar>
+            <div>
+              <div className="management-card-title">{record.name}</div>
+              <div className="management-card-subtitle">
+                {t('employee.employeeNo')}：{record.employeeNo}
+              </div>
+            </div>
+          </Space>
+          <Space>
+            <Tag color={groupColor}>{record.groupName}</Tag>
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+              aria-label={t('employee.deleteEmployee')}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(record);
+              }}
+            />
+          </Space>
         </Space>
-        <span>
-          {POSITION_MAP[record.position] ?? record.position} ／ {record.phone}
-        </span>
-        <span>員工編號：{record.employeeNo}</span>
+        <div className="management-card-info">
+          <span>{POSITION_MAP[record.position] ?? record.position}</span>
+          <span>{record.phone}</span>
+        </div>
         {(record.designatedLeaves ?? []).length > 0 && (
-          <span>指定休假：{(record.designatedLeaves ?? []).join('、')}</span>
+          <div className="management-card-note">
+            {t('employee.designatedLeave')}：{(record.designatedLeaves ?? []).join('、')}
+          </div>
         )}
         {(record.licenses ?? []).length > 0 && (
           <Space size={[4, 4]} wrap>
@@ -115,7 +166,13 @@ function renderEmployeeCard(record: Employee) {
   );
 }
 
+/**
+ * 員工資料管理頁面主元件
+ * 負責搜尋條件、分頁、新增/編輯 Modal 與刪除確認的狀態管理
+ */
 const EmployeePage: FC = () => {
+  const { t } = useTranslation();
+  const [filters, setFilters] = useState<EmployeeListParams>(DEFAULT_PARAMS);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [form] = Form.useForm<EmployeeFormData>();
@@ -124,18 +181,29 @@ const EmployeePage: FC = () => {
 
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee();
+  const deleteMutation = useDeleteEmployee();
 
   // Wraps useEmployeeList to satisfy BaseTable's queryHook signature
   function useEmployeeListQuery(): QueryResult<PaginatedResponse<Employee>> {
-    return useEmployeeList(DEFAULT_PARAMS) as QueryResult<PaginatedResponse<Employee>>;
+    return useEmployeeList(filters) as QueryResult<PaginatedResponse<Employee>>;
   }
 
+  // 依關鍵字（姓名/員工編號）搜尋，重設回第一頁
+  const handleKeywordSearch = useCallback((value: string) => {
+    setFilters({
+      ...DEFAULT_PARAMS,
+      keyword: value.trim() || undefined,
+    });
+  }, []);
+
+  // 開啟新增員工的 Modal
   const handleAddClick = useCallback(() => {
     setEditingEmployee(null);
     form.resetFields();
     setModalOpen(true);
   }, [form]);
 
+  // 點擊資料列時，帶入現有資料並開啟編輯 Modal
   const handleEditClick = useCallback(
     (record: Employee) => {
       setEditingEmployee(record);
@@ -153,73 +221,95 @@ const EmployeePage: FC = () => {
     [form],
   );
 
+  // 取消 Modal 並清空表單
   const handleModalCancel = useCallback(() => {
     setModalOpen(false);
     setEditingEmployee(null);
     form.resetFields();
   }, [form]);
 
+  // 送出表單：依是否為編輯模式呼叫更新或建立 API
   const handleModalOk = useCallback(async () => {
     const values = await form.validateFields();
 
     if (editingEmployee) {
       await updateMutation.mutateAsync({ id: editingEmployee.id, data: values });
-      message.success('員工資料已更新');
+      message.success(t('employee.updateSuccess'));
     } else {
       await createMutation.mutateAsync(values);
-      message.success('員工資料已新增');
+      message.success(t('employee.createSuccess'));
     }
 
     setModalOpen(false);
     setEditingEmployee(null);
     form.resetFields();
-  }, [form, editingEmployee, createMutation, updateMutation]);
+  }, [form, editingEmployee, createMutation, updateMutation, t]);
+
+  // 彈出刪除確認 Modal，確認後呼叫刪除 API
+  const handleDelete = useCallback(
+    (record: Employee) => {
+      Modal.confirm({
+        title: t('employee.deleteTitle'),
+        content: t('employee.deleteConfirm', {
+          name: `${record.name} ${record.employeeNo}`,
+        }),
+        okText: t('employee.confirmDelete'),
+        cancelText: t('common.cancel'),
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          await deleteMutation.mutateAsync(record.id);
+          message.success(t('employee.deleteSuccess'));
+        },
+      });
+    },
+    [deleteMutation, t],
+  );
 
   const columns: ColumnDef<Employee>[] = [
     {
-      title: '姓名',
+      title: t('employee.name'),
       dataIndex: 'name',
       key: 'name',
       width: 100,
-      exportHeader: '姓名',
+      exportHeader: t('employee.name'),
       exportKey: 'name',
     },
     {
-      title: '電話',
+      title: t('employee.phone'),
       dataIndex: 'phone',
       key: 'phone',
       width: 120,
-      exportHeader: '電話',
+      exportHeader: t('employee.phone'),
       exportKey: 'phone',
     },
     {
-      title: '員工編號',
+      title: t('employee.employeeNo'),
       dataIndex: 'employeeNo',
       key: 'employeeNo',
       width: 100,
-      exportHeader: '員工編號',
+      exportHeader: t('employee.employeeNo'),
       exportKey: 'employeeNo',
     },
     {
-      title: '職位',
+      title: t('employee.position'),
       key: 'position',
       width: 100,
       render: (_value, record) => POSITION_MAP[record.position] ?? record.position,
-      exportHeader: '職位',
+      exportHeader: t('employee.position'),
       exportKey: (record) => POSITION_MAP[record.position] ?? record.position,
     },
     {
-      title: '群組',
+      title: t('employee.group'),
       key: 'group',
       width: 120,
       render: (_value, record) => (
         <Tag color={record.groupColor || getGroupColor(record.groupId)}>{record.groupName}</Tag>
       ),
-      exportHeader: '群組',
+      exportHeader: t('employee.group'),
       exportKey: 'groupName',
     },
     {
-      title: '指定休假',
+      title: t('employee.designatedLeave'),
       key: 'designatedLeaves',
       width: 200,
       render: (_value, record) => (
@@ -229,11 +319,11 @@ const EmployeePage: FC = () => {
           ))}
         </Space>
       ),
-      exportHeader: '指定休假',
+      exportHeader: t('employee.designatedLeave'),
       exportKey: (record) => (record.designatedLeaves ?? []).join(', '),
     },
     {
-      title: '證照',
+      title: t('employee.licenses'),
       key: 'licenses',
       width: 220,
       render: (_value, record) => (
@@ -243,75 +333,120 @@ const EmployeePage: FC = () => {
           ))}
         </Space>
       ),
-      exportHeader: '證照',
+      exportHeader: t('employee.licenses'),
       exportKey: (record) =>
         (record.licenses ?? []).map((lic) => LICENSE_TYPE_MAP[lic] ?? lic).join(', '),
+    },
+    {
+      title: t('common.actions'),
+      key: 'actions',
+      width: 90,
+      fixed: 'right',
+      render: (_value, record) => (
+        <Button
+          type="link"
+          danger
+          icon={<DeleteOutlined />}
+          aria-label={t('employee.deleteEmployee')}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDelete(record);
+          }}
+        />
+      ),
     },
   ];
 
   return (
     <div className="employee-page">
-      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'flex-end' }} wrap>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick}>
-          新增員工
-        </Button>
-      </Space>
+      <Form layout="inline" style={{ marginBottom: 16 }}>
+        <Form.Item label={t('common.keyword')}>
+          <Input.Search
+            allowClear
+            enterButton={
+              <Button type="primary" icon={<SearchOutlined />}>
+                {t('common.search')}
+              </Button>
+            }
+            placeholder={t('employee.searchPlaceholder')}
+            onSearch={handleKeywordSearch}
+            style={{ minWidth: 260 }}
+          />
+        </Form.Item>
+      </Form>
 
       <BaseTable<Employee>
         columns={columns}
         queryHook={useEmployeeListQuery}
-        exportable
+        toolbarExtra={
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick}>
+            {t('employee.createButton')}
+          </Button>
+        }
         onRowClick={handleEditClick}
-        cardRender={renderEmployeeCard}
+        cardRender={(record) => renderEmployeeCard(record, handleDelete, t)}
+        cardLayout="always"
         rowKey="id"
       />
 
       <BaseModal
-        title={editingEmployee ? '編輯員工資料' : '新增員工資料'}
+        title={editingEmployee ? t('employee.edit') : t('employee.create')}
         open={modalOpen}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
         width={600}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="姓名" rules={[{ required: true, message: '請輸入姓名' }]}>
-            <Input placeholder="請輸入姓名" />
+          <Form.Item
+            name="name"
+            label={t('employee.name')}
+            rules={[{ required: true, message: t('employee.nameRequired') }]}
+          >
+            <Input placeholder={t('employee.namePlaceholder')} />
           </Form.Item>
-          <Form.Item name="phone" label="電話" rules={[{ required: true, message: '請輸入電話' }]}>
-            <Input placeholder="請輸入電話" />
+          <Form.Item
+            name="phone"
+            label={t('employee.phone')}
+            rules={[{ required: true, message: t('employee.phoneRequired') }]}
+          >
+            <Input placeholder={t('employee.phonePlaceholder')} />
           </Form.Item>
           <Form.Item
             name="employeeNo"
-            label="員工編號"
-            rules={[{ required: true, message: '請輸入員工編號' }]}
+            label={t('employee.employeeNo')}
+            rules={[{ required: true, message: t('employee.employeeNoRequired') }]}
           >
-            <Input placeholder="請輸入員工編號" />
+            <Input placeholder={t('employee.employeeNoPlaceholder')} />
           </Form.Item>
           <Form.Item
             name="position"
-            label="職位"
-            rules={[{ required: true, message: '請選擇職位' }]}
+            label={t('employee.position')}
+            rules={[{ required: true, message: t('employee.positionRequired') }]}
           >
-            <Select placeholder="請選擇職位" options={POSITION_OPTIONS} />
+            <Select placeholder={t('employee.positionPlaceholder')} options={POSITION_OPTIONS} />
           </Form.Item>
           <Form.Item
             name="groupId"
-            label="群組"
-            rules={[{ required: true, message: '請選擇群組' }]}
+            label={t('employee.group')}
+            rules={[{ required: true, message: t('employee.groupRequired') }]}
           >
-            <Select placeholder="請選擇群組" options={groups} />
+            <Select placeholder={t('employee.groupPlaceholder')} options={groups} />
           </Form.Item>
-          <Form.Item name="designatedLeaves" label="指定休假" initialValue={[]}>
+          <Form.Item
+            name="designatedLeaves"
+            label={t('employee.designatedLeave')}
+            initialValue={[]}
+          >
             <DesignatedLeavesEditor />
           </Form.Item>
           <Form.Item
             name="licenses"
-            label="證照"
+            label={t('employee.licenses')}
             rules={[
               {
                 validator: (_rule, value: LicenseType[] = []) => {
                   if (hasLicenseConflict(value)) {
-                    return Promise.reject(new Error('證照設定衝突'));
+                    return Promise.reject(new Error(t('employee.licenseConflict')));
                   }
                   return Promise.resolve();
                 },
@@ -320,7 +455,7 @@ const EmployeePage: FC = () => {
           >
             <Select
               mode="multiple"
-              placeholder="請選擇證照"
+              placeholder={t('employee.licensesPlaceholder')}
               options={LICENSE_TYPE_OPTIONS}
               allowClear
             />

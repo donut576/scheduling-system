@@ -1,3 +1,4 @@
+// 測試對象：BaseModal（通用彈出視窗元件）
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import BaseModal from './index';

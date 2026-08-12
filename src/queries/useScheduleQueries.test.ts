@@ -1,3 +1,7 @@
+/**
+ * useScheduleQueries.ts 的單元測試。
+ * 驗證排班查詢 key 產生邏輯、排班資料查詢，以及排班更新變更的行為。
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -6,7 +10,7 @@ import type { ReactNode } from 'react';
 import { scheduleKeys, useScheduleData, useUpdateSchedule } from './useScheduleQueries';
 import type { ScheduleParams } from '@/types/schedule';
 
-// Mock the schedule API module
+// 模擬（mock）排班 API 模組，避免測試時真的發出網路請求
 vi.mock('@/api/schedule', () => ({
   scheduleApi: {
     get: vi.fn(),
@@ -18,6 +22,7 @@ import { scheduleApi } from '@/api/schedule';
 
 const mockedScheduleApi = vi.mocked(scheduleApi);
 
+// 建立測試用的 QueryClientProvider 包裝器，並關閉重試以讓測試更快、更穩定
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -46,6 +51,7 @@ describe('useScheduleData', () => {
     vi.clearAllMocks();
   });
 
+  // 驗證能依維度與日期範圍正確取得排班資料
   it('fetches schedule data with dimension and date range', async () => {
     const mockData = {
       events: [
@@ -92,6 +98,7 @@ describe('useScheduleData', () => {
     expect(mockedScheduleApi.get).toHaveBeenCalledWith(params, expect.any(AbortSignal));
   });
 
+  // 驗證查詢時會將 AbortSignal 傳遞給 API，讓元件卸載或參數變更時能中斷請求
   it('passes AbortSignal to the API call', async () => {
     mockedScheduleApi.get.mockResolvedValue({
       data: { code: 0, message: 'ok', data: { events: [], resources: [] } },
@@ -114,6 +121,7 @@ describe('useScheduleData', () => {
     expect(callArgs?.[1]).toBeInstanceOf(AbortSignal);
   });
 
+  // 驗證不同的查詢參數會產生不同的快取鍵，避免資料互相覆蓋
   it('uses different query keys for different params', () => {
     const params1: ScheduleParams = {
       dimension: 'customer',
@@ -138,6 +146,7 @@ describe('useUpdateSchedule', () => {
     vi.clearAllMocks();
   });
 
+  // 驗證批次變更（新增/更新/移除事件）能正確送出更新請求
   it('updates schedule with batch changes', async () => {
     mockedScheduleApi.update.mockResolvedValue({
       data: { code: 0, message: 'ok', data: null },

@@ -1,6 +1,10 @@
+// 員工資料管理頁面 (EmployeePage) 單元測試
+// 測試對象：src/pages/employee/index.tsx，涵蓋員工列表、群組色彩標示、
+// 新增/編輯/刪除、證照多選與衝突驗證、指定休假日設定
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { Modal } from 'antd';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import EmployeePage from './index';
 import type { Employee } from '@/types/employee';
 import type { PaginatedResponse } from '@/types/common';
@@ -22,11 +26,13 @@ Object.defineProperty(window, 'matchMedia', {
 
 const mockCreateMutateAsync = vi.fn().mockResolvedValue(undefined);
 const mockUpdateMutateAsync = vi.fn().mockResolvedValue(undefined);
+const mockDeleteMutateAsync = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@/queries/useEmployeeQueries', () => ({
   useEmployeeList: vi.fn(),
   useCreateEmployee: vi.fn(),
   useUpdateEmployee: vi.fn(),
+  useDeleteEmployee: vi.fn(),
 }));
 
 vi.mock('@/stores/useDictStore', () => ({
@@ -43,6 +49,7 @@ import {
   useEmployeeList,
   useCreateEmployee,
   useUpdateEmployee,
+  useDeleteEmployee,
 } from '@/queries/useEmployeeQueries';
 
 const employees: Employee[] = [
@@ -86,6 +93,10 @@ const listResult: PaginatedResponse<Employee> = {
  * Validates: Requirements 11.1, 11.2, 11.3, 11.4, 11.5, 11.6
  */
 describe('EmployeePage', () => {
+  afterEach(() => {
+    Modal.destroyAll();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -104,22 +115,22 @@ describe('EmployeePage', () => {
     vi.mocked(useUpdateEmployee).mockReturnValue({
       mutateAsync: mockUpdateMutateAsync,
     } as unknown as ReturnType<typeof useUpdateEmployee>);
+
+    vi.mocked(useDeleteEmployee).mockReturnValue({
+      mutateAsync: mockDeleteMutateAsync,
+    } as unknown as ReturnType<typeof useDeleteEmployee>);
   });
 
   describe('員工資料列表 - Requirement 11.1', () => {
-    it('renders table with required columns and data', () => {
+    it('renders employee records as cards with required data', () => {
       render(<EmployeePage />);
 
-      expect(screen.getAllByText('姓名').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('電話').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('員工編號').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('職位').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('群組').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('指定休假').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('證照').length).toBeGreaterThanOrEqual(1);
-
+      expect(screen.getByTestId('employee-card-e1')).toBeInTheDocument();
+      expect(screen.getByTestId('employee-card-e2')).toBeInTheDocument();
       expect(screen.getByText('王大明')).toBeInTheDocument();
       expect(screen.getByText('李小華')).toBeInTheDocument();
+      expect(screen.getByText('員工編號：E001')).toBeInTheDocument();
+      expect(screen.getByText('指定休假：2025-01-01')).toBeInTheDocument();
     });
 
     it('renders group as a colored tag - Requirement 11.4', () => {
@@ -129,6 +140,55 @@ describe('EmployeePage', () => {
       expect(groupTag).toBeInTheDocument();
       // Ant Design Tag applies the color via inline style/className
       expect(groupTag.closest('.ant-tag')).toBeTruthy();
+    });
+
+    it('filters employees by keyword without rendering reset button', async () => {
+      const user = userEvent.setup();
+      render(<EmployeePage />);
+
+      expect(screen.queryByText('重置')).not.toBeInTheDocument();
+
+      await user.type(screen.getByPlaceholderText('搜尋姓名/員工編號'), 'E001');
+      await user.click(screen.getByRole('button', { name: /搜尋/ }));
+
+      await waitFor(() => {
+        expect(useEmployeeList).toHaveBeenLastCalledWith(
+          expect.objectContaining({ keyword: 'E001' }),
+        );
+      });
+    });
+  });
+
+  describe('刪除員工 - Requirement 11.2', () => {
+    it('shows delete action on employee cards and asks for confirmation', async () => {
+      const user = userEvent.setup();
+      render(<EmployeePage />);
+
+      const deleteButtons = screen.getAllByLabelText('刪除員工');
+      await user.click(deleteButtons[0]!);
+
+      await waitFor(() => {
+        expect(screen.getByText('確定要刪除「王大明 E001」的員工資料嗎？')).toBeInTheDocument();
+      });
+      expect(mockDeleteMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it('calls delete mutation after confirming', async () => {
+      const user = userEvent.setup();
+      render(<EmployeePage />);
+
+      const deleteButtons = screen.getAllByLabelText('刪除員工');
+      await user.click(deleteButtons[0]!);
+
+      await waitFor(() => {
+        expect(screen.getAllByText('確定刪除').length).toBeGreaterThanOrEqual(1);
+      });
+      const confirmButtons = screen.getAllByText('確定刪除');
+      await user.click(confirmButtons[confirmButtons.length - 1]!);
+
+      await waitFor(() => {
+        expect(mockDeleteMutateAsync).toHaveBeenCalledWith('e1');
+      });
     });
   });
 

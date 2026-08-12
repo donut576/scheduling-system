@@ -1,31 +1,35 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { FC } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  Button,
-  DatePicker,
-  Descriptions,
-  Drawer,
-  Modal,
-  Segmented,
-  Select,
-  Space,
-  Tag,
-  message,
-} from 'antd';
-import { EnvironmentOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
+import { Alert, Button, DatePicker, Modal, Segmented, Select, Space, message } from 'antd';
 import dayjs from 'dayjs';
 import ScheduleCalendar from '@/components/business/ScheduleCalendar';
 import TaskForm from '@/components/business/TaskForm';
-import AlertBadge from '@/components/business/AlertBadge';
 import { useScheduleStore } from '@/stores/useScheduleStore';
+import { useDictStore } from '@/stores/useDictStore';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useEmployeeList } from '@/queries/useEmployeeQueries';
 import { useTaskDetail, useUpdateTask } from '@/queries/useTaskQueries';
+import { TASK_TYPE_OPTIONS } from '@/constants/taskStatus';
+import { TIME_OPTIONS } from '@/constants/timeOptions';
 import type { ScheduleEvent, ScheduleViewMode, ScheduleDimension } from '@/types/schedule';
 import type { TaskFormData } from '@/types/task';
 
 const { RangePicker } = DatePicker;
+
+const ECOLAB_BLUE = '#0067a0';
+
+// 依背景色亮度計算應使用深色或淺色文字，確保事件詳情面板文字有足夠對比度可讀
+const getReadableTextColor = (backgroundColor: string) => {
+  const hex = backgroundColor.replace('#', '');
+  if (hex.length !== 6) return '#fff';
+
+  const red = parseInt(hex.slice(0, 2), 16);
+  const green = parseInt(hex.slice(2, 4), 16);
+  const blue = parseInt(hex.slice(4, 6), 16);
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+  return luminance > 0.62 ? '#1f2937' : '#fff';
+};
 
 /**
  * 排班總覽頁面
@@ -35,8 +39,13 @@ const { RangePicker } = DatePicker;
  *
  * Validates: Requirements 8.1, 8.2, 8.3, 9.1, 9.2, 9.3
  */
+/**
+ * 排班總覽頁面主元件
+ * 負責檢視模式/篩選條件狀態、事件點擊詳情顯示與編輯/取消任務之流程
+ */
 const SchedulePage: FC = () => {
-  const navigate = useNavigate();
+  const { t } = useTranslation();
+  const contents = useDictStore((state) => state.contents);
 
   const { currentView, dimension, dateRange, setView, setDimension, setDateRange } =
     useScheduleStore();
@@ -49,6 +58,7 @@ const SchedulePage: FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<ScheduleEvent | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [scrollTime, setScrollTime] = useState<string | undefined>(undefined);
 
   const { data: customerGroups = [] } = useCustomerGroups();
   const { data: employeeData } = useEmployeeList({ page: 1, pageSize: 500 });
@@ -56,15 +66,16 @@ const SchedulePage: FC = () => {
 
   const updateTaskMutation = useUpdateTask();
 
-  // 選定分店選項（依集團連動）
-  const branchOptions = useMemo(() => {
-    if (!groupId) return [];
-    const group = customerGroups.find((g) => g.id === groupId);
-    return (group?.branches ?? []).map((b) => ({ label: b.name, value: b.id }));
-  }, [groupId, customerGroups]);
-
-  const groupOptions = useMemo(
-    () => customerGroups.map((g) => ({ label: g.name, value: g.id })),
+  const customerBranchOptions = useMemo(
+    () =>
+      customerGroups.flatMap((group) =>
+        group.branches.map((branch) => ({
+          label: `${group.name} ${branch.name}`,
+          value: `${group.id}::${branch.id}`,
+          groupId: group.id,
+          branchId: branch.id,
+        })),
+      ),
     [customerGroups],
   );
 
@@ -89,13 +100,27 @@ const SchedulePage: FC = () => {
     [groupId, branchId, employeeId, areaId],
   );
 
+  // 切換日/週/月檢視模式；若切換至日檢視，優先使用今日日期（若落於目前區間內）
   const handleViewModeChange = useCallback(
     (value: string | number) => {
-      setView(value as ScheduleViewMode);
+      const nextView = value as ScheduleViewMode;
+      setView(nextView);
+      if (nextView === 'day') {
+        const today = dayjs().format('YYYY-MM-DD');
+        const isTodayInRange =
+          !dayjs(today).isBefore(dateRange.start, 'day') &&
+          !dayjs(today).isAfter(dateRange.end, 'day');
+        const nextDate = isTodayInRange ? today : dateRange.start;
+        setDateRange({
+          start: nextDate,
+          end: nextDate,
+        });
+      }
     },
-    [setView],
+    [dateRange.end, dateRange.start, setDateRange, setView],
   );
 
+  // 切換排班檢視維度（依客戶或依員工）
   const handleDimensionChange = useCallback(
     (value: string | number) => {
       setDimension(value as ScheduleDimension);
@@ -103,11 +128,21 @@ const SchedulePage: FC = () => {
     [setDimension],
   );
 
-  const handleGroupChange = useCallback((value: string | undefined) => {
-    setGroupId(value);
-    setBranchId(undefined);
+  // 客戶/分店篩選：下拉選項值為 "groupId::branchId" 組合字串，選取後拆解回獨立的
+  // groupId 與 branchId 狀態
+  const handleCustomerBranchChange = useCallback((value: string | undefined) => {
+    if (!value) {
+      setGroupId(undefined);
+      setBranchId(undefined);
+      return;
+    }
+
+    const [nextGroupId, nextBranchId] = value.split('::');
+    setGroupId(nextGroupId);
+    setBranchId(nextBranchId);
   }, []);
 
+  // 期間選擇器（RangePicker）變更時更新查詢日期區間
   const handlePeriodChange = useCallback(
     (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
       if (dates && dates[0] && dates[1]) {
@@ -120,35 +155,74 @@ const SchedulePage: FC = () => {
     [setDateRange],
   );
 
+  // 行事曆內部導覽（例如切換週/月頁面）造成的日期範圍變更；日檢視時強制起訖日相同
   const handleDateChange = useCallback(
     (range: { start: string; end: string }) => {
-      setDateRange(range);
+      setDateRange(
+        currentView === 'day'
+          ? {
+              start: range.start,
+              end: range.start,
+            }
+          : range,
+      );
     },
-    [setDateRange],
+    [currentView, setDateRange],
   );
 
-  const handleMapClick = useCallback(() => {
-    navigate('/map', {
-      state: selectedEvent
-        ? { groupId: selectedEvent.groupName, branchId: selectedEvent.branchName }
-        : undefined,
-    });
-  }, [navigate, selectedEvent]);
+  // 選擇時間快速跳轉：設定行事曆捲動位置，並自動切換至日檢視以便聚焦查看
+  const handleScrollTimeChange = useCallback(
+    (value: string | undefined) => {
+      setScrollTime(value);
+      if (value) {
+        setView('day');
+      }
+    },
+    [setView],
+  );
 
-  const handleEventClick = useCallback((event: ScheduleEvent) => {
-    setSelectedEvent(event);
-    setDetailOpen(true);
-  }, []);
+  // 從週/月檢視點擊某時刻放大聚焦至日檢視，並關閉可能開啟的事件詳情彈窗
+  const handleZoomToDay = useCallback(
+    (dateTime: string) => {
+      const target = dayjs(dateTime);
+      if (!target.isValid()) return;
 
+      const targetDate = target.format('YYYY-MM-DD');
+      setDateRange({ start: targetDate, end: targetDate });
+      setScrollTime(target.format('HH:mm'));
+      setView('day');
+      setDetailOpen(false);
+      setSelectedEvent(null);
+    },
+    [setDateRange, setView],
+  );
+
+  // 點擊行事曆事件：切換至該事件所在日期之日檢視，並開啟詳情彈窗
+  const handleEventClick = useCallback(
+    (event: ScheduleEvent) => {
+      const eventDate = dayjs(event.start).format('YYYY-MM-DD');
+      setSelectedEvent(event);
+      setScrollTime(dayjs(event.start).format('HH:mm'));
+      setDateRange({ start: eventDate, end: eventDate });
+      setView('day');
+      setDetailOpen(true);
+    },
+    [setDateRange, setView],
+  );
+
+  // 關閉事件詳情彈窗
   const handleDetailClose = useCallback(() => {
     setDetailOpen(false);
     setSelectedEvent(null);
   }, []);
 
+  // 從詳情彈窗點擊「編輯」：關閉詳情彈窗，開啟編輯任務 Modal
   const handleEditClick = useCallback(() => {
+    setDetailOpen(false);
     setEditOpen(true);
   }, []);
 
+  // 關閉編輯任務 Modal
   const handleEditClose = useCallback(() => {
     setEditOpen(false);
   }, []);
@@ -156,25 +230,29 @@ const SchedulePage: FC = () => {
   // 取得選定事件對應之完整任務資料（供編輯表單帶入當前資料）
   const { data: taskDetail } = useTaskDetail(selectedEvent?.taskId);
 
+  // 編輯表單送出：呼叫更新任務 API，成功後關閉所有彈窗並清空選定事件
   const handleEditSubmit = useCallback(
     async (data: TaskFormData) => {
       if (!selectedEvent) return;
       await updateTaskMutation.mutateAsync({ id: selectedEvent.taskId, data });
-      message.success('任務已更新');
+      message.success(t('schedule.taskUpdated'));
       setEditOpen(false);
       setDetailOpen(false);
       setSelectedEvent(null);
     },
-    [selectedEvent, updateTaskMutation],
+    [selectedEvent, updateTaskMutation, t],
   );
 
+  // 取消任務：彈出確認對話框，確認後將任務狀態更新為 CANCELLED
   const handleCancelTask = useCallback(() => {
     if (!selectedEvent) return;
     Modal.confirm({
-      title: '取消任務',
-      content: `確定要取消「${selectedEvent.groupName} ${selectedEvent.branchName}」此任務嗎？`,
-      okText: '確定取消',
-      cancelText: '返回',
+      title: t('schedule.cancelTask'),
+      content: t('schedule.cancelConfirm', {
+        name: `${selectedEvent.groupName} ${selectedEvent.branchName}`,
+      }),
+      okText: t('schedule.confirmCancel'),
+      cancelText: t('common.back'),
       okButtonProps: { danger: true },
       onOk: async () => {
         await updateTaskMutation.mutateAsync({
@@ -183,74 +261,169 @@ const SchedulePage: FC = () => {
             status: string;
           },
         });
-        message.success('任務已取消');
+        message.success(t('schedule.taskCancelled'));
         setDetailOpen(false);
         setSelectedEvent(null);
       },
     });
-  }, [selectedEvent, updateTaskMutation]);
+  }, [selectedEvent, updateTaskMutation, t]);
 
-  const alertBadgeStatus = useMemo(() => {
+  const taskTypeLabelMap = useMemo(
+    () => new Map(TASK_TYPE_OPTIONS.map((option) => [option.value, option.label])),
+    [],
+  );
+
+  const contentLabelMap = useMemo(
+    () => new Map(contents.map((option) => [option.value, option.label])),
+    [contents],
+  );
+
+  // 組合事件詳情彈窗所需之顯示資料，優先使用完整任務詳情（taskDetail），
+  // 若尚未載入完成則暫用行事曆事件本身帶有的簡略資料（extendedProps）
+  const detailRows = useMemo(() => {
     if (!selectedEvent) return null;
-    if (selectedEvent.alertStatus === 'OVERRIDDEN') return 'overridden';
-    if (selectedEvent.isRecurring) return 'recurring';
-    return null;
-  }, [selectedEvent]);
+
+    const matchedTaskDetail = taskDetail?.id === selectedEvent.taskId ? taskDetail : undefined;
+    const date = dayjs(selectedEvent.start).format('YYYY-MM-DD');
+    const startTime = dayjs(selectedEvent.start).format('HH:mm');
+    const endTime = dayjs(selectedEvent.end).format('HH:mm');
+    const isOvernight = selectedEvent.isOvernight;
+    const rawContents = matchedTaskDetail?.contents ?? selectedEvent.extendedProps.contents;
+    const contentText = rawContents
+      .map((content) =>
+        content === 'OTHER' && matchedTaskDetail?.otherContentNote
+          ? matchedTaskDetail.otherContentNote
+          : (contentLabelMap.get(content) ?? content),
+      )
+      .join('/');
+
+    return {
+      groupName: matchedTaskDetail?.groupName ?? selectedEvent.groupName,
+      branchName: matchedTaskDetail?.branchName ?? selectedEvent.branchName,
+      taskType:
+        taskTypeLabelMap.get(matchedTaskDetail?.taskType ?? selectedEvent.extendedProps.taskType) ??
+        matchedTaskDetail?.taskType ??
+        selectedEvent.extendedProps.taskType,
+      date: dayjs(date).format('YYYY/M/D'),
+      startTime,
+      endTime: `${endTime}${isOvernight ? '+1' : ''}`,
+      headcount: matchedTaskDetail?.headcount ?? '-',
+      shift: matchedTaskDetail?.shift ?? selectedEvent.extendedProps.shift,
+      route: matchedTaskDetail?.route || '-',
+      assignees:
+        (matchedTaskDetail?.assignees ?? selectedEvent.extendedProps.assignees)
+          .map((assignee) => assignee.employeeName)
+          .join('、') || t('schedule.unassigned'),
+      contents: contentText || '-',
+      isRecurring: Boolean(matchedTaskDetail?.recurrenceRule ?? selectedEvent.isRecurring),
+    };
+  }, [contentLabelMap, selectedEvent, taskDetail, taskTypeLabelMap, t]);
+
+  // 渲染事件詳情彈出面板內容（僅在該事件為目前選定事件時渲染）
+  const renderEventDetail = useCallback(
+    (event: ScheduleEvent) => {
+      if (!detailRows || selectedEvent?.id !== event.id) return null;
+
+      const detailColor = ECOLAB_BLUE;
+      const detailTextColor = getReadableTextColor(detailColor);
+
+      return (
+        <div
+          className="schedule-event-detail-popover"
+          style={{ backgroundColor: detailColor, color: detailTextColor }}
+        >
+          {detailRows.isRecurring && (
+            <Alert
+              className="schedule-event-detail-alert"
+              type="info"
+              showIcon
+              message={t('schedule.recurringHint')}
+            />
+          )}
+          <div className="schedule-event-detail-lines">
+            <div>{`${t('task.group')}: ${detailRows.groupName}`}</div>
+            <div>{`${t('task.branch')}: ${detailRows.branchName}`}</div>
+            <div>{`${t('task.taskType')}: ${detailRows.taskType}`}</div>
+            <div>{`${t('task.date')}: ${detailRows.date}`}</div>
+            <div>{`${t('task.startTime')}: ${detailRows.startTime}`}</div>
+            <div>{`${t('task.endTime')}: ${detailRows.endTime}`}</div>
+            <div>{`${t('task.headcount')}: ${detailRows.headcount}`}</div>
+            <div>{`${t('task.shift')}: ${detailRows.shift}`}</div>
+            <div>{`${t('task.route')}: ${detailRows.route}`}</div>
+            <div>{`${t('task.assignees')}: ${detailRows.assignees}`}</div>
+            <div>{`${t('schedule.detailContent')}: ${detailRows.contents}`}</div>
+          </div>
+          <Space className="schedule-event-detail-actions">
+            <Button onClick={handleEditClick} aria-label={t('schedule.editTask')}>
+              {t('common.edit')}
+            </Button>
+            <Button onClick={handleCancelTask} aria-label={t('schedule.cancelTask')}>
+              {t('common.cancel')}
+            </Button>
+          </Space>
+        </div>
+      );
+    },
+    [detailRows, handleCancelTask, handleEditClick, selectedEvent?.id, t],
+  );
 
   return (
     <div className="schedule-page" data-testid="schedule-page">
       {/* 工具列 */}
-      <Space wrap style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-        <Space wrap>
+      <div className="schedule-toolbar">
+        <Space wrap className="schedule-view-toolbar">
           <Segmented
-            aria-label="檢視切換"
+            aria-label={t('schedule.viewMode')}
             value={currentView}
             onChange={handleViewModeChange}
             options={[
-              { label: '日', value: 'day' },
-              { label: '週', value: 'week' },
-              { label: '月', value: 'month' },
+              { label: t('schedule.dayView'), value: 'day' },
+              { label: t('schedule.weekView'), value: 'week' },
+              { label: t('schedule.monthView'), value: 'month' },
             ]}
           />
           <Segmented
-            aria-label="維度切換"
+            aria-label={t('schedule.dimension')}
             value={dimension}
             onChange={handleDimensionChange}
             options={[
-              { label: '集團_分店', value: 'customer' },
-              { label: '員工_區域', value: 'employee' },
+              { label: t('schedule.customerDimension'), value: 'customer' },
+              { label: t('schedule.employeeDimension'), value: 'employee' },
             ]}
           />
           <RangePicker
-            aria-label="期間選擇"
+            aria-label={t('schedule.period')}
             value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
             onChange={handlePeriodChange}
           />
         </Space>
 
-        <Space wrap>
+        <Space wrap className="schedule-filter-toolbar">
           <Select
-            aria-label="集團篩選"
-            placeholder="集團篩選"
+            aria-label={t('schedule.timeJump')}
+            placeholder={t('schedule.timeJump')}
             allowClear
+            showSearch
+            optionFilterProp="label"
             style={{ minWidth: 140 }}
-            options={groupOptions}
-            value={groupId}
-            onChange={handleGroupChange}
+            options={TIME_OPTIONS}
+            value={scrollTime}
+            onChange={handleScrollTimeChange}
           />
           <Select
-            aria-label="分店篩選"
-            placeholder="分店篩選"
+            aria-label={t('schedule.customerBranchFilter')}
+            placeholder={t('schedule.customerBranchFilter')}
             allowClear
-            style={{ minWidth: 140 }}
-            options={branchOptions}
-            value={branchId}
-            disabled={!groupId}
-            onChange={setBranchId}
+            showSearch
+            optionFilterProp="label"
+            style={{ minWidth: 240 }}
+            options={customerBranchOptions}
+            value={groupId && branchId ? `${groupId}::${branchId}` : undefined}
+            onChange={handleCustomerBranchChange}
           />
           <Select
-            aria-label="員工篩選"
-            placeholder="員工篩選"
+            aria-label={t('schedule.employeeFilter')}
+            placeholder={t('schedule.employeeFilter')}
             allowClear
             showSearch
             optionFilterProp="label"
@@ -260,19 +433,16 @@ const SchedulePage: FC = () => {
             onChange={setEmployeeId}
           />
           <Select
-            aria-label="區域篩選"
-            placeholder="區域篩選"
+            aria-label={t('schedule.areaFilter')}
+            placeholder={t('schedule.areaFilter')}
             allowClear
             style={{ minWidth: 140 }}
             options={areaOptions}
             value={areaId}
             onChange={setAreaId}
           />
-          <Button icon={<EnvironmentOutlined />} onClick={handleMapClick} aria-label="地圖檢視">
-            地圖
-          </Button>
         </Space>
-      </Space>
+      </div>
 
       {/* 排班行事曆 */}
       <div style={{ height: 'calc(100vh - 220px)' }}>
@@ -283,61 +453,17 @@ const SchedulePage: FC = () => {
           filters={filters}
           onEventClick={handleEventClick}
           onDateChange={handleDateChange}
+          scrollTime={scrollTime}
+          openEventId={detailOpen ? selectedEvent?.id : undefined}
+          renderEventDetail={renderEventDetail}
+          onEventDetailClose={handleDetailClose}
+          onZoomToDay={handleZoomToDay}
         />
       </div>
 
-      {/* 詳情抽屜 */}
-      <Drawer
-        title="任務詳情"
-        open={detailOpen}
-        onClose={handleDetailClose}
-        width={420}
-        destroyOnClose
-        footer={
-          <Space>
-            <Button type="primary" onClick={handleEditClick} aria-label="編輯任務">
-              編輯
-            </Button>
-            <Button danger onClick={handleCancelTask} aria-label="取消任務">
-              取消任務
-            </Button>
-          </Space>
-        }
-      >
-        {selectedEvent && (
-          <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="集團">{selectedEvent.groupName}</Descriptions.Item>
-            <Descriptions.Item label="分店">{selectedEvent.branchName}</Descriptions.Item>
-            <Descriptions.Item label="任務類型">
-              {selectedEvent.extendedProps.taskType}
-            </Descriptions.Item>
-            <Descriptions.Item label="班別">{selectedEvent.extendedProps.shift}</Descriptions.Item>
-            <Descriptions.Item label="時間">
-              {dayjs(selectedEvent.start).format('YYYY-MM-DD HH:mm')} ~{' '}
-              {dayjs(selectedEvent.end).format('YYYY-MM-DD HH:mm')}
-              {selectedEvent.isOvernight && <Tag style={{ marginLeft: 8 }}>跨日</Tag>}
-            </Descriptions.Item>
-            <Descriptions.Item label="工作內容">
-              {selectedEvent.extendedProps.contents.join(', ')}
-            </Descriptions.Item>
-            <Descriptions.Item label="指派員工">
-              {selectedEvent.extendedProps.assignees.map((a) => a.employeeName).join(', ') ||
-                '尚未指派'}
-            </Descriptions.Item>
-            <Descriptions.Item label="狀態">
-              {alertBadgeStatus ? (
-                <AlertBadge status={alertBadgeStatus} />
-              ) : (
-                <Tag color="success">正常</Tag>
-              )}
-            </Descriptions.Item>
-          </Descriptions>
-        )}
-      </Drawer>
-
       {/* 編輯任務 Modal - 帶入當前資料 */}
       <Modal
-        title="編輯任務"
+        title={t('task.edit')}
         open={editOpen}
         onCancel={handleEditClose}
         footer={null}

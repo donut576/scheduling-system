@@ -1,3 +1,6 @@
+// 通知管理頁面 (NotificationPage) 單元測試
+// 測試對象：src/pages/notification/index.tsx，涵蓋通知列表狀態追蹤、手動發送時機判斷、
+// 通知範本編輯與每月 15 日排班提醒橫幅
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';

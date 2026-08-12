@@ -1,3 +1,9 @@
+/**
+ * usePermissionStore 屬性測試（Property-Based Test）
+ *
+ * 針對權限計算邏輯（buildPermissions、hasPermission）進行隨機化屬性驗證，
+ * 確保任意角色與權限組合下，路由/選單過濾與權限判斷皆符合預期規則。
+ */
 import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
 import { usePermissionStore } from './usePermissionStore';

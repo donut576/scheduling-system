@@ -1,3 +1,6 @@
+// Dashboard 首頁 (DashboardPage) 單元測試
+// 測試對象：src/pages/dashboard/index.tsx，涵蓋今日排班概要、待審核項目、
+// 近期警示與快捷入口導覽
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -202,12 +205,12 @@ describe('DashboardPage', () => {
       expect(screen.getByText('王組長')).toBeInTheDocument();
     });
 
-    it('navigates to /approval when 前往審批 link is clicked', async () => {
+    it('navigates to task approval tab when 前往審批 link is clicked', async () => {
       const user = userEvent.setup();
       render(<DashboardPage />);
 
       await user.click(screen.getByText('前往審批'));
-      expect(mockNavigate).toHaveBeenCalledWith('/approval');
+      expect(mockNavigate).toHaveBeenCalledWith('/task?tab=approval');
     });
   });
 
@@ -231,30 +234,29 @@ describe('DashboardPage', () => {
   });
 
   describe('快捷入口', () => {
-    it('renders quick entry buttons for 任務建立、排班總覽、通知中心', () => {
+    it('renders quick entry buttons for 新增任務、班表總覽、通知中心', () => {
       render(<DashboardPage />);
 
       const card = screen.getByTestId('quick-entry-card');
       expect(card).toBeInTheDocument();
-      expect(screen.getByText('任務建立')).toBeInTheDocument();
-      expect(screen.getByText('排班總覽')).toBeInTheDocument();
+      expect(screen.getByText('新增任務')).toBeInTheDocument();
+      expect(screen.getByText('班表總覽')).toBeInTheDocument();
       expect(screen.getByText('通知中心')).toBeInTheDocument();
     });
 
-    it('navigates to /task when 任務建立 quick entry is clicked', async () => {
+    it('navigates to /task when 新增任務 quick entry is clicked', async () => {
       const user = userEvent.setup();
       render(<DashboardPage />);
 
-      await user.click(screen.getByText('任務建立'));
+      await user.click(screen.getByText('新增任務'));
       expect(mockNavigate).toHaveBeenCalledWith('/task');
     });
 
-    it('navigates to /schedule when 排班總覽 quick entry is clicked', async () => {
+    it('navigates to /schedule when 班表總覽 quick entry is clicked', async () => {
       const user = userEvent.setup();
       render(<DashboardPage />);
 
-      const buttons = screen.getAllByText('排班總覽');
-      await user.click(buttons[buttons.length - 1]!);
+      await user.click(screen.getByText('班表總覽'));
       expect(mockNavigate).toHaveBeenCalledWith('/schedule');
     });
 

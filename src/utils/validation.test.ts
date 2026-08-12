@@ -1,3 +1,9 @@
+/**
+ * 測試對象：src/utils/validation.ts
+ * 涵蓋 XSS 跳脫/淨化、必填檢查、電話/Email/時間格式驗證、字串長度與
+ * 數值範圍驗證等函式，並包含 property-based tests（fast-check）
+ * 驗證跳脫處理之安全性、可逆性（unescape 還原）與冪等安全性。
+ */
 import { describe, it, expect } from 'vitest';
 import {
   escapeHtml,

@@ -1,3 +1,4 @@
+// 測試對象：BaseUpload（通用檔案上傳元件）
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

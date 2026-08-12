@@ -1,3 +1,9 @@
+/**
+ * 測試對象：src/utils/recurrence.ts
+ * 涵蓋 generateRecurrenceInstances 週期性任務產生函式，包含 property-based
+ * tests（fast-check）驗證每日/每週/每月各頻率下之間隔、結束條件（次數/日期/
+ * 永不結束）、星期幾與月中日期正確性，以及結果之時間順序不變性。
+ */
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { generateRecurrenceInstances } from './recurrence';

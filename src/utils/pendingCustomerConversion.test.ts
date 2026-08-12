@@ -1,3 +1,8 @@
+/**
+ * 測試對象：src/utils/pendingCustomerConversion.ts
+ * 涵蓋 buildConvertedTaskData 待定客戶轉換函式，包含 property-based tests
+ * （fast-check）驗證集團/分店識別資訊保留、確認值覆蓋原始值等轉換正確性。
+ */
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import type { PendingCustomer, PendingCustomerStatus } from '@/types/customer';

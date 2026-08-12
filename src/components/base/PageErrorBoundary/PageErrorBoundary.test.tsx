@@ -1,3 +1,4 @@
+// 測試對象：PageErrorBoundary（頁面層級的錯誤邊界元件）
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import PageErrorBoundary from './index';

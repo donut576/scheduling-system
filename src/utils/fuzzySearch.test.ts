@@ -1,3 +1,9 @@
+/**
+ * 測試對象：src/utils/fuzzySearch.ts
+ * 涵蓋 filterByKeyword 模糊搜尋函式，包含 property-based tests（fast-check）
+ * 驗證篩選結果之正確性（結果均包含關鍵字）、完整性（符合條件者不遺漏）
+ * 及子集關係。
+ */
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import { filterByKeyword } from './fuzzySearch';

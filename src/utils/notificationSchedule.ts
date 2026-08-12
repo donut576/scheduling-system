@@ -2,18 +2,21 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 
 /**
- * Pure date-check utilities for the notification management page.
+ * 通知管理頁面所使用之純日期判斷工具函式。
  *
- * These are extracted as standalone pure functions (rather than inlined in the
- * page component) so they can be property-tested independently in task 16.3
- * (Property 23: 通知發送日期區間啟用) without needing to render React components.
+ * 這些函式獨立抽出為純函式（而非直接寫在頁面元件內），
+ * 目的是讓 task 16.3（Property 23: 通知發送日期區間啟用）
+ * 能夠獨立進行 property-based 測試，不需渲染 React 元件。
  */
 
 /**
- * Checks whether the given date falls within the manual notification send
- * window: the 20th through the 31st (inclusive) of the month.
+ * 檢查指定日期是否落在「手動發送通知」的可用區間內：
+ * 每月 20 日至 31 日（含頭尾）。
  *
  * Validates: Requirements 12.2
+ *
+ * @param date 欲檢查之日期，預設為目前時間
+ * @returns 是否落在 20-31 日之區間內
  */
 export const isManualSendWindow = (date: Dayjs | string | Date = dayjs()): boolean => {
   const day = dayjs(date).date();
@@ -21,17 +24,20 @@ export const isManualSendWindow = (date: Dayjs | string | Date = dayjs()): boole
 };
 
 /**
- * Determines whether the manual notification send action should be enabled.
+ * 判斷「手動發送通知」按鈕是否應為啟用狀態。
  *
- * Per Requirement 12.2, manual send should be enabled *iff* the current date
- * is within the 20-31 window AND there is new schedule data requiring
- * notification. Since the API has no dedicated "new schedule exists" signal,
- * we use the presence of NOT_NOTIFIED / CHANGED_NOT_NOTIFIED records in the
- * current notification dataset as the proxy signal for "new schedule
- * produced notifications pending send" (these statuses represent
- * notifications that have not yet been sent to their recipients).
+ * 依據 Requirement 12.2，手動發送應「若且唯若」同時滿足以下兩條件才啟用：
+ * (1) 目前日期落在 20-31 日區間內，且 (2) 存在需要通知之新排班資料。
+ * 由於 API 並未提供專屬的「有新排班」訊號，
+ * 我們以目前通知資料集中是否存在 NOT_NOTIFIED / CHANGED_NOT_NOTIFIED
+ * 狀態之記錄，作為「新排班已產生待發送通知」的替代判斷依據
+ * （這兩種狀態代表通知尚未實際發送給收件人）。
  *
  * Validates: Requirements 12.2
+ *
+ * @param hasPendingNotifications 是否存在待發送（未通知/變更未通知）之通知記錄
+ * @param date 欲檢查之日期，預設為目前時間
+ * @returns 手動發送按鈕是否應啟用
  */
 export const isManualSendEnabled = (
   hasPendingNotifications: boolean,
@@ -39,10 +45,12 @@ export const isManualSendEnabled = (
 ): boolean => isManualSendWindow(date) && hasPendingNotifications;
 
 /**
- * Checks whether the given date is the 15th of the month, which is when
- * group leaders (組長) should be reminded to proceed with scheduling.
+ * 檢查指定日期是否為每月 15 日，此為系統應提醒組長進行排班之日期。
  *
  * Validates: Requirements 12.1
+ *
+ * @param date 欲檢查之日期，預設為目前時間
+ * @returns 是否為每月 15 日
  */
 export const isScheduleReminderDay = (date: Dayjs | string | Date = dayjs()): boolean =>
   dayjs(date).date() === 15;
