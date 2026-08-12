@@ -1,0 +1,61 @@
+:root {
+  --color-primary: #1b5e9c;
+  --color-success: #52c41a;
+  --color-warning: #faad14;
+  --color-danger: #f5222d;
+  --color-info: #909399;
+  --color-text-primary: #303133;
+  --color-text-secondary: #606266;
+  --color-text-placeholder: #c0c4cc;
+  --color-border: #dcdfe6;
+  --color-background: #f5f7fa;
+
+  --font-family: 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
+  --font-size-page-title: 20px;
+  --font-size-section-title: 18px;
+  --font-size-body: 14px;
+  --font-size-helper: 12px;
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-xxl: 32px;
+
+  --border-radius-small: 4px;
+  --border-radius-medium: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Ant Design overrides */
+.ant-layout {
+  min-height: 100vh;
+}

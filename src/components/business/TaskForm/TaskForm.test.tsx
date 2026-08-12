@@ -1,0 +1,315 @@
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import TaskForm from './index';
+import type { Task } from '@/types/task';
+
+// Mock react-router-dom's useNavigate (used by the 地圖 button, Requirement 15.4)
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+}));
+
+// Mock matchMedia for Ant Design
+beforeAll(() => {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+});
+
+// Mock modules
+vi.mock('@/queries/useCustomerQueries', () => ({
+  useCustomerGroups: () => ({
+    data: [
+      {
+        id: 'group-1',
+        name: '集團A',
+        branches: [
+          {
+            id: 'branch-1',
+            groupId: 'group-1',
+            name: '分店A1',
+            address: '台北市',
+            contactName: '王先生',
+            contactPhone: '0912345678',
+            requiredLicenses: ['PROFESSIONAL'],
+          },
+          {
+            id: 'branch-2',
+            groupId: 'group-1',
+            name: '分店A2',
+            address: '新北市',
+            contactName: '李先生',
+            contactPhone: '0923456789',
+            requiredLicenses: [],
+          },
+        ],
+      },
+      {
+        id: 'group-2',
+        name: '集團B',
+        branches: [
+          {
+            id: 'branch-3',
+            groupId: 'group-2',
+            name: '分店B1',
+            address: '桃園市',
+            contactName: '陳先生',
+            contactPhone: '0934567890',
+            requiredLicenses: [],
+          },
+        ],
+      },
+    ],
+    isLoading: false,
+  }),
+}));
+
+vi.mock('@/queries/useEmployeeQueries', () => ({
+  useEmployeeList: () => ({
+    data: {
+      list: [
+        {
+          id: 'emp-1',
+          name: '張三',
+          phone: '0911111111',
+          employeeNo: 'E001',
+          position: 'STAFF',
+          groupId: 'group-1',
+          groupName: '集團A',
+          groupColor: '#1890ff',
+          designatedLeaves: [],
+          licenses: ['PROFESSIONAL'],
+          isActive: true,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 500,
+    },
+    isLoading: false,
+  }),
+}));
+
+vi.mock('@/queries/useTaskQueries', () => ({
+  useTaskList: () => ({
+    data: { list: [], total: 0, page: 1, pageSize: 200 },
+    isLoading: false,
+  }),
+}));
+
+vi.mock('@/stores/useDictStore', () => ({
+  useDictStore: () => ({
+    taskTypes: [
+      { label: '合約', value: 'CONTRACT' },
+      { label: '單次', value: 'ONETIME' },
+      { label: 'ESR', value: 'ESR' },
+    ],
+    shifts: [
+      { label: '台北早班', value: 'DAY' },
+      { label: '台北晚班', value: 'NIGHT' },
+    ],
+    routes: [{ label: '路線A', value: 'ROUTE_A' }],
+    contents: [
+      { label: 'P', value: 'P' },
+      { label: 'R', value: 'R' },
+      { label: 'S', value: 'S' },
+    ],
+  }),
+}));
+
+vi.mock('@/stores/useTaskStore', () => ({
+  useTaskStore: () => ({
+    setAlertResults: vi.fn(),
+  }),
+}));
+
+vi.mock('@/components/business/EmployeeSelect', () => ({
+  default: ({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) => (
+    <div data-testid="employee-select">
+      <span>Selected: {value.length}</span>
+      <button onClick={() => onChange(['emp-1'])}>Select Employee</button>
+    </div>
+  ),
+}));
+
+vi.mock('@/components/business/RecurrenceEditor', () => ({
+  default: ({ onChange }: { onChange: (rule: unknown) => void }) => (
+    <div data-testid="recurrence-editor">
+      <button onClick={() => onChange({ frequency: 'daily', interval: 1, endType: 'never' })}>
+        Set Daily
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock('@/components/business/ConflictPanel', () => ({
+  default: ({
+    violations,
+    onOverride,
+    canOverride,
+  }: {
+    violations: unknown[];
+    onOverride: (remark: string) => void;
+    canOverride: boolean;
+  }) => (
+    <div data-testid="conflict-panel">
+      <span>Violations: {violations.length}</span>
+      {canOverride && <button onClick={() => onOverride('override reason')}>Override</button>}
+    </div>
+  ),
+}));
+
+const createQueryClient = () =>
+  new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+const renderWithProviders = (ui: React.ReactElement) => {
+  const queryClient = createQueryClient();
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
+
+describe('TaskForm', () => {
+  let onSubmit: ReturnType<typeof vi.fn>;
+  let onCancel: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    onSubmit = vi.fn().mockResolvedValue(undefined);
+    onCancel = vi.fn();
+  });
+
+  it('renders the form with all required fields', () => {
+    renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+
+    // Use role-based queries for Ant Design Select (combobox)
+    expect(screen.getByRole('combobox', { name: '集團' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '分店' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '任務類型' })).toBeInTheDocument();
+    expect(screen.getByLabelText('任務日期')).toBeInTheDocument();
+    expect(screen.getByLabelText('起始時間')).toBeInTheDocument();
+    expect(screen.getByLabelText('結束時間')).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: '人數' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '工作內容' })).toBeInTheDocument();
+    expect(screen.getByLabelText('備註')).toBeInTheDocument();
+    expect(screen.getByTestId('employee-select')).toBeInTheDocument();
+  });
+
+  it('renders create mode button text', () => {
+    renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+
+    expect(screen.getByRole('button', { name: '建立任務' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '取消' })).toBeInTheDocument();
+  });
+
+  it('renders edit mode button text', () => {
+    const mockTask: Task = {
+      id: 'task-1',
+      groupId: 'group-1',
+      groupName: '集團A',
+      branchId: 'branch-1',
+      branchName: '分店A1',
+      taskType: 'CONTRACT',
+      date: '2024-03-15',
+      startTime: '09:00',
+      endTime: '17:00',
+      isOvernight: false,
+      headcount: 2,
+      shift: 'DAY',
+      route: 'ROUTE_A',
+      contents: ['P', 'R'],
+      assignees: [{ employeeId: 'emp-1', employeeName: '張三', licenses: ['PROFESSIONAL'] }],
+      remarks: 'test remark',
+      status: 'SCHEDULED',
+      alertStatus: 'CLEAN',
+      createdBy: 'admin',
+      createdAt: '2024-03-01T00:00:00+08:00',
+      updatedAt: '2024-03-01T00:00:00+08:00',
+    };
+
+    renderWithProviders(
+      <TaskForm mode="edit" initialData={mockTask} onSubmit={onSubmit} onCancel={onCancel} />,
+    );
+
+    expect(screen.getByRole('button', { name: '儲存變更' })).toBeInTheDocument();
+  });
+
+  it('disables branch select when no group is selected', () => {
+    renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+
+    // The branch combobox should be disabled
+    const branchSelect = screen.getByRole('combobox', { name: '分店' });
+    expect(branchSelect).toBeDisabled();
+  });
+
+  it('calls onCancel when cancel button is clicked', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+
+    await user.click(screen.getByRole('button', { name: '取消' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows cross-day hint text', () => {
+    renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+
+    expect(screen.getByText(/若結束時間早於起始時間，將自動視為跨日任務/)).toBeInTheDocument();
+  });
+
+  it('shows recurrence editor when switch is toggled', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+
+    // Initially recurrence editor should not be visible
+    expect(screen.queryByTestId('recurrence-editor')).not.toBeInTheDocument();
+
+    // Toggle on
+    const toggle = screen.getByRole('switch', { name: '啟用週期設定' });
+    await user.click(toggle);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('recurrence-editor')).toBeInTheDocument();
+    });
+  });
+
+  it('renders the task-form data-testid', () => {
+    renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+
+    expect(screen.getByTestId('task-form')).toBeInTheDocument();
+  });
+
+  it('disables the map button until a group is selected', () => {
+    renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+
+    expect(screen.getByRole('button', { name: '地圖檢視' })).toBeDisabled();
+  });
+
+  it('navigates to /map with selected group/branch when map button is clicked', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+
+    const groupSelect = screen.getByRole('combobox', { name: '集團' });
+    await user.click(groupSelect);
+    await user.click(await screen.findByTitle('集團A'));
+
+    const mapButton = screen.getByRole('button', { name: '地圖檢視' });
+    expect(mapButton).not.toBeDisabled();
+
+    await user.click(mapButton);
+
+    expect(mockNavigate).toHaveBeenCalledWith('/map', {
+      state: { groupId: 'group-1', branchId: undefined },
+    });
+  });
+});
