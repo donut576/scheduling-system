@@ -406,7 +406,9 @@ describe('EmployeePage', () => {
       await user.click(screen.getByText('陳小華'));
 
       await waitFor(() => {
-        expect(screen.getByText('證照提醒')).toBeInTheDocument();
+        // Modal.warning 會同時渲染 title 在 .ant-modal-title 和 .ant-modal-confirm-title
+        // 兩個節點，用 getAllByText 取所有匹配並確認至少有一個存在
+        expect(screen.getAllByText('證照提醒').length).toBeGreaterThanOrEqual(1);
       });
       expect(
         screen.getByText(
