@@ -74,7 +74,7 @@ describe('BaseSearchForm', () => {
 
     // Buttons
     expect(screen.getByText('搜尋')).toBeInTheDocument();
-    expect(screen.getByText('重置')).toBeInTheDocument();
+    expect(screen.getByText('全部清除')).toBeInTheDocument();
   });
 
   it('calls onSearch with form values when 搜尋 button is clicked', async () => {
@@ -100,7 +100,7 @@ describe('BaseSearchForm', () => {
     });
   });
 
-  it('calls onReset and clears form when 重置 button is clicked', async () => {
+  it('calls onReset and clears form when 全部清除 button is clicked', async () => {
     const onSearch = vi.fn();
     const onReset = vi.fn();
 
@@ -115,7 +115,7 @@ describe('BaseSearchForm', () => {
     const input = screen.getByPlaceholderText('請輸入關鍵字');
     fireEvent.change(input, { target: { value: '台北' } });
 
-    const resetBtn = screen.getByText('重置');
+    const resetBtn = screen.getByText('全部清除');
     fireEvent.click(resetBtn);
 
     await waitFor(() => {
@@ -145,7 +145,7 @@ describe('BaseSearchForm', () => {
     );
 
     const searchBtn = screen.getByText('搜尋').closest('button');
-    const resetBtn = screen.getByText('重置').closest('button');
+    const resetBtn = screen.getByText('全部清除').closest('button');
 
     expect(searchBtn).toHaveClass('ant-btn-loading');
     expect(resetBtn).toHaveClass('ant-btn-loading');
@@ -198,7 +198,7 @@ describe('BaseSearchForm', () => {
     render(<BaseSearchForm fields={[]} onSearch={onSearch} onReset={onReset} />);
 
     expect(screen.getByText('搜尋')).toBeInTheDocument();
-    expect(screen.getByText('重置')).toBeInTheDocument();
+    expect(screen.getByText('全部清除')).toBeInTheDocument();
   });
 
   it('submits form via Enter key in input field', async () => {

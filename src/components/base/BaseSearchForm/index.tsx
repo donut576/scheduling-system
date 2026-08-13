@@ -49,6 +49,7 @@ function renderField(
         <Input
           placeholder={field.placeholder ?? t('common.inputPlaceholder', { label: field.label })}
           allowClear
+          style={{ width: '100%' }}
         />
       );
     case 'select':
@@ -104,20 +105,39 @@ function BaseSearchForm({ fields, onSearch, onReset, loading = false }: BaseSear
       form={form}
       layout="inline"
       onFinish={handleSearch}
-      style={{ marginBottom: 16, flexWrap: 'wrap', gap: '8px 0' }}
+      className="base-search-form"
+      style={{ marginBottom: 16 }}
     >
-      {fields.map((field) => (
-        <Form.Item key={field.name} name={field.name} label={field.label}>
-          {renderField(field, t)}
-        </Form.Item>
-      ))}
-      <Form.Item>
+      <div className="base-search-form-fields">
+        {fields.map((field) => (
+          <Form.Item
+            key={field.name}
+            name={field.name}
+            label={field.label}
+            className="base-search-form-field"
+          >
+            {renderField(field, t)}
+          </Form.Item>
+        ))}
+      </div>
+      <Form.Item className="base-search-form-actions">
         <Space>
-          <Button type="primary" htmlType="submit" icon={<SearchOutlined />} loading={loading}>
+          <Button
+            type="primary"
+            htmlType="submit"
+            icon={<SearchOutlined />}
+            loading={loading}
+            style={{ minWidth: 88 }}
+          >
             {t('common.search')}
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={handleReset} loading={loading}>
-            {t('common.reset')}
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={handleReset}
+            loading={loading}
+            style={{ minWidth: 88 }}
+          >
+            {t('common.clearAll')}
           </Button>
         </Space>
       </Form.Item>

@@ -46,11 +46,13 @@ function renderCustomerCard(
     >
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         <Space align="start" style={{ justifyContent: 'space-between', width: '100%' }}>
-          <div>
-            <div className="management-card-title">
-              {record.groupName} {record.branchName}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="management-card-title" title={record.groupName}>
+              {record.groupName}
             </div>
-            <div className="management-card-subtitle">{record.branchName}</div>
+            <div className="management-card-subtitle" title={record.branchName}>
+              {record.branchName}
+            </div>
           </div>
           <Button
             type="text"
@@ -63,12 +65,13 @@ function renderCustomerCard(
             }}
           />
         </Space>
-        <div className="management-card-info">{record.address}</div>
+        <div className="management-card-info management-card-address">{record.address}</div>
         <div className="management-card-info">
-          {`${t('customer.contactName')}：${record.contactName} ／ ${t('customer.contactPhoneShort')}：${record.contactPhone}`}
+          <div>{`${t('customer.contactName')}：${record.contactName}`}</div>
+          <div>{`${t('customer.contactPhoneShort')}：${record.contactPhone}`}</div>
         </div>
         {(record.requiredLicenses ?? []).length > 0 && (
-          <Space size={[4, 4]} wrap>
+          <Space size={[4, 4]} wrap className="management-card-licenses">
             {(record.requiredLicenses ?? []).map((lic) => (
               <Tag key={lic}>{LICENSE_TYPE_MAP[lic] ?? lic}</Tag>
             ))}
@@ -298,7 +301,6 @@ const CustomerPage: FC = () => {
       <BaseTable<Customer>
         columns={columns}
         queryHook={useCustomerListQuery}
-        exportable
         toolbarExtra={
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick}>
             {t('customer.createButton')}

@@ -25,10 +25,12 @@ const MapFloatingButton: React.FC = () => {
 
   return (
     <FloatButton
+      type="primary"
       icon={<EnvironmentOutlined />}
       tooltip={t('menu.map')}
       aria-label={t('menu.map')}
       onClick={() => navigate('/map')}
+      style={{ width: 50, height: 50 }}
     />
   );
 };

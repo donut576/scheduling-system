@@ -121,10 +121,13 @@ describe('CustomerPage', () => {
 
       expect(screen.getByTestId('customer-card-c1')).toBeInTheDocument();
       expect(screen.getByTestId('customer-card-c2')).toBeInTheDocument();
-      expect(screen.getByText('集團A 分店A')).toBeInTheDocument();
-      expect(screen.getByText('集團B 分店B')).toBeInTheDocument();
+      expect(screen.getByText('集團A')).toBeInTheDocument();
+      expect(screen.getByText('分店A')).toBeInTheDocument();
+      expect(screen.getByText('集團B')).toBeInTheDocument();
+      expect(screen.getByText('分店B')).toBeInTheDocument();
       expect(screen.getByText('台北市信義路 1 號')).toBeInTheDocument();
-      expect(screen.getByText('聯絡窗口：王小明 ／ 電話：0900000000')).toBeInTheDocument();
+      expect(screen.getByText('聯絡窗口：王小明')).toBeInTheDocument();
+      expect(screen.getByText('電話：0900000000')).toBeInTheDocument();
     });
   });
 
@@ -255,7 +258,7 @@ describe('CustomerPage', () => {
       expect(screen.getByTestId('customer-card-c1')).toBeInTheDocument();
       expect(screen.getByTestId('customer-card-c2')).toBeInTheDocument();
       // Card content includes key fields
-      expect(screen.getByText('集團A 分店A')).toBeInTheDocument();
+      expect(screen.getByText('集團A')).toBeInTheDocument();
       expect(screen.getByText('台北市信義路 1 號')).toBeInTheDocument();
     });
 

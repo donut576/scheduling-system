@@ -294,6 +294,13 @@ export default {
     employeeNoPlaceholder: 'Enter employee no.',
     positionRequired: 'Please select position',
     positionPlaceholder: 'Select position',
+    phoneLabel: 'Mobile',
+    positionLabel: 'Position',
+    onlyPestControlWarningTitle: 'License Notice',
+    onlyPestControlWarningContent:
+      'This employee only holds the Pest Control license and lacks other safety-related licenses. Please verify qualifications before assigning tasks.',
+    designatedLeavePermissionHint:
+      'Only leaders, managers, or admins can enter designated leave dates',
     groupRequired: 'Please select group',
     groupPlaceholder: 'Select group',
     licensesPlaceholder: 'Select licenses',

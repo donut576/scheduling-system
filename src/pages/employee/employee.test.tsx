@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { Modal } from 'antd';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import EmployeePage from './index';
+import { usePermissionStore } from '@/stores/usePermissionStore';
 import type { Employee } from '@/types/employee';
 import type { PaginatedResponse } from '@/types/common';
 
@@ -100,6 +101,10 @@ describe('EmployeePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    // 指定排休功能僅組長／經理／管理員可鍵入，此處以組長（LEADER）角色權限
+    // 初始化權限狀態，供「指定休假日設定介面」相關測試驗證可正常新增/移除
+    usePermissionStore.getState().buildPermissions([], 'LEADER');
+
     vi.mocked(useEmployeeList).mockReturnValue({
       data: listResult,
       isLoading: false,
@@ -131,22 +136,29 @@ describe('EmployeePage', () => {
       expect(screen.getByText('李小華')).toBeInTheDocument();
       expect(screen.getByText('員工編號：E001')).toBeInTheDocument();
       expect(screen.getByText('指定休假：2025-01-01')).toBeInTheDocument();
+      expect(screen.getByText('手機：0912-345-678')).toBeInTheDocument();
+      expect(screen.getByText('職位：一般員工')).toBeInTheDocument();
+      expect(screen.getAllByTitle('北區').length).toBeGreaterThanOrEqual(1);
     });
 
-    it('renders group as a colored tag - Requirement 11.4', () => {
+    it('renders group color coding via avatar background and group dot color - Requirement 11.4', () => {
       render(<EmployeePage />);
 
-      const groupTag = screen.getByText('北區');
-      expect(groupTag).toBeInTheDocument();
-      // Ant Design Tag applies the color via inline style/className
-      expect(groupTag.closest('.ant-tag')).toBeTruthy();
+      const card = screen.getByTestId('employee-card-e1');
+      const avatar = card.querySelector('.ant-avatar');
+      expect(avatar).toBeTruthy();
+      expect(avatar).toHaveStyle({ backgroundColor: '#1890ff' });
+
+      const groupDot = card.querySelector('.management-card-group-dot');
+      expect(groupDot).toBeTruthy();
+      expect(groupDot).toHaveStyle({ backgroundColor: '#1890ff' });
     });
 
-    it('filters employees by keyword without rendering reset button', async () => {
+    it('filters employees by keyword and renders a 全部清除 button', async () => {
       const user = userEvent.setup();
       render(<EmployeePage />);
 
-      expect(screen.queryByText('重置')).not.toBeInTheDocument();
+      expect(screen.getByText('全部清除')).toBeInTheDocument();
 
       await user.type(screen.getByPlaceholderText('搜尋姓名/員工編號'), 'E001');
       await user.click(screen.getByRole('button', { name: /搜尋/ }));
@@ -231,7 +243,11 @@ describe('EmployeePage', () => {
       await user.click(screen.getByTitle('一般員工'));
 
       await user.click(screen.getByLabelText('群組'));
-      await user.click(screen.getByTitle('北區'));
+      // 卡片上的組別名稱現在也帶有相同的 title="北區"（用於過長名稱 hover
+      // 顯示完整文字），因此用 getAllByTitle 取得所有匹配節點，並選擇最後一個
+      // （下拉選單為後渲染的 portal 內容，位於節點清單末尾）以命中正確的選項
+      const northOptions = screen.getAllByTitle('北區');
+      await user.click(northOptions[northOptions.length - 1]!);
 
       const modal = screen.getByRole('dialog');
       await user.click(within(modal).getByText('OK'));
@@ -345,6 +361,58 @@ describe('EmployeePage', () => {
       await waitFor(() => {
         expect(within(modal).queryByText('2025-01-01')).not.toBeInTheDocument();
       });
+    });
+
+    it('disables designated leave editing for users without employee:designate_leave permission', async () => {
+      usePermissionStore.getState().buildPermissions([], 'STAFF');
+      const user = userEvent.setup();
+      render(<EmployeePage />);
+
+      await user.click(screen.getByText('王大明'));
+
+      await waitFor(() => {
+        expect(screen.getByText('編輯員工資料')).toBeInTheDocument();
+      });
+
+      expect(screen.getByLabelText('新增指定休假日期')).toBeDisabled();
+      expect(screen.getByText('僅組長、經理或管理員可鍵入指定排休日期')).toBeInTheDocument();
+    });
+  });
+
+  describe('僅持有施藥證提醒', () => {
+    it('shows a warning dialog when opening the edit modal for an employee holding only PEST_CONTROL license', async () => {
+      const pestOnlyEmployee: Employee = {
+        ...employees[0]!,
+        id: 'e3',
+        name: '陳小華',
+        licenses: ['PEST_CONTROL'],
+      };
+      vi.mocked(useEmployeeList).mockReturnValue({
+        data: {
+          list: [pestOnlyEmployee],
+          total: 1,
+          page: 1,
+          pageSize: 20,
+        },
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as unknown as ReturnType<typeof useEmployeeList>);
+
+      const user = userEvent.setup();
+      render(<EmployeePage />);
+
+      await user.click(screen.getByText('陳小華'));
+
+      await waitFor(() => {
+        expect(screen.getByText('證照提醒')).toBeInTheDocument();
+      });
+      expect(
+        screen.getByText(
+          '此員工僅持有施藥證，缺乏其他安全衛生相關證照，指派任務前請留意資格是否足夠。',
+        ),
+      ).toBeInTheDocument();
     });
   });
 });

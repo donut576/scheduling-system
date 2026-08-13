@@ -292,6 +292,12 @@ export default {
     employeeNoPlaceholder: '請輸入員工編號',
     positionRequired: '請選擇職位',
     positionPlaceholder: '請選擇職位',
+    phoneLabel: '手機',
+    positionLabel: '職位',
+    onlyPestControlWarningTitle: '證照提醒',
+    onlyPestControlWarningContent:
+      '此員工僅持有施藥證，缺乏其他安全衛生相關證照，指派任務前請留意資格是否足夠。',
+    designatedLeavePermissionHint: '僅組長、經理或管理員可鍵入指定排休日期',
     groupRequired: '請選擇群組',
     groupPlaceholder: '請選擇群組',
     licensesPlaceholder: '請選擇證照',

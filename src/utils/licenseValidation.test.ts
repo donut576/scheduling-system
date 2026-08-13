@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import type { LicenseType } from '@/types/alert';
 import { LICENSE_TYPE_MAP, LICENSE_CONFLICT_RULES } from '@/constants/licenseTypes';
-import { hasLicenseConflict } from './licenseValidation';
+import { hasLicenseConflict, hasOnlyPestControlLicense } from './licenseValidation';
 
 /**
  * **Validates: Requirements 11.6**
@@ -86,5 +86,27 @@ describe('Property 22: 證照衝突驗證', () => {
 
   it('空陣列（未選擇任何證照）應判定為無衝突', () => {
     expect(hasLicenseConflict([])).toBe(false);
+  });
+});
+
+describe('hasOnlyPestControlLicense: 僅持有施藥證檢查', () => {
+  it('僅選擇施藥證（PEST_CONTROL）單獨一項應判定為 true', () => {
+    expect(hasOnlyPestControlLicense(['PEST_CONTROL'])).toBe(true);
+  });
+
+  it('施藥證與其他證照同時存在應判定為 false', () => {
+    expect(hasOnlyPestControlLicense(['PEST_CONTROL', 'PROFESSIONAL'])).toBe(false);
+  });
+
+  it('未選擇施藥證應判定為 false', () => {
+    expect(hasOnlyPestControlLicense(['PROFESSIONAL'])).toBe(false);
+  });
+
+  it('空陣列應判定為 false', () => {
+    expect(hasOnlyPestControlLicense([])).toBe(false);
+  });
+
+  it('選擇 NONE 單獨一項應判定為 false', () => {
+    expect(hasOnlyPestControlLicense(['NONE'])).toBe(false);
   });
 });

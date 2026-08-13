@@ -26,3 +26,13 @@ export function hasLicenseConflict(licenses: LicenseType[]): boolean {
     return conflictingLicenses.some((conflict) => licenses.includes(conflict));
   });
 }
+
+/**
+ * 純函式：檢查員工是否「僅持有施藥證」（PEST_CONTROL 為唯一一張證照）。
+ *
+ * 用於員工編輯流程中提醒管理者：此員工缺乏其他安全衛生相關證照，
+ * 於指派需多重證照要求之任務前應留意其資格是否足夠。
+ */
+export function hasOnlyPestControlLicense(licenses: LicenseType[]): boolean {
+  return licenses.length === 1 && licenses[0] === 'PEST_CONTROL';
+}

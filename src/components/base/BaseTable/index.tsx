@@ -198,12 +198,11 @@ function BaseTable<T extends object>({
 
         {!isLoading && !isError && data && (
           <List
+            // cardLayout='always' 時改用自訂 CSS Grid（見 index.css 的
+            // .base-table-card-grid 規則）取代 antd 內建 Row/Col 斷點，精確控制
+            // 欄數切換：<= 820px 單欄（卡片撐滿寬度）、> 820px 雙欄（固定卡寬 + 間隙）。
+            className={cardLayout === 'always' ? 'base-table-card-grid' : undefined}
             dataSource={data.list}
-            grid={
-              cardLayout === 'always' && !isMobile
-                ? { gutter: 16, xs: 1, sm: 1, md: 2, lg: 3, xl: 3, xxl: 4 }
-                : undefined
-            }
             pagination={{
               current: pagination.page,
               pageSize: pagination.pageSize,

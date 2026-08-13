@@ -18,6 +18,18 @@ body {
   min-height: 100vh;
 }
 
+/* 預留垂直捲軸空間，避免捲軸「出現/消失」時容器可用寬度瞬間改變。
+ * 若不設定，CSS Grid（如下方 .base-table-card-grid）在計算欄數時可能以
+ * 「尚未出現捲軸」的較寬容器為準排出較多欄，排版完成後內容變高觸發捲軸
+ * 出現，容器實際可用寬度變窄，導致已排定的欄數塞不下而產生水平溢位。
+ * overflow-y: scroll 為主要相容性較廣的作法（強制永遠保留捲軸空間），
+ * scrollbar-gutter: stable 作為支援瀏覽器（Chrome/Firefox/新版 Safari）上
+ * 視覺更一致的加強設定（無捲軸內容時不顯示捲軸軌道，但仍保留等寬空間）。 */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
 /* 已修改資料列標示（例如任務編輯後整列變藍色） */
 .row-modified.ant-table-row > td {
   background-color: #e6f4ff !important;
@@ -39,6 +51,13 @@ body {
   display: flex;
   justify-content: center;
   text-align: center;
+}
+
+/* antd List.Item 預設帶有 border-bottom 與上下 padding（原設計給一般清單項目用），
+   此處用於承載卡片容器，故移除以避免多餘的分隔線與間距影響卡片排版 */
+.base-table-mobile .ant-list-item {
+  padding: 0;
+  border-bottom: none;
 }
 
 .schedule-toolbar {
@@ -119,8 +138,79 @@ body {
   margin-top: 12px;
 }
 
+/* BaseSearchForm 版面配置：616~820px 之間固定維持雙行（欄位群組獨立一行，
+   搜尋/清除按鈕另佔一行），避免中英文字寬差異造成某一語系換行、另一語系不換行
+   的不一致排版；> 820px 時欄位與按鈕改回同一行（inline）。 */
+.base-search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.base-search-form-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.base-search-form-field {
+  flex: 1 1 220px;
+  min-width: 0;
+  margin-inline-end: 0 !important;
+}
+
+.base-search-form-actions {
+  margin-inline-end: 0 !important;
+}
+
+@media (min-width: 821px) {
+  .base-search-form {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .base-search-form-fields {
+    /* 欄位不強制撐滿剩餘空間，讓搜尋/清除按鈕緊接在欄位後方，
+     * 兩者維持同一群組、一起靠左，而非被拉開至最右側 */
+    flex: 0 1 auto;
+  }
+}
+
+/* 卡片檢視（BaseTable cardLayout='always'）欄數控制，取代 antd List 內建
+ * Row/Col 斷點（固定於 576/768/992/1200/1600px）。
+ *
+ * 改用 grid-template-columns: repeat(auto-fit, minmax(346px, 1fr))，
+ * 讓瀏覽器依「卡片容器實際可用寬度」（而非視窗寬度）自動計算能放幾欄：
+ * 每欄最小 346px，容器能放下幾個 346px（含 gap）就排幾欄，放不下時自動減少
+ * 欄數並改用剩餘空間平均撐開（1fr）。使用 auto-fit（而非 auto-fill）是為了讓
+ * 資料筆數不足以填滿所有欄位時，多餘的空欄位會收合，現有卡片改撐開填滿容器
+ * 寬度，而不會保留空白欄位。
+ *
+ * 先前改用固定 viewport 寬度斷點（821px/1042px）會不準確：卡片容器的實際寬度
+ * 會因頁面版面本身的 margin/padding（例如 MainLayout Content 的
+ * margin:16 + padding:24，兩側共減少約 80px 可用寬度）而小於視窗寬度，
+ * 導致視窗剛達到斷點時容器其實還放不下對應欄數，造成溢出。
+ * auto-fit 直接依容器實際寬度計算，不受外部版面 padding/margin 影響，
+ * 因此不會發生欄數放不下卻被硬性套用的溢出問題。 */
+.base-table-card-grid .ant-list-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(346px, 1fr));
+  gap: 16px;
+}
+
+/* Grid 軌道子項目（antd List.Item）預設 min-width: auto，會依內容自然寬度
+ * 撐開，導致卡片內若有不可斷行的長文字/標籤（例如集團全名 Tag）時，該欄軌道
+ * 被撐得比 minmax() 設定的下限更寬，使 Grid 總寬度超出容器造成水平溢位。
+ * 明確設定 min-width: 0 讓軌道確實可縮到 minmax() 下限，並搭配卡片內部文字
+ * 元素的 overflow 處理（略過標籤等固定元素）避免內容被裁切看不到。 */
+.base-table-card-grid .ant-list-item {
+  min-width: 0;
+}
+
 .management-card {
   height: 100%;
+  width: 100%;
   border: 1px solid #d9e2ec;
   border-radius: 8px;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
@@ -128,7 +218,7 @@ body {
 
 .management-card .ant-card-body {
   min-height: 210px;
-  padding: 16px;
+  padding: 24px;
 }
 
 .management-card-title {
@@ -136,6 +226,11 @@ body {
   font-size: 16px;
   font-weight: 700;
   line-height: 1.35;
+  /* 標題固定單行不換行，超出寬度以「...」截斷，避免兩欄擠壓時卡片高度因換行而跳動；
+     完整文字可透過 title 屬性 hover 顯示 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .management-card-subtitle {
@@ -143,6 +238,16 @@ body {
   color: #6b7280;
   font-size: 13px;
   line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 地址欄位預留兩行顯示空間（以 line-height 1.4 * 14px 字級估算約 40px），
+ * 以防地址文字過長換行時需要額外空間，避免卡片高度因地址長短不一而跳動 */
+.management-card-address {
+  min-height: 40px;
+  line-height: 1.4;
 }
 
 .management-card-info {
@@ -152,7 +257,44 @@ body {
   font-size: 14px;
 }
 
+/* 組別欄位：以色塊 + 文字呈現，取代 Tag 元件，不同組別以圓點顏色區分，
+ * 文字過長時截斷為「...」（完整名稱透過 title 屬性 hover 顯示），
+ * 避免撐開卡片寬度造成 Grid 溢位 */
+.management-card-group-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.management-card-group-dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.management-card-group-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
 .management-card-note {
   color: #4b5563;
   font-size: 13px;
+}
+
+/* 預留約 6-7 個證照 Tag 的顯示空間（約兩行），避免不同資料筆數造成卡片高度跳動 */
+.management-card-licenses {
+  min-height: 56px;
+}
+
+/* 證照 Tag 樣式加大：加寬內距、放大字級、圓角改為膠囊狀，視覺上更清楚好認 */
+.management-card-licenses .ant-tag {
+  padding: 3px 12px;
+  font-size: 13px;
+  line-height: 20px;
+  border-radius: 999px;
 }

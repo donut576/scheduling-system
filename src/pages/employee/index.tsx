@@ -13,10 +13,11 @@ import {
   DatePicker,
   Modal,
 } from 'antd';
-import { PlusOutlined, CloseOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, CloseOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { Dayjs } from 'dayjs';
 import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/BaseTable';
+import BaseSearchForm, { type SearchFieldConfig } from '@/components/base/BaseSearchForm';
 import BaseModal from '@/components/base/BaseModal';
 import {
   useEmployeeList,
@@ -25,10 +26,13 @@ import {
   useDeleteEmployee,
 } from '@/queries/useEmployeeQueries';
 import { useDictStore } from '@/stores/useDictStore';
+import { usePermissionStore } from '@/stores/usePermissionStore';
 import { LICENSE_TYPE_MAP, LICENSE_TYPE_OPTIONS } from '@/constants/licenseTypes';
 import { POSITION_MAP, POSITION_OPTIONS } from '@/constants/positions';
-import { hasLicenseConflict } from '@/utils/licenseValidation';
+import { PERMISSIONS } from '@/constants/permissions';
+import { hasLicenseConflict, hasOnlyPestControlLicense } from '@/utils/licenseValidation';
 import { getGroupColor } from '@/utils/groupColor';
+import { formatPhone } from '@/utils/format';
 import type { EmployeeFormData, EmployeeListParams } from '@/api/employee';
 import type { Employee } from '@/types/employee';
 import type { LicenseType } from '@/types/alert';
@@ -44,13 +48,21 @@ import type { PaginatedResponse } from '@/types/common';
 interface DesignatedLeavesEditorProps {
   value?: string[];
   onChange?: (value: string[]) => void;
+  /** 是否停用編輯（例如目前使用者不具備 employee:designate_leave 權限，僅組長／經理／
+   * 管理員可鍵入已知休假日），停用時僅顯示現有休假日清單，不可新增或移除 */
+  disabled?: boolean;
 }
 
 /**
- * 指定休假日設定介面
- * 提供 DatePicker 選取日期新增，並以可移除之 Tag 列表呈現已選日期
+ * 指定排休設定介面
+ * 由具備 employee:designate_leave 權限之組長／經理／管理員鍵入員工已知休假日
+ * （年/月/日），提供 DatePicker 選取日期新增，並以可移除之 Tag 列表呈現已選日期
  */
-const DesignatedLeavesEditor: FC<DesignatedLeavesEditorProps> = ({ value = [], onChange }) => {
+const DesignatedLeavesEditor: FC<DesignatedLeavesEditorProps> = ({
+  value = [],
+  onChange,
+  disabled = false,
+}) => {
   const { t } = useTranslation();
   // 新增一筆指定休假日期，並依日期字串排序，避免重複加入相同日期
   const handleAdd = useCallback(
@@ -81,15 +93,18 @@ const DesignatedLeavesEditor: FC<DesignatedLeavesEditorProps> = ({ value = [], o
         onChange={handleAdd}
         placeholder={t('employee.addDesignatedLeave')}
         aria-label={t('employee.addDesignatedLeave')}
+        disabled={disabled}
       />
       <Space size={[4, 4]} wrap>
         {value.map((d) => (
           <Tag
             key={d}
-            closable
+            closable={!disabled}
             onClose={() => handleRemove(d)}
             closeIcon={
-              <CloseOutlined aria-label={t('employee.removeDesignatedLeave', { date: d })} />
+              disabled ? undefined : (
+                <CloseOutlined aria-label={t('employee.removeDesignatedLeave', { date: d })} />
+              )
             }
           >
             {d}
@@ -122,40 +137,56 @@ function renderEmployeeCard(
     >
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         <Space align="start" style={{ justifyContent: 'space-between', width: '100%' }}>
-          <Space align="center">
-            <Avatar style={{ backgroundColor: groupColor }}>{record.name.slice(0, 1)}</Avatar>
-            <div>
-              <div className="management-card-title">{record.name}</div>
+          <Space align="center" style={{ flex: 1, minWidth: 0 }}>
+            <Avatar style={{ backgroundColor: groupColor, flexShrink: 0 }}>
+              {record.name.slice(0, 1)}
+            </Avatar>
+            <div style={{ minWidth: 0 }}>
+              <div className="management-card-title" title={record.name}>
+                {record.name}
+              </div>
               <div className="management-card-subtitle">
                 {t('employee.employeeNo')}：{record.employeeNo}
               </div>
             </div>
           </Space>
-          <Space>
-            <Tag color={groupColor}>{record.groupName}</Tag>
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
-              aria-label={t('employee.deleteEmployee')}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(record);
-              }}
-            />
-          </Space>
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            aria-label={t('employee.deleteEmployee')}
+            style={{ flexShrink: 0 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(record);
+            }}
+          />
         </Space>
         <div className="management-card-info">
-          <span>{POSITION_MAP[record.position] ?? record.position}</span>
-          <span>{record.phone}</span>
-        </div>
-        {(record.designatedLeaves ?? []).length > 0 && (
-          <div className="management-card-note">
-            {t('employee.designatedLeave')}：{(record.designatedLeaves ?? []).join('、')}
+          <div>{`${t('employee.positionLabel')}：${POSITION_MAP[record.position] ?? record.position}`}</div>
+          <div>{`${t('employee.phoneLabel')}：${formatPhone(record.phone)}`}</div>
+          <div className="management-card-group-line">
+            <span>{t('employee.group')}：</span>
+            {/* 組別以色塊 + 文字呈現（不同組別顏色不同），取代先前的 Tag 元件，
+             * 避免組別全名過長時撐開卡片寬度造成 Grid 溢位 */}
+            <span
+              className="management-card-group-dot"
+              style={{ backgroundColor: groupColor }}
+              aria-hidden="true"
+            />
+            <span className="management-card-group-name" title={record.groupName}>
+              {record.groupName}
+            </span>
           </div>
-        )}
+        </div>
+        <div className="management-card-note">
+          {t('employee.designatedLeave')}：
+          {(record.designatedLeaves ?? []).length > 0
+            ? (record.designatedLeaves ?? []).join('、')
+            : '-'}
+        </div>
         {(record.licenses ?? []).length > 0 && (
-          <Space size={[4, 4]} wrap>
+          <Space size={[4, 4]} wrap className="management-card-licenses">
             {(record.licenses ?? []).map((lic) => (
               <Tag key={lic}>{LICENSE_TYPE_MAP[lic] ?? lic}</Tag>
             ))}
@@ -176,8 +207,20 @@ const EmployeePage: FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [form] = Form.useForm<EmployeeFormData>();
+  const localizedSearchFields: SearchFieldConfig[] = [
+    {
+      name: 'keyword',
+      label: t('common.keyword'),
+      type: 'input',
+      placeholder: t('employee.searchPlaceholder'),
+    },
+  ];
 
   const groups = useDictStore((state) => state.groups);
+  // 指定排休功能僅組長／經理／管理員（具備 employee:designate_leave 權限者）可鍵入
+  const canDesignateLeave = usePermissionStore((state) =>
+    state.hasPermission(PERMISSIONS.EMPLOYEE_DESIGNATE_LEAVE),
+  );
 
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee();
@@ -189,11 +232,16 @@ const EmployeePage: FC = () => {
   }
 
   // 依關鍵字（姓名/員工編號）搜尋，重設回第一頁
-  const handleKeywordSearch = useCallback((value: string) => {
+  const handleSearch = useCallback((values: Record<string, unknown>) => {
     setFilters({
       ...DEFAULT_PARAMS,
-      keyword: value.trim() || undefined,
+      keyword: (values.keyword as string) || undefined,
     });
+  }, []);
+
+  // 重置搜尋條件為預設值
+  const handleReset = useCallback(() => {
+    setFilters(DEFAULT_PARAMS);
   }, []);
 
   // 開啟新增員工的 Modal
@@ -203,9 +251,17 @@ const EmployeePage: FC = () => {
     setModalOpen(true);
   }, [form]);
 
-  // 點擊資料列時，帶入現有資料並開啟編輯 Modal
+  // 點擊資料列時，帶入現有資料並開啟編輯 Modal；若該員工僅持有施藥證（缺乏其他
+  // 安全衛生相關證照），先彈出提醒對話框告知管理者留意資格是否足夠
   const handleEditClick = useCallback(
     (record: Employee) => {
+      if (hasOnlyPestControlLicense(record.licenses)) {
+        Modal.warning({
+          title: t('employee.onlyPestControlWarningTitle'),
+          content: t('employee.onlyPestControlWarningContent'),
+        });
+      }
+
       setEditingEmployee(record);
       form.setFieldsValue({
         name: record.name,
@@ -218,7 +274,7 @@ const EmployeePage: FC = () => {
       });
       setModalOpen(true);
     },
-    [form],
+    [form, t],
   );
 
   // 取消 Modal 並清空表單
@@ -359,21 +415,11 @@ const EmployeePage: FC = () => {
 
   return (
     <div className="employee-page">
-      <Form layout="inline" style={{ marginBottom: 16 }}>
-        <Form.Item label={t('common.keyword')}>
-          <Input.Search
-            allowClear
-            enterButton={
-              <Button type="primary" icon={<SearchOutlined />}>
-                {t('common.search')}
-              </Button>
-            }
-            placeholder={t('employee.searchPlaceholder')}
-            onSearch={handleKeywordSearch}
-            style={{ minWidth: 260 }}
-          />
-        </Form.Item>
-      </Form>
+      <BaseSearchForm
+        fields={localizedSearchFields}
+        onSearch={handleSearch}
+        onReset={handleReset}
+      />
 
       <BaseTable<Employee>
         columns={columns}
@@ -436,8 +482,9 @@ const EmployeePage: FC = () => {
             name="designatedLeaves"
             label={t('employee.designatedLeave')}
             initialValue={[]}
+            extra={!canDesignateLeave ? t('employee.designatedLeavePermissionHint') : undefined}
           >
-            <DesignatedLeavesEditor />
+            <DesignatedLeavesEditor disabled={!canDesignateLeave} />
           </Form.Item>
           <Form.Item
             name="licenses"
