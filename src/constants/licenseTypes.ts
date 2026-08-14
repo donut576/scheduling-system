@@ -13,7 +13,7 @@ export const LICENSE_TYPE_MAP: Record<LicenseType, string> = {
   PROFESSIONAL: '專技',
   PEST_CONTROL: '施藥',
   FIRE_ANT: '火蟻防治',
-  SAFETY_6HR: '一般安全衛生 6 小時',
+  SAFETY_6HR: '一般安全衛生6小時',
   SAFETY_MANAGER_A: '甲級勞安主管',
   SAFETY_MANAGER_B: '乙級勞安主管',
   SAFETY_MANAGER_C: '丙級勞安主管',

@@ -1,11 +1,13 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import type { FC } from 'react';
 import {
+  Alert,
   Avatar,
   Button,
   Card,
   Form,
   Input,
+  Radio,
   Select,
   Space,
   Tag,
@@ -13,7 +15,7 @@ import {
   DatePicker,
   Modal,
 } from 'antd';
-import { PlusOutlined, CloseOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, CloseOutlined, DeleteOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { Dayjs } from 'dayjs';
 import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/BaseTable';
@@ -25,16 +27,16 @@ import {
   useUpdateEmployee,
   useDeleteEmployee,
 } from '@/queries/useEmployeeQueries';
-import { useDictStore } from '@/stores/useDictStore';
 import { usePermissionStore } from '@/stores/usePermissionStore';
 import { LICENSE_TYPE_MAP, LICENSE_TYPE_OPTIONS } from '@/constants/licenseTypes';
 import { POSITION_MAP, POSITION_OPTIONS } from '@/constants/positions';
+import { AREA_OPTIONS, EMPLOYEE_SHIFT_OPTIONS } from '@/constants/groups';
 import { PERMISSIONS } from '@/constants/permissions';
 import { hasLicenseConflict, hasOnlyPestControlLicense } from '@/utils/licenseValidation';
 import { getGroupColor } from '@/utils/groupColor';
 import { formatPhone } from '@/utils/format';
 import type { EmployeeFormData, EmployeeListParams } from '@/api/employee';
-import type { Employee } from '@/types/employee';
+import { LEAVE_TYPE_MAP, type Employee } from '@/types/employee';
 import type { LicenseType } from '@/types/alert';
 import type { PaginatedResponse } from '@/types/common';
 
@@ -51,6 +53,8 @@ interface DesignatedLeavesEditorProps {
   /** 是否停用編輯（例如目前使用者不具備 employee:designate_leave 權限，僅組長／經理／
    * 管理員可鍵入已知休假日），停用時僅顯示現有休假日清單，不可新增或移除 */
   disabled?: boolean;
+  pickerOpen?: boolean;
+  onPickerOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -62,6 +66,8 @@ const DesignatedLeavesEditor: FC<DesignatedLeavesEditorProps> = ({
   value = [],
   onChange,
   disabled = false,
+  pickerOpen,
+  onPickerOpenChange,
 }) => {
   const { t } = useTranslation();
   // 新增一筆指定休假日期，並依日期字串排序，避免重複加入相同日期
@@ -72,8 +78,9 @@ const DesignatedLeavesEditor: FC<DesignatedLeavesEditorProps> = ({
       if (!value.includes(dateStr)) {
         onChange?.([...value, dateStr].sort());
       }
+      onPickerOpenChange?.(false);
     },
-    [value, onChange],
+    [value, onChange, onPickerOpenChange],
   );
 
   // 移除指定的休假日期
@@ -87,6 +94,8 @@ const DesignatedLeavesEditor: FC<DesignatedLeavesEditorProps> = ({
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="small">
       <DatePicker
+        open={pickerOpen}
+        onOpenChange={onPickerOpenChange}
         style={{ width: '100%' }}
         format="YYYY-MM-DD"
         value={null}
@@ -127,7 +136,10 @@ function renderEmployeeCard(
   onDelete: (record: Employee) => void,
   t: (key: string) => string,
 ) {
-  const groupColor = record.groupColor || getGroupColor(record.groupId);
+  const groupColor = record.groupColor || getGroupColor(record.area || record.groupId);
+  const displayGroup =
+    record.area && record.shift ? `${record.area} ${record.shift}` : record.groupName;
+  const isOnlyPest = hasOnlyPestControlLicense(record.licenses ?? []);
 
   return (
     <Card
@@ -163,35 +175,57 @@ function renderEmployeeCard(
           />
         </Space>
         <div className="management-card-info">
-          <div>{`${t('employee.positionLabel')}：${POSITION_MAP[record.position] ?? record.position}`}</div>
+          {/* 職位行：移除「職位：」前綴，字體加黑加粗，並在下方空一行/留邊距 */}
+          <div style={{ fontWeight: 700, color: '#000', fontSize: 15, marginBottom: 8 }}>
+            {POSITION_MAP[record.position] ?? record.position}
+          </div>
           <div>{`${t('employee.phoneLabel')}：${formatPhone(record.phone)}`}</div>
           <div className="management-card-group-line">
-            <span>{t('employee.group')}：</span>
-            {/* 組別以色塊 + 文字呈現（不同組別顏色不同），取代先前的 Tag 元件，
-             * 避免組別全名過長時撐開卡片寬度造成 Grid 溢位 */}
+            <span>組別：</span>
+            {/* 組別以地區色彩 + 文字呈現 */}
             <span
               className="management-card-group-dot"
               style={{ backgroundColor: groupColor }}
               aria-hidden="true"
             />
-            <span className="management-card-group-name" title={record.groupName}>
-              {record.groupName}
+            <span className="management-card-group-name" title={displayGroup}>
+              {displayGroup}
             </span>
           </div>
         </div>
-        <div className="management-card-note">
-          {t('employee.designatedLeave')}：
-          {(record.designatedLeaves ?? []).length > 0
-            ? (record.designatedLeaves ?? []).join('、')
-            : '-'}
+        <div className="management-card-note" style={{ minHeight: '2.8em', marginBottom: 8 }}>
+          <span>指定排休：</span>
+          {record.leaveType && (
+            <Tag color="orange" style={{ marginInlineEnd: 4 }}>
+              {LEAVE_TYPE_MAP[record.leaveType] ?? record.leaveType}
+            </Tag>
+          )}
+          <span>
+            {(record.designatedLeaves ?? []).length > 0
+              ? (record.designatedLeaves ?? []).join('、')
+              : record.leaveType
+                ? ''
+                : '-'}
+          </span>
         </div>
-        {(record.licenses ?? []).length > 0 && (
-          <Space size={[4, 4]} wrap className="management-card-licenses">
-            {(record.licenses ?? []).map((lic) => (
-              <Tag key={lic}>{LICENSE_TYPE_MAP[lic] ?? lic}</Tag>
-            ))}
+        <div className="management-card-licenses">
+          <Space size={[4, 4]} wrap>
+            {(record.licenses ?? []).length > 0 ? (
+              (record.licenses ?? []).map((lic) => (
+                <Tag key={lic} color={lic === 'PEST_CONTROL' && isOnlyPest ? 'red' : undefined}>
+                  {LICENSE_TYPE_MAP[lic] ?? lic}
+                </Tag>
+              ))
+            ) : (
+              <Tag>無</Tag>
+            )}
+            {isOnlyPest && (
+              <Tag color="error" icon={<WarningOutlined />}>
+                ⚠️ 僅有施藥證 (Alarm)
+              </Tag>
+            )}
           </Space>
-        )}
+        </div>
       </Space>
     </Card>
   );
@@ -207,16 +241,40 @@ const EmployeePage: FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [form] = Form.useForm<EmployeeFormData>();
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  // 取得全量員工資料，供 AutoComplete 動態產生姓名與員工編號模糊搜尋下拉選單
+  const allEmployeeQuery = useEmployeeList({ page: 1, pageSize: 200 });
+
+  const employeeSearchOptions = useMemo(() => {
+    const list = allEmployeeQuery.data?.list ?? [];
+    const optionsMap = new Map<string, { label: string; value: string }>();
+    list.forEach((e) => {
+      if (e.name && !optionsMap.has(`name-${e.name}`)) {
+        optionsMap.set(`name-${e.name}`, {
+          label: `${e.name} (${e.employeeNo || '員工'})`,
+          value: e.name,
+        });
+      }
+      if (e.employeeNo && !optionsMap.has(`no-${e.employeeNo}`)) {
+        optionsMap.set(`no-${e.employeeNo}`, {
+          label: `${e.employeeNo} (${e.name})`,
+          value: e.employeeNo,
+        });
+      }
+    });
+    return Array.from(optionsMap.values());
+  }, [allEmployeeQuery.data?.list]);
+
   const localizedSearchFields: SearchFieldConfig[] = [
     {
       name: 'keyword',
       label: t('common.keyword'),
-      type: 'input',
-      placeholder: t('employee.searchPlaceholder'),
+      type: 'autoComplete',
+      placeholder: '搜尋員工姓名或員工編號',
+      options: employeeSearchOptions,
     },
   ];
 
-  const groups = useDictStore((state) => state.groups);
   // 指定排休功能僅組長／經理／管理員（具備 employee:designate_leave 權限者）可鍵入
   const canDesignateLeave = usePermissionStore((state) =>
     state.hasPermission(PERMISSIONS.EMPLOYEE_DESIGNATE_LEAVE),
@@ -262,15 +320,22 @@ const EmployeePage: FC = () => {
         });
       }
 
+      const area = record.area || '台北';
+      const shift = record.shift || '早班';
+
       setEditingEmployee(record);
       form.setFieldsValue({
         name: record.name,
         phone: record.phone,
         employeeNo: record.employeeNo,
         position: record.position,
-        groupId: record.groupId,
-        designatedLeaves: record.designatedLeaves,
-        licenses: record.licenses,
+        groupId: record.groupId || `${area}-${shift}`,
+        area,
+        shift,
+        groupName: record.groupName || `${area} ${shift}`,
+        leaveType: record.leaveType || 'REGULAR_LEAVE',
+        designatedLeaves: record.designatedLeaves || [],
+        licenses: (record.licenses ?? []).length > 0 ? record.licenses : ['NONE'],
       });
       setModalOpen(true);
     },
@@ -287,12 +352,21 @@ const EmployeePage: FC = () => {
   // 送出表單：依是否為編輯模式呼叫更新或建立 API
   const handleModalOk = useCallback(async () => {
     const values = await form.validateFields();
+    const area = values.area || '台北';
+    const shift = values.shift || '早班';
+    const payload = {
+      ...values,
+      area,
+      shift,
+      groupName: `${area} ${shift}`,
+      groupId: `${area}-${shift}`,
+    };
 
     if (editingEmployee) {
-      await updateMutation.mutateAsync({ id: editingEmployee.id, data: values });
+      await updateMutation.mutateAsync({ id: editingEmployee.id, data: payload });
       message.success(t('employee.updateSuccess'));
     } else {
-      await createMutation.mutateAsync(values);
+      await createMutation.mutateAsync(payload);
       message.success(t('employee.createSuccess'));
     }
 
@@ -355,28 +429,39 @@ const EmployeePage: FC = () => {
       exportKey: (record) => POSITION_MAP[record.position] ?? record.position,
     },
     {
-      title: t('employee.group'),
+      title: '組別',
       key: 'group',
       width: 120,
-      render: (_value, record) => (
-        <Tag color={record.groupColor || getGroupColor(record.groupId)}>{record.groupName}</Tag>
-      ),
-      exportHeader: t('employee.group'),
-      exportKey: 'groupName',
+      render: (_value, record) => {
+        const displayGroup =
+          record.area && record.shift ? `${record.area} ${record.shift}` : record.groupName;
+        return (
+          <Tag color={record.groupColor || getGroupColor(record.area || record.groupId)}>
+            {displayGroup}
+          </Tag>
+        );
+      },
+      exportHeader: '組別',
+      exportKey: (record) =>
+        record.area && record.shift ? `${record.area} ${record.shift}` : record.groupName,
     },
     {
-      title: t('employee.designatedLeave'),
+      title: '指定排休',
       key: 'designatedLeaves',
-      width: 200,
+      width: 220,
       render: (_value, record) => (
         <Space size={[4, 4]} wrap>
+          {record.leaveType && (
+            <Tag color="orange">{LEAVE_TYPE_MAP[record.leaveType] ?? record.leaveType}</Tag>
+          )}
           {(record.designatedLeaves ?? []).map((d) => (
             <Tag key={d}>{d}</Tag>
           ))}
         </Space>
       ),
-      exportHeader: t('employee.designatedLeave'),
-      exportKey: (record) => (record.designatedLeaves ?? []).join(', '),
+      exportHeader: '指定排休',
+      exportKey: (record) =>
+        `${record.leaveType ? LEAVE_TYPE_MAP[record.leaveType] + ' ' : ''}${(record.designatedLeaves ?? []).join(', ')}`,
     },
     {
       title: t('employee.licenses'),
@@ -471,24 +556,50 @@ const EmployeePage: FC = () => {
           >
             <Select placeholder={t('employee.positionPlaceholder')} options={POSITION_OPTIONS} />
           </Form.Item>
-          <Form.Item
-            name="groupId"
-            label={t('employee.group')}
-            rules={[{ required: true, message: t('employee.groupRequired') }]}
-          >
-            <Select placeholder={t('employee.groupPlaceholder')} options={groups} />
+          <Form.Item label="組別" required style={{ marginBottom: 16 }}>
+            <Space style={{ width: '100%', display: 'flex' }} size={8}>
+              <Form.Item name="area" noStyle rules={[{ required: true, message: '請選擇地區' }]}>
+                <Select
+                  placeholder="選地區 (例如: 台北)"
+                  options={AREA_OPTIONS}
+                  style={{ width: 260 }}
+                />
+              </Form.Item>
+              <Form.Item name="shift" noStyle rules={[{ required: true, message: '請選擇班別' }]}>
+                <Select
+                  placeholder="選班別 (例如: 早班)"
+                  options={EMPLOYEE_SHIFT_OPTIONS}
+                  style={{ width: 260 }}
+                />
+              </Form.Item>
+            </Space>
           </Form.Item>
-          <Form.Item
-            name="designatedLeaves"
-            label={t('employee.designatedLeave')}
-            initialValue={[]}
-            extra={!canDesignateLeave ? t('employee.designatedLeavePermissionHint') : undefined}
-          >
-            <DesignatedLeavesEditor disabled={!canDesignateLeave} />
+
+          <Form.Item label="指定排休">
+            <Form.Item name="leaveType" noStyle initialValue="REGULAR_LEAVE">
+              <Radio.Group style={{ marginBottom: 8 }} onChange={() => setDatePickerOpen(true)}>
+                <Radio value="REGULAR_LEAVE">例假</Radio>
+                <Radio value="ANNUAL_LEAVE">年假</Radio>
+                <Radio value="OTHER_LEAVE">其他</Radio>
+              </Radio.Group>
+            </Form.Item>
+            <Form.Item
+              name="designatedLeaves"
+              initialValue={[]}
+              extra={!canDesignateLeave ? t('employee.designatedLeavePermissionHint') : undefined}
+            >
+              <DesignatedLeavesEditor
+                disabled={!canDesignateLeave}
+                pickerOpen={datePickerOpen}
+                onPickerOpenChange={setDatePickerOpen}
+              />
+            </Form.Item>
           </Form.Item>
+
           <Form.Item
             name="licenses"
-            label={t('employee.licenses')}
+            label="證照"
+            initialValue={['NONE']}
             rules={[
               {
                 validator: (_rule, value: LicenseType[] = []) => {
@@ -505,7 +616,43 @@ const EmployeePage: FC = () => {
               placeholder={t('employee.licensesPlaceholder')}
               options={LICENSE_TYPE_OPTIONS}
               allowClear
+              onChange={(selectedValues: LicenseType[]) => {
+                let newValues = selectedValues;
+                if (selectedValues.includes('NONE')) {
+                  if (selectedValues[selectedValues.length - 1] === 'NONE') {
+                    newValues = ['NONE'];
+                  } else {
+                    newValues = selectedValues.filter((v) => v !== 'NONE');
+                  }
+                }
+                if (newValues.length === 0) {
+                  newValues = ['NONE'];
+                }
+                form.setFieldsValue({ licenses: newValues });
+              }}
             />
+          </Form.Item>
+
+          <Form.Item
+            noStyle
+            shouldUpdate={(prevValues, currentValues) =>
+              prevValues.licenses !== currentValues.licenses
+            }
+          >
+            {({ getFieldValue }) => {
+              const currentLicenses: LicenseType[] = getFieldValue('licenses') || [];
+              if (hasOnlyPestControlLicense(currentLicenses)) {
+                return (
+                  <Alert
+                    type="warning"
+                    message="⚠️ 警示：該員工僅持有「施藥」證照，請留意資格是否足夠！"
+                    showIcon
+                    style={{ marginTop: 8 }}
+                  />
+                );
+              }
+              return null;
+            }}
           </Form.Item>
         </Form>
       </BaseModal>

@@ -5,6 +5,16 @@
  */
 import type { LicenseType } from './alert';
 
+/** 休假類型 */
+export type LeaveType = 'REGULAR_LEAVE' | 'ANNUAL_LEAVE' | 'OTHER_LEAVE';
+
+/** 休假類型對應顯示文字 */
+export const LEAVE_TYPE_MAP: Record<LeaveType, string> = {
+  REGULAR_LEAVE: '例假',
+  ANNUAL_LEAVE: '年假',
+  OTHER_LEAVE: '其他',
+};
+
 /** 員工資料 */
 export interface Employee {
   id: string;
@@ -14,7 +24,10 @@ export interface Employee {
   position: PositionType;
   groupId: string;
   groupName: string;
+  area: string;
+  shift: string;
   groupColor: string;
+  leaveType?: LeaveType;
   designatedLeaves: string[];
   licenses: LicenseType[];
   isActive: boolean;

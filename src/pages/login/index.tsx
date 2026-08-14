@@ -234,6 +234,29 @@ const LoginPage: FC = () => {
             {t('auth.captchaNotice', { count: loginFailCount })}
           </Text>
         )}
+
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px dashed #e8e8e8' }}>
+          <Text
+            type="secondary"
+            style={{ fontSize: 12, display: 'block', marginBottom: 8, textAlign: 'center' }}
+          >
+            快速測試 Demo 帳號
+          </Text>
+          <Space wrap style={{ width: '100%', justifyContent: 'center' }}>
+            <Button
+              size="small"
+              onClick={() => form.setFieldsValue({ account: 'staff', password: 'staff123' })}
+            >
+              Demo 員工 (staff)
+            </Button>
+            <Button
+              size="small"
+              onClick={() => form.setFieldsValue({ account: 'admin', password: 'admin123' })}
+            >
+              Demo 管理員 (admin)
+            </Button>
+          </Space>
+        </div>
       </Card>
     </div>
   );

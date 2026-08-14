@@ -5,9 +5,10 @@ import type { Employee } from '@/types/employee';
 import type { Customer, CustomerGroup, PendingCustomer } from '@/types/customer';
 import type { Notification, NotificationTemplate, Approval } from '@/types/notification';
 import type { UserProfile, LoginResponse } from '@/types/auth';
-import type { AlertValidationResult } from '@/types/alert';
+import type { AlertValidationResult, LicenseType } from '@/types/alert';
 import type { ScheduleData, ScheduleEvent } from '@/types/schedule';
-import { PERMISSIONS } from '@/constants/permissions';
+import { PERMISSIONS, ROLE_PERMISSIONS } from '@/constants/permissions';
+import { getGroupColor } from '@/utils/groupColor';
 
 /**
  * MSW request handlers mocking all API endpoints defined in src/api/*.ts.
@@ -24,13 +25,17 @@ import { PERMISSIONS } from '@/constants/permissions';
 /** 將任意資料包裝成 ApiResponse<T> 的成功回應格式 */
 const ok = <T>(data: T): ApiResponse<T> => ({ code: 0, message: 'success', data });
 
-/** 將陣列資料包裝成 PaginatedResponse<T> 分頁回應格式（固定回傳第 1 頁、每頁 20 筆） */
-const paginated = <T>(list: T[]): PaginatedResponse<T> => ({
-  list,
-  total: list.length,
-  page: 1,
-  pageSize: 20,
-});
+/** 將陣列資料包裝成 PaginatedResponse<T> 分頁回應格式 */
+const paginated = <T>(list: T[], page = 1, pageSize = 20): PaginatedResponse<T> => {
+  const start = (page - 1) * pageSize;
+  const pagedList = list.slice(start, start + pageSize);
+  return {
+    list: pagedList,
+    total: list.length,
+    page,
+    pageSize,
+  };
+};
 
 // --- Mock domain data -------------------------------------------------
 
@@ -51,6 +56,16 @@ const mockAdminUser: UserProfile = {
   role: 'ADMIN',
   permissions: Object.values(PERMISSIONS),
   groupId: 'group-001',
+};
+
+// Demo staff account for local frontend development (login: staff / staff123)
+const mockStaffUser: UserProfile = {
+  id: 'emp-staff',
+  name: 'Demo 員工',
+  employeeNo: 'staff',
+  role: 'STAFF',
+  permissions: ROLE_PERMISSIONS.STAFF!,
+  groupId: 'taipei-morning',
 };
 
 const mockTask: Task = {
@@ -85,6 +100,8 @@ const mockEmployee: Employee = {
   position: 'STAFF',
   groupId: 'group-001',
   groupName: '測試集團',
+  area: '台北',
+  shift: '早班',
   groupColor: '#1677ff',
   designatedLeaves: [],
   licenses: ['PROFESSIONAL'],
@@ -208,6 +225,185 @@ const demoCustomerGroups: CustomerGroup[] = [
       },
     ],
   },
+  {
+    id: 'group-005',
+    name: '鼎泰豐餐飲股份有限公司',
+    branches: [
+      {
+        id: 'branch-005-1',
+        groupId: 'group-005',
+        name: '信義旗艦店',
+        address: '台北市大安區信義路二段194號',
+        latitude: 25.0337,
+        longitude: 121.5301,
+        contactName: '林經理',
+        contactPhone: '02-23218928',
+        requiredLicenses: ['PEST_CONTROL'],
+      },
+      {
+        id: 'branch-005-2',
+        groupId: 'group-005',
+        name: '101店',
+        address: '台北市信義區市府路45號B1',
+        latitude: 25.0336,
+        longitude: 121.5645,
+        contactName: '張店長',
+        contactPhone: '02-81017799',
+        requiredLicenses: ['PEST_CONTROL', 'SAFETY_6HR'],
+      },
+    ],
+  },
+  {
+    id: 'group-006',
+    name: '台北金融大樓股份有限公司',
+    branches: [
+      {
+        id: 'branch-006-1',
+        groupId: 'group-006',
+        name: '台北101購物中心',
+        address: '台北市信義區信義路五段7號',
+        latitude: 25.0339,
+        longitude: 121.5644,
+        contactName: '高主任',
+        contactPhone: '02-81018800',
+        requiredLicenses: ['PROFESSIONAL'],
+      },
+      {
+        id: 'branch-006-2',
+        groupId: 'group-006',
+        name: '台北101辦公大樓',
+        address: '台北市信義區信義路五段7號35F',
+        latitude: 25.0339,
+        longitude: 121.5644,
+        contactName: '周專員',
+        contactPhone: '02-81018888',
+        requiredLicenses: ['PROFESSIONAL'],
+      },
+    ],
+  },
+  {
+    id: 'group-007',
+    name: '台灣積體電路製造',
+    branches: [
+      {
+        id: 'branch-007-1',
+        groupId: 'group-007',
+        name: '竹科八廠',
+        address: '新竹市東區力行二路3號',
+        latitude: 24.7758,
+        longitude: 121.0142,
+        contactName: '劉工程師',
+        contactPhone: '03-5678888',
+        requiredLicenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
+      },
+      {
+        id: 'branch-007-2',
+        groupId: 'group-007',
+        name: '中科十五廠',
+        address: '台中市大雅區科雅六路1號',
+        latitude: 24.2125,
+        longitude: 120.6189,
+        contactName: '郭經理',
+        contactPhone: '04-25678888',
+        requiredLicenses: ['PROFESSIONAL'],
+      },
+      {
+        id: 'branch-007-3',
+        groupId: 'group-007',
+        name: '南科十八廠',
+        address: '台南市善化區善工一路1號',
+        latitude: 23.1167,
+        longitude: 120.2798,
+        contactName: '謝副理',
+        contactPhone: '06-5058888',
+        requiredLicenses: ['PEST_CONTROL', 'FIRE_ANT'],
+      },
+    ],
+  },
+  {
+    id: 'group-008',
+    name: '遠東百貨股份有限公司',
+    branches: [
+      {
+        id: 'branch-008-1',
+        groupId: 'group-008',
+        name: '信義A13',
+        address: '台北市信義區松仁路58號',
+        latitude: 25.0366,
+        longitude: 121.5678,
+        contactName: '陳副理',
+        contactPhone: '02-77458888',
+        requiredLicenses: ['PEST_CONTROL'],
+      },
+      {
+        id: 'branch-008-2',
+        groupId: 'group-008',
+        name: '板橋大遠百',
+        address: '新北市板橋區新站路28號',
+        latitude: 25.0135,
+        longitude: 121.4651,
+        contactName: '楊課長',
+        contactPhone: '02-77053988',
+        requiredLicenses: ['PEST_CONTROL'],
+      },
+    ],
+  },
+  {
+    id: 'group-009',
+    name: '晶華國際酒店集團',
+    branches: [
+      {
+        id: 'branch-009-1',
+        groupId: 'group-009',
+        name: '台北晶華酒店',
+        address: '台北市中山區中山北路二段39巷3號',
+        latitude: 25.0538,
+        longitude: 121.5242,
+        contactName: '房務部李副理',
+        contactPhone: '02-25238000',
+        requiredLicenses: ['PEST_CONTROL', 'PROFESSIONAL'],
+      },
+      {
+        id: 'branch-009-2',
+        groupId: 'group-009',
+        name: '台南晶英酒店',
+        address: '台南市中西區和意路1號',
+        latitude: 22.9881,
+        longitude: 120.1989,
+        contactName: '總務組王副理',
+        contactPhone: '06-2136290',
+        requiredLicenses: ['PEST_CONTROL'],
+      },
+    ],
+  },
+  {
+    id: 'group-010',
+    name: '誠品生活股份有限公司',
+    branches: [
+      {
+        id: 'branch-010-1',
+        groupId: 'group-010',
+        name: '松菸店',
+        address: '台北市信義區菸廠路88號',
+        latitude: 25.0441,
+        longitude: 121.5606,
+        contactName: '賴專員',
+        contactPhone: '02-66365888',
+        requiredLicenses: ['PROFESSIONAL'],
+      },
+      {
+        id: 'branch-010-2',
+        groupId: 'group-010',
+        name: '新店裕隆城店',
+        address: '新北市新店區中興路三段70號',
+        latitude: 24.9785,
+        longitude: 121.5456,
+        contactName: '徐副理',
+        contactPhone: '02-29189888',
+        requiredLicenses: ['PEST_CONTROL'],
+      },
+    ],
+  },
 ];
 
 // 合併基本測試用集團與額外的 demo 集團，供各端點共用
@@ -232,7 +428,7 @@ const demoCustomers: Customer[] = demoCustomerGroups.flatMap((group) =>
 );
 
 // 合併基本測試用客戶與攤平後的 demo 客戶清單，供客戶列表／地圖端點使用
-const mockCustomers: Customer[] = [mockCustomer, ...demoCustomers];
+let mockCustomers: Customer[] = [mockCustomer, ...demoCustomers];
 
 // 額外的員工假資料，分散於不同集團／職位／證照，供指派員工下拉選單使用
 const demoEmployees: Employee[] = [
@@ -244,6 +440,8 @@ const demoEmployees: Employee[] = [
     position: 'LEADER',
     groupId: 'group-002',
     groupName: '星耀科技股份有限公司',
+    area: '台北',
+    shift: '晚班',
     groupColor: '#0067a0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
@@ -257,6 +455,8 @@ const demoEmployees: Employee[] = [
     position: 'MANAGER',
     groupId: 'group-003',
     groupName: '陽光連鎖餐飲集團',
+    area: '高雄',
+    shift: '早班',
     groupColor: '#fa8c16',
     designatedLeaves: [],
     licenses: ['PEST_CONTROL', 'FIRE_ANT'],
@@ -270,6 +470,8 @@ const demoEmployees: Employee[] = [
     position: 'ADMIN_STAFF',
     groupId: 'group-004',
     groupName: '綠地物業管理顧問',
+    area: '台中',
+    shift: '日班',
     groupColor: '#722ed1',
     designatedLeaves: [],
     licenses: ['SAFETY_MANAGER_B'],
@@ -283,18 +485,821 @@ const demoEmployees: Employee[] = [
     position: 'STAFF',
     groupId: 'group-002',
     groupName: '星耀科技股份有限公司',
+    area: '台北',
+    shift: '中班',
     groupColor: '#0067a0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
     isActive: true,
   },
+  {
+    id: 'emp-staff',
+    name: 'Demo 員工',
+    phone: '0912345678',
+    employeeNo: 'staff',
+    position: 'STAFF',
+    groupId: 'taipei-morning',
+    groupName: '台北 早班',
+    area: '台北',
+    shift: '早班',
+    groupColor: '#005EB8',
+    designatedLeaves: [],
+    licenses: ['PEST_CONTROL'],
+    isActive: true,
+  },
+];
+
+const demoTasks: Task[] = [
+  {
+    id: 'task-002',
+    groupId: 'group-002',
+    groupName: '星耀科技股份有限公司',
+    branchId: 'branch-002-1',
+    branchName: '內湖三期辦公室',
+    taskType: 'CONTRACT',
+    date: '2026-08-02',
+    startTime: '13:30',
+    endTime: '17:30',
+    isOvernight: false,
+    headcount: 2,
+    shift: '台北 早班',
+    route: '內湖科技線',
+    contents: ['P', 'S'],
+    assignees: [
+      { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+      { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
+    ],
+    remarks: '辦公區例行消毒',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-01T09:00:00+08:00',
+    updatedAt: '2026-08-01T09:00:00+08:00',
+  },
+  {
+    id: 'task-003',
+    groupId: 'group-002',
+    groupName: '星耀科技股份有限公司',
+    branchId: 'branch-002-2',
+    branchName: '新竹科學園區廠',
+    taskType: 'CONTRACT',
+    date: '2026-08-03',
+    startTime: '08:30',
+    endTime: '16:30',
+    isOvernight: false,
+    headcount: 3,
+    shift: '新竹 早班',
+    route: '竹科專線1',
+    contents: ['P', 'TERMITE'],
+    assignees: [
+      {
+        employeeId: 'emp-005',
+        employeeName: '陳雅婷',
+        licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
+      },
+      { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
+      { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
+    ],
+    remarks: '無塵室周邊防蟲與白蟻檢測',
+    status: 'CONFIRMED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-01T09:30:00+08:00',
+    updatedAt: '2026-08-01T09:30:00+08:00',
+  },
+  {
+    id: 'task-004',
+    groupId: 'group-003',
+    groupName: '陽光連鎖餐飲集團',
+    branchId: 'branch-003-1',
+    branchName: '台中西屯門市',
+    taskType: 'CONTRACT',
+    date: '2026-08-04',
+    startTime: '22:00',
+    endTime: '02:00',
+    isOvernight: true,
+    headcount: 2,
+    shift: '台中 晚班',
+    route: '中港商圈線',
+    contents: ['P', 'R', 'FIRE_ANT'],
+    assignees: [
+      { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
+      { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
+    ],
+    remarks: '打烊後廚房重油污區消毒除鼠',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-01T10:00:00+08:00',
+    updatedAt: '2026-08-01T10:00:00+08:00',
+  },
+  {
+    id: 'task-005',
+    groupId: 'group-003',
+    groupName: '陽光連鎖餐飲集團',
+    branchId: 'branch-003-2',
+    branchName: '高雄三多門市',
+    taskType: 'ONETIME',
+    date: '2026-08-05',
+    startTime: '14:00',
+    endTime: '18:00',
+    isOvernight: false,
+    headcount: 1,
+    shift: '高雄 早班',
+    route: '南區幹道線',
+    contents: ['BED_BUG'],
+    assignees: [
+      { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
+    ],
+    remarks: '緊急臭蟲熱處理防治',
+    status: 'MODIFIED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-02T11:00:00+08:00',
+    updatedAt: '2026-08-03T14:20:00+08:00',
+  },
+  {
+    id: 'task-006',
+    groupId: 'group-004',
+    groupName: '綠地物業管理顧問',
+    branchId: 'branch-004-1',
+    branchName: '板橋大樓管理處',
+    taskType: 'CONTRACT',
+    date: '2026-08-06',
+    startTime: '09:00',
+    endTime: '12:00',
+    isOvernight: false,
+    headcount: 2,
+    shift: '台北 早班',
+    route: '新北板橋線',
+    contents: ['P', 'R'],
+    assignees: [
+      { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+      { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
+    ],
+    remarks: '地下停車場與公共區域噴藥',
+    status: 'CONFIRMED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-02T15:00:00+08:00',
+    updatedAt: '2026-08-02T15:00:00+08:00',
+  },
+  {
+    id: 'task-007',
+    groupId: 'group-004',
+    groupName: '綠地物業管理顧問',
+    branchId: 'branch-004-2',
+    branchName: '桃園青埔社區',
+    taskType: 'CONTRACT',
+    date: '2026-08-07',
+    startTime: '13:00',
+    endTime: '17:00',
+    isOvernight: false,
+    headcount: 2,
+    shift: '桃園 早班',
+    route: '青埔特區線',
+    contents: ['P', 'TERMITE'],
+    assignees: [
+      {
+        employeeId: 'emp-005',
+        employeeName: '陳雅婷',
+        licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
+      },
+      { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
+    ],
+    remarks: '中庭花園白蟻防治及公共管線投藥',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-03T09:00:00+08:00',
+    updatedAt: '2026-08-03T09:00:00+08:00',
+  },
+  {
+    id: 'task-008',
+    groupId: 'group-005',
+    groupName: '鼎泰豐餐飲股份有限公司',
+    branchId: 'branch-005-1',
+    branchName: '信義旗艦店',
+    taskType: 'CONTRACT',
+    date: '2026-08-08',
+    startTime: '22:30',
+    endTime: '01:30',
+    isOvernight: true,
+    headcount: 2,
+    shift: '台北 晚班',
+    route: '信義夜間線',
+    contents: ['P', 'R'],
+    assignees: [
+      { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+      { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
+    ],
+    remarks: '打烊後全店病媒防治施作',
+    status: 'CONFIRMED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-03T10:00:00+08:00',
+    updatedAt: '2026-08-03T10:00:00+08:00',
+  },
+  {
+    id: 'task-009',
+    groupId: 'group-005',
+    groupName: '鼎泰豐餐飲股份有限公司',
+    branchId: 'branch-005-2',
+    branchName: '101店',
+    taskType: 'CONTRACT',
+    date: '2026-08-09',
+    startTime: '23:00',
+    endTime: '02:00',
+    isOvernight: true,
+    headcount: 2,
+    shift: '台北 晚班',
+    route: '信義夜間線',
+    contents: ['P', 'R', 'S'],
+    assignees: [
+      { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
+      { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
+    ],
+    remarks: '商場打烊後廚區徹底清消',
+    status: 'PENDING_APPROVAL',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-04T11:00:00+08:00',
+    updatedAt: '2026-08-04T11:00:00+08:00',
+  },
+  {
+    id: 'task-010',
+    groupId: 'group-006',
+    groupName: '台北金融大樓股份有限公司',
+    branchId: 'branch-006-1',
+    branchName: '台北101購物中心',
+    taskType: 'CONTRACT',
+    date: '2026-08-10',
+    startTime: '00:00',
+    endTime: '06:00',
+    isOvernight: false,
+    headcount: 4,
+    shift: '台北 大夜班',
+    route: '101專案線',
+    contents: ['P', 'R', 'TERMITE', 'FIRE_ANT'],
+    assignees: [
+      { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+      {
+        employeeId: 'emp-005',
+        employeeName: '陳雅婷',
+        licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
+      },
+      { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
+      { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
+    ],
+    remarks: 'B1-5F 美食街與商場大範圍夜間施作',
+    status: 'CONFIRMED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-04T14:00:00+08:00',
+    updatedAt: '2026-08-04T14:00:00+08:00',
+  },
+  {
+    id: 'task-011',
+    groupId: 'group-006',
+    groupName: '台北金融大樓股份有限公司',
+    branchId: 'branch-006-2',
+    branchName: '台北101辦公大樓',
+    taskType: 'CONTRACT',
+    date: '2026-08-11',
+    startTime: '18:30',
+    endTime: '22:30',
+    isOvernight: false,
+    headcount: 2,
+    shift: '台北 晚班',
+    route: '101專案線',
+    contents: ['P', 'R'],
+    assignees: [
+      { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
+      { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
+    ],
+    remarks: '高樓層辦公區茶水間與梯廳防蟲',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-05T09:00:00+08:00',
+    updatedAt: '2026-08-05T09:00:00+08:00',
+  },
+  {
+    id: 'task-012',
+    groupId: 'group-007',
+    groupName: '台灣積體電路製造',
+    branchId: 'branch-007-1',
+    branchName: '竹科八廠',
+    taskType: 'CONTRACT',
+    date: '2026-08-12',
+    startTime: '08:00',
+    endTime: '17:00',
+    isOvernight: false,
+    headcount: 3,
+    shift: '新竹 早班',
+    route: '半導體專線',
+    contents: ['P', 'S'],
+    assignees: [
+      {
+        employeeId: 'emp-005',
+        employeeName: '陳雅婷',
+        licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
+      },
+      { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+      { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
+    ],
+    remarks: '全廠區年度環境消毒作業',
+    status: 'CONFIRMED',
+    alertStatus: 'OVERRIDDEN',
+    overrideRemark: '經理核准特種環境作業人員調派',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-05T10:30:00+08:00',
+    updatedAt: '2026-08-05T10:30:00+08:00',
+  },
+  {
+    id: 'task-013',
+    groupId: 'group-007',
+    groupName: '台灣積體電路製造',
+    branchId: 'branch-007-2',
+    branchName: '中科十五廠',
+    taskType: 'CONTRACT',
+    date: '2026-08-13',
+    startTime: '09:00',
+    endTime: '18:00',
+    isOvernight: false,
+    headcount: 2,
+    shift: '台中 日班',
+    route: '中科園區線',
+    contents: ['P', 'TERMITE'],
+    assignees: [
+      { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
+      { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
+    ],
+    remarks: '廠務區例行防護作業',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-06T09:00:00+08:00',
+    updatedAt: '2026-08-06T09:00:00+08:00',
+  },
+  {
+    id: 'task-014',
+    groupId: 'group-007',
+    groupName: '台灣積體電路製造',
+    branchId: 'branch-007-3',
+    branchName: '南科十八廠',
+    taskType: 'CONTRACT',
+    date: '2026-08-14',
+    startTime: '08:30',
+    endTime: '17:30',
+    isOvernight: false,
+    headcount: 2,
+    shift: '台南 早班',
+    route: '南科專線A',
+    contents: ['P', 'FIRE_ANT'],
+    assignees: [
+      { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
+      { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
+    ],
+    remarks: '紅火蟻熱點巡查與誘餌施放',
+    status: 'CONFIRMED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-06T11:00:00+08:00',
+    updatedAt: '2026-08-06T11:00:00+08:00',
+  },
+  {
+    id: 'task-015',
+    groupId: 'group-008',
+    groupName: '遠東百貨股份有限公司',
+    branchId: 'branch-008-1',
+    branchName: '信義A13',
+    taskType: 'CONTRACT',
+    date: '2026-08-15',
+    startTime: '22:00',
+    endTime: '02:00',
+    isOvernight: true,
+    headcount: 2,
+    shift: '台北 晚班',
+    route: '信義百貨線',
+    contents: ['P', 'R', 'BED_BUG'],
+    assignees: [
+      { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+      { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
+    ],
+    remarks: '美食街及影城夜間防蟲清消',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-07T14:00:00+08:00',
+    updatedAt: '2026-08-07T14:00:00+08:00',
+  },
+  {
+    id: 'task-016',
+    groupId: 'group-008',
+    groupName: '遠東百貨股份有限公司',
+    branchId: 'branch-008-2',
+    branchName: '板橋大遠百',
+    taskType: 'CONTRACT',
+    date: '2026-08-16',
+    startTime: '22:30',
+    endTime: '02:30',
+    isOvernight: true,
+    headcount: 2,
+    shift: '台北 晚班',
+    route: '新北商場線',
+    contents: ['P', 'R'],
+    assignees: [
+      { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
+      { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
+    ],
+    remarks: '地下超市與餐飲街消毒除鼠',
+    status: 'CONFIRMED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-07T16:00:00+08:00',
+    updatedAt: '2026-08-07T16:00:00+08:00',
+  },
+  {
+    id: 'task-017',
+    groupId: 'group-009',
+    groupName: '晶華國際酒店集團',
+    branchId: 'branch-009-1',
+    branchName: '台北晶華酒店',
+    taskType: 'CONTRACT',
+    date: '2026-08-17',
+    startTime: '00:30',
+    endTime: '05:30',
+    isOvernight: false,
+    headcount: 3,
+    shift: '台北 大夜班',
+    route: '五星飯店線',
+    contents: ['P', 'R', 'BED_BUG', 'S'],
+    assignees: [
+      {
+        employeeId: 'emp-005',
+        employeeName: '陳雅婷',
+        licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
+      },
+      { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+      { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
+    ],
+    remarks: '宴會廳、廚房後場與指定客房深度清消',
+    status: 'CONFIRMED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-08T09:00:00+08:00',
+    updatedAt: '2026-08-08T09:00:00+08:00',
+  },
+  {
+    id: 'task-018',
+    groupId: 'group-009',
+    groupName: '晶華國際酒店集團',
+    branchId: 'branch-009-2',
+    branchName: '台南晶英酒店',
+    taskType: 'CONTRACT',
+    date: '2026-08-18',
+    startTime: '01:00',
+    endTime: '05:00',
+    isOvernight: false,
+    headcount: 2,
+    shift: '台南 大夜班',
+    route: '台南古都線',
+    contents: ['P', 'BED_BUG'],
+    assignees: [
+      { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
+      { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
+    ],
+    remarks: '客房樓層防蟲與中餐廳滅鼠',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-08T10:30:00+08:00',
+    updatedAt: '2026-08-08T10:30:00+08:00',
+  },
+  {
+    id: 'task-019',
+    groupId: 'group-010',
+    groupName: '誠品生活股份有限公司',
+    branchId: 'branch-010-1',
+    branchName: '松菸店',
+    taskType: 'CONTRACT',
+    date: '2026-08-19',
+    startTime: '08:00',
+    endTime: '11:00',
+    isOvernight: false,
+    headcount: 2,
+    shift: '台北 早班',
+    route: '東區文化線',
+    contents: ['P', 'TERMITE'],
+    assignees: [
+      { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+      { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
+    ],
+    remarks: '木造書區白蟻檢查與開館前防蟲',
+    status: 'CONFIRMED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-09T09:00:00+08:00',
+    updatedAt: '2026-08-09T09:00:00+08:00',
+  },
+  {
+    id: 'task-020',
+    groupId: 'group-010',
+    groupName: '誠品生活股份有限公司',
+    branchId: 'branch-010-2',
+    branchName: '新店裕隆城店',
+    taskType: 'ONETIME',
+    date: '2026-08-20',
+    startTime: '09:30',
+    endTime: '13:30',
+    isOvernight: false,
+    headcount: 2,
+    shift: '台北 早班',
+    route: '新店文山線',
+    contents: ['FIRE_ANT', 'OTHER'],
+    otherContentNote: '戶外造景花圃紅火蟻清消',
+    assignees: [
+      { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
+      { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
+    ],
+    remarks: '戶外綠化造景特別防治案',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-09T14:00:00+08:00',
+    updatedAt: '2026-08-09T14:00:00+08:00',
+  },
+  {
+    id: 'task-021',
+    groupId: 'group-001',
+    groupName: '測試集團',
+    branchId: 'branch-001',
+    branchName: '測試分店',
+    taskType: 'ESR',
+    date: '2026-08-21',
+    startTime: '14:00',
+    endTime: '16:00',
+    isOvernight: false,
+    headcount: 1,
+    shift: '台北 早班',
+    route: '緊急支援線',
+    contents: ['P'],
+    assignees: [
+      { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
+    ],
+    remarks: '臨時客戶急件呼叫（ESR）',
+    status: 'UNSCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-10T08:30:00+08:00',
+    updatedAt: '2026-08-10T08:30:00+08:00',
+  },
+  {
+    id: 'task-022',
+    groupId: 'group-002',
+    groupName: '星耀科技股份有限公司',
+    branchId: 'branch-002-1',
+    branchName: '內湖三期辦公室',
+    taskType: 'ESR',
+    date: '2026-08-22',
+    startTime: '10:00',
+    endTime: '12:00',
+    isOvernight: false,
+    headcount: 1,
+    shift: '台北 早班',
+    route: '內湖科技線',
+    contents: ['R'],
+    assignees: [{ employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] }],
+    remarks: '會議室老鼠侵入緊急處理',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-10T11:00:00+08:00',
+    updatedAt: '2026-08-10T11:00:00+08:00',
+  },
+  {
+    id: 'task-023',
+    groupId: 'group-003',
+    groupName: '陽光連鎖餐飲集團',
+    branchId: 'branch-003-1',
+    branchName: '台中西屯門市',
+    taskType: 'ONETIME',
+    date: '2026-08-23',
+    startTime: '15:00',
+    endTime: '18:00',
+    isOvernight: false,
+    headcount: 2,
+    shift: '台中 日班',
+    route: '台中特遣線',
+    contents: ['VEHICLE_MAINTENANCE'],
+    assignees: [
+      { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
+      { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
+    ],
+    remarks: '外送車隊與物流冷鏈車輛消毒',
+    status: 'CONFIRMED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-11T09:00:00+08:00',
+    updatedAt: '2026-08-11T09:00:00+08:00',
+  },
+  {
+    id: 'task-024',
+    groupId: 'group-004',
+    groupName: '綠地物業管理顧問',
+    branchId: 'branch-004-1',
+    branchName: '板橋大樓管理處',
+    taskType: 'CONTRACT',
+    date: '2026-08-24',
+    startTime: '13:30',
+    endTime: '16:30',
+    isOvernight: false,
+    headcount: 2,
+    shift: '台北 早班',
+    route: '新北板橋線',
+    contents: ['P', 'S'],
+    assignees: [
+      {
+        employeeId: 'emp-005',
+        employeeName: '陳雅婷',
+        licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
+      },
+      { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
+    ],
+    remarks: '社區公設定期殺菌消毒',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-11T13:00:00+08:00',
+    updatedAt: '2026-08-11T13:00:00+08:00',
+  },
+  {
+    id: 'task-025',
+    groupId: 'group-005',
+    groupName: '鼎泰豐餐飲股份有限公司',
+    branchId: 'branch-005-1',
+    branchName: '信義旗艦店',
+    taskType: 'CONTRACT',
+    date: '2026-08-25',
+    startTime: '22:30',
+    endTime: '01:30',
+    isOvernight: true,
+    headcount: 2,
+    shift: '台北 晚班',
+    route: '信義夜間線',
+    contents: ['P', 'R'],
+    assignees: [
+      { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+      { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
+    ],
+    remarks: '調整施作時間與藥劑項目',
+    status: 'MODIFIED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-12T10:00:00+08:00',
+    updatedAt: '2026-08-12T16:00:00+08:00',
+  },
+  {
+    id: 'task-026',
+    groupId: 'group-006',
+    groupName: '台北金融大樓股份有限公司',
+    branchId: 'branch-006-1',
+    branchName: '台北101購物中心',
+    taskType: 'CONTRACT',
+    date: '2026-08-26',
+    startTime: '00:00',
+    endTime: '05:00',
+    isOvernight: false,
+    headcount: 2,
+    shift: '台北 大夜班',
+    route: '101專案線',
+    contents: ['P', 'R'],
+    assignees: [
+      { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
+      { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
+    ],
+    remarks: '美食街夜間維護作業',
+    status: 'CONFIRMED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-12T11:00:00+08:00',
+    updatedAt: '2026-08-12T11:00:00+08:00',
+  },
+  {
+    id: 'task-027',
+    groupId: 'group-007',
+    groupName: '台灣積體電路製造',
+    branchId: 'branch-007-1',
+    branchName: '竹科八廠',
+    taskType: 'CONTRACT',
+    date: '2026-08-27',
+    startTime: '08:00',
+    endTime: '17:00',
+    isOvernight: false,
+    headcount: 2,
+    shift: '新竹 早班',
+    route: '半導體專線',
+    contents: ['P', 'TRAINING'],
+    assignees: [
+      {
+        employeeId: 'emp-005',
+        employeeName: '陳雅婷',
+        licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
+      },
+      { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+    ],
+    remarks: '廠務新進人員安全作業教育訓練與示範',
+    status: 'CONFIRMED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-13T09:00:00+08:00',
+    updatedAt: '2026-08-13T09:00:00+08:00',
+  },
+  {
+    id: 'task-028',
+    groupId: 'group-008',
+    groupName: '遠東百貨股份有限公司',
+    branchId: 'branch-008-1',
+    branchName: '信義A13',
+    taskType: 'ONETIME',
+    date: '2026-08-28',
+    startTime: '21:00',
+    endTime: '23:00',
+    isOvernight: false,
+    headcount: 1,
+    shift: '台北 晚班',
+    route: '信義夜間線',
+    contents: ['P'],
+    assignees: [
+      { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
+    ],
+    remarks: '因客戶活動臨時取消排班',
+    status: 'CANCELLED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-13T10:00:00+08:00',
+    updatedAt: '2026-08-13T15:00:00+08:00',
+  },
+  {
+    id: 'task-029',
+    groupId: 'group-009',
+    groupName: '晶華國際酒店集團',
+    branchId: 'branch-009-1',
+    branchName: '台北晶華酒店',
+    taskType: 'CONTRACT',
+    date: '2026-08-29',
+    startTime: '01:00',
+    endTime: '05:00',
+    isOvernight: false,
+    headcount: 2,
+    shift: '台北 大夜班',
+    route: '五星飯店線',
+    contents: ['P', 'R', 'BED_BUG'],
+    assignees: [
+      { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
+      { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
+    ],
+    remarks: '夜間跨日排班證照違規示警範例',
+    status: 'SCHEDULED',
+    alertStatus: 'VIOLATED',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-13T14:00:00+08:00',
+    updatedAt: '2026-08-13T14:00:00+08:00',
+  },
+  {
+    id: 'task-030',
+    groupId: 'group-010',
+    groupName: '誠品生活股份有限公司',
+    branchId: 'branch-010-1',
+    branchName: '松菸店',
+    taskType: 'CONTRACT',
+    date: '2026-08-30',
+    startTime: '08:30',
+    endTime: '11:30',
+    isOvernight: false,
+    headcount: 2,
+    shift: '台北 早班',
+    route: '東區文化線',
+    contents: ['P', 'R'],
+    assignees: [
+      { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+      { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
+    ],
+    remarks: '週末商場開館前環境維護',
+    status: 'CONFIRMED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-14T08:00:00+08:00',
+    updatedAt: '2026-08-14T08:00:00+08:00',
+  },
 ];
 
 // 合併基本測試用員工與額外的 demo 員工，供指派員工下拉選單等端點使用
-const mockEmployees: Employee[] = [mockEmployee, ...demoEmployees];
+let mockEmployees: Employee[] = [mockEmployee, ...demoEmployees];
 
-// 任務清單改為可變狀態，讓新增／編輯任務後重新查詢時能看到實際變化（例如編輯後狀態變為「更改」）
-let mockTasks: Task[] = [mockTask];
+// 任務清單改為可變狀態，包含 30 筆示範任務（task-001 到 task-030）
+let mockTasks: Task[] = [mockTask, ...demoTasks];
 
 /** 判斷結束時間是否早於或等於開始時間，藉此判斷任務是否為跨日（overnight）任務 */
 const isOvernightRange = (startTime: string, endTime: string): boolean => {
@@ -598,6 +1603,16 @@ export const handlers = [
       );
     }
 
+    if (body.account === 'staff' && body.password === 'staff123') {
+      return HttpResponse.json(
+        ok<LoginResponse>({
+          accessToken: 'mock-staff-token',
+          expiresIn: 3600,
+          user: mockStaffUser,
+        }),
+      );
+    }
+
     return HttpResponse.json(
       ok<LoginResponse>({
         accessToken: 'mock-access-token',
@@ -609,7 +1624,50 @@ export const handlers = [
   http.get('*/api/v1/auth/profile', () => HttpResponse.json(ok<UserProfile>(mockUser))),
 
   // task.ts
-  http.get('*/api/v1/tasks', () => HttpResponse.json(ok(paginated<Task>(mockTasks)))),
+  http.get('*/api/v1/tasks', ({ request }) => {
+    const url = new URL(request.url);
+    const keyword = url.searchParams.get('keyword');
+    const groupId = url.searchParams.get('groupId');
+    const branchId = url.searchParams.get('branchId');
+    const taskType = url.searchParams.get('taskType');
+    const status = url.searchParams.get('status');
+    const startDate = url.searchParams.get('startDate');
+    const endDate = url.searchParams.get('endDate');
+    const page = Number(url.searchParams.get('page')) || 1;
+    const pageSize = Number(url.searchParams.get('pageSize')) || 20;
+
+    let list = mockTasks;
+    if (keyword) {
+      const kw = keyword.toLowerCase();
+      list = list.filter(
+        (t) =>
+          t.groupName.toLowerCase().includes(kw) ||
+          t.branchName.toLowerCase().includes(kw) ||
+          t.route?.toLowerCase().includes(kw) ||
+          t.assignees.some((a) => a.employeeName.toLowerCase().includes(kw)),
+      );
+    }
+    if (groupId) {
+      list = list.filter((t) => t.groupId === groupId);
+    }
+    if (branchId) {
+      list = list.filter((t) => t.branchId === branchId);
+    }
+    if (taskType) {
+      list = list.filter((t) => t.taskType === taskType);
+    }
+    if (status) {
+      list = list.filter((t) => t.status === status);
+    }
+    if (startDate) {
+      list = list.filter((t) => t.date >= startDate);
+    }
+    if (endDate) {
+      list = list.filter((t) => t.date <= endDate);
+    }
+
+    return HttpResponse.json(ok(paginated<Task>(list, page, pageSize)));
+  }),
   http.get('*/api/v1/tasks/:id', ({ params }) => {
     const task = mockTasks.find((t) => t.id === params.id) ?? mockTask;
     return HttpResponse.json(ok<Task>(task));
@@ -644,16 +1702,119 @@ export const handlers = [
   http.get('*/api/v1/customers/groups', () =>
     HttpResponse.json(ok<CustomerGroup[]>(mockCustomerGroups)),
   ),
-  http.post('*/api/v1/customers', () => HttpResponse.json(ok<Customer>(mockCustomer))),
-  http.patch('*/api/v1/customers/:id', () => HttpResponse.json(ok<Customer>(mockCustomer))),
-  http.delete('*/api/v1/customers/:id', () => HttpResponse.json(ok(null))),
+  http.post('*/api/v1/customers', async ({ request }) => {
+    const data = (await request.json()) as Record<string, unknown>;
+    const newCust: Customer = {
+      id: `cust-${Date.now()}`,
+      groupId: (data.groupId as string) || 'group-001',
+      groupName: (data.groupName as string) || '測試集團',
+      branchId: `branch-${Date.now()}`,
+      branchName: (data.branchName as string) || '測試分店',
+      address: (data.address as string) || '',
+      contactName: (data.contactName as string) || '',
+      contactPhone: (data.contactPhone as string) || '',
+      requiredLicenses: (data.requiredLicenses as LicenseType[]) || [],
+      licenseRestrictionNote: data.licenseRestrictionNote as string,
+      remarks: (data.remarks as string) || '',
+    };
+    mockCustomers.unshift(newCust);
+    return HttpResponse.json(ok<Customer>(newCust));
+  }),
+  http.patch('*/api/v1/customers/:id', async ({ params, request }) => {
+    const data = (await request.json()) as Record<string, unknown>;
+    const index = mockCustomers.findIndex((c) => c.id === params.id);
+    if (index !== -1) {
+      const existing = mockCustomers[index]!;
+      const updated: Customer = {
+        ...existing,
+        ...data,
+      };
+      mockCustomers[index] = updated;
+      return HttpResponse.json(ok<Customer>(updated));
+    }
+    return HttpResponse.json(ok<Customer>(mockCustomers[0]!));
+  }),
+  http.delete('*/api/v1/customers/:id', ({ params }) => {
+    mockCustomers = mockCustomers.filter((c) => c.id !== params.id);
+    return HttpResponse.json(ok(null));
+  }),
 
   // employee.ts
   http.get('*/api/v1/employees', () => HttpResponse.json(ok(paginated<Employee>(mockEmployees)))),
-  http.get('*/api/v1/employees/:id', () => HttpResponse.json(ok<Employee>(mockEmployee))),
-  http.post('*/api/v1/employees', () => HttpResponse.json(ok<Employee>(mockEmployee))),
-  http.patch('*/api/v1/employees/:id', () => HttpResponse.json(ok<Employee>(mockEmployee))),
-  http.delete('*/api/v1/employees/:id', () => HttpResponse.json(ok(null))),
+  http.get('*/api/v1/employees/:id', ({ params }) => {
+    const emp = mockEmployees.find((e) => e.id === params.id) || mockEmployees[0]!;
+    return HttpResponse.json(ok<Employee>(emp));
+  }),
+  http.post('*/api/v1/employees', async ({ request }) => {
+    const data = (await request.json()) as Record<string, unknown>;
+    const area = (data.area as string) || '台北';
+    const shift = (data.shift as string) || '早班';
+    const groupName = (data.groupName as string) || `${area} ${shift}`;
+    const newEmp: Employee = {
+      id: `emp-${Date.now()}`,
+      name: (data.name as string) || '',
+      phone: (data.phone as string) || '',
+      employeeNo: (data.employeeNo as string) || '',
+      position: (data.position as Employee['position']) || 'STAFF',
+      groupId: (data.groupId as string) || 'taipei-morning',
+      groupName,
+      area,
+      shift,
+      groupColor: getGroupColor(area),
+      leaveType: data.leaveType as Employee['leaveType'],
+      designatedLeaves: (data.designatedLeaves as string[]) || [],
+      licenses: (data.licenses as LicenseType[]) || ['NONE'],
+      isActive: true,
+    };
+    mockEmployees.unshift(newEmp);
+    return HttpResponse.json(ok<Employee>(newEmp));
+  }),
+  http.patch('*/api/v1/employees/:id', async ({ params, request }) => {
+    const data = (await request.json()) as Record<string, unknown>;
+    const index = mockEmployees.findIndex((e) => e.id === params.id);
+    if (index !== -1) {
+      const existing = mockEmployees[index]!;
+      const area = (data.area !== undefined ? data.area : existing.area) as string;
+      const shift = (data.shift !== undefined ? data.shift : existing.shift) as string;
+      const groupName =
+        data.groupName !== undefined
+          ? (data.groupName as string)
+          : area && shift
+            ? `${area} ${shift}`
+            : existing.groupName;
+      const updated: Employee = {
+        ...existing,
+        name: data.name !== undefined ? (data.name as string) : existing.name,
+        phone: data.phone !== undefined ? (data.phone as string) : existing.phone,
+        employeeNo:
+          data.employeeNo !== undefined ? (data.employeeNo as string) : existing.employeeNo,
+        position:
+          data.position !== undefined ? (data.position as Employee['position']) : existing.position,
+        groupId: data.groupId !== undefined ? (data.groupId as string) : existing.groupId,
+        area,
+        shift,
+        groupName,
+        groupColor: area ? getGroupColor(area) : existing.groupColor,
+        leaveType:
+          data.leaveType !== undefined
+            ? (data.leaveType as Employee['leaveType'])
+            : existing.leaveType,
+        designatedLeaves:
+          data.designatedLeaves !== undefined
+            ? (data.designatedLeaves as string[])
+            : existing.designatedLeaves,
+        licenses:
+          data.licenses !== undefined ? (data.licenses as LicenseType[]) : existing.licenses,
+      };
+      mockEmployees[index] = updated;
+      return HttpResponse.json(ok<Employee>(updated));
+    }
+    return HttpResponse.json(ok<Employee>(mockEmployees[0]!));
+  }),
+  http.delete('*/api/v1/employees/:id', ({ params }) => {
+    mockEmployees = mockEmployees.filter((e) => e.id !== params.id);
+    return HttpResponse.json(ok(null));
+  }),
 
   // notification.ts
   http.get('*/api/v1/notifications', () =>

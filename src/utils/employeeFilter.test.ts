@@ -52,6 +52,8 @@ const arbEmployee: fc.Arbitrary<Employee> = fc.record({
   position: fc.constantFrom(...POSITION_TYPES),
   groupId: arbGroupId,
   groupName: fc.string({ minLength: 1, maxLength: 5 }),
+  area: fc.constantFrom('台北', '台中', '高雄'),
+  shift: fc.constantFrom('早班', '中班', '晚班'),
   groupColor: fc.hexaString({ minLength: 6, maxLength: 6 }).map((s) => `#${s}`),
   designatedLeaves: fc.array(arbDateStr, { minLength: 0, maxLength: 5 }),
   licenses: fc.subarray(LICENSE_TYPES, { minLength: 1, maxLength: 4 }),

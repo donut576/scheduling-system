@@ -19,6 +19,8 @@ const mockEmployees: Employee[] = [
     position: 'STAFF',
     groupId: 'group-a',
     groupName: 'A組',
+    area: '台北',
+    shift: '早班',
     groupColor: '#1890ff',
     designatedLeaves: ['2024-12-25'],
     licenses: ['PROFESSIONAL', 'PEST_CONTROL'],
@@ -32,6 +34,8 @@ const mockEmployees: Employee[] = [
     position: 'LEADER',
     groupId: 'group-b',
     groupName: 'B組',
+    area: '高雄',
+    shift: '晚班',
     groupColor: '#52c41a',
     designatedLeaves: [],
     licenses: ['SAFETY_6HR'],
@@ -45,6 +49,8 @@ const mockEmployees: Employee[] = [
     position: 'STAFF',
     groupId: 'group-a',
     groupName: 'A組',
+    area: '台北',
+    shift: '早班',
     groupColor: '#1890ff',
     designatedLeaves: ['2024-12-25', '2024-12-31'],
     licenses: ['NONE'],
@@ -81,7 +87,7 @@ describe('EmployeeSelect', () => {
   it('renders the filter controls and a toggle button per employee', () => {
     renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} />);
 
-    expect(screen.getByText('篩選群組')).toBeInTheDocument();
+    expect(screen.getByText('篩選組別')).toBeInTheDocument();
     expect(screen.getByText('篩選證照')).toBeInTheDocument();
     expect(screen.getByText('休假狀態')).toBeInTheDocument();
 
@@ -145,7 +151,7 @@ describe('EmployeeSelect', () => {
     const user = userEvent.setup();
     renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} />);
 
-    const groupFilter = screen.getByRole('combobox', { name: '篩選群組' });
+    const groupFilter = screen.getByRole('combobox', { name: '篩選組別' });
     await user.click(groupFilter);
     await user.click(await screen.findByTitle('A組'));
 

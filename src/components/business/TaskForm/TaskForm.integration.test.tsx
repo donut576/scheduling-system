@@ -72,6 +72,8 @@ const testEmployee: Employee = {
   position: 'STAFF',
   groupId: 'test-group-1',
   groupName: '測試集團X',
+  area: '台北',
+  shift: '早班',
   groupColor: '#1677ff',
   designatedLeaves: [],
   licenses: [],
@@ -222,7 +224,6 @@ describe('TaskForm integration - 完整任務建立流程', () => {
       contents: ['P'],
       assignees: [],
     });
-  }, // ConflictPanel, and multiple Ant Design pickers/selects - allow extra // This test exercises the real query hooks (via MSW), the real
-  // time to avoid flakiness under parallel full-suite runs.
+  }, // time to avoid flakiness under parallel full-suite runs. // ConflictPanel, and multiple Ant Design pickers/selects - allow extra // This test exercises the real query hooks (via MSW), the real
   15000);
 });

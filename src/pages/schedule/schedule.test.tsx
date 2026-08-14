@@ -143,6 +143,8 @@ const employees: Employee[] = [
     position: 'STAFF',
     groupId: 'area1',
     groupName: '北區',
+    area: '台北',
+    shift: '早班',
     groupColor: '#ff0000',
     designatedLeaves: [],
     licenses: [],

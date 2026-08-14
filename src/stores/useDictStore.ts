@@ -16,6 +16,7 @@ import {
 } from '@/constants/taskStatus';
 import { LICENSE_TYPE_OPTIONS } from '@/constants/licenseTypes';
 import { POSITION_OPTIONS } from '@/constants/positions';
+import { EMPLOYEE_GROUP_OPTIONS } from '@/constants/groups';
 
 interface DictState {
   /** 任務類型選項 */
@@ -56,7 +57,7 @@ export const useDictStore = create<DictState>()(
       contents: TASK_CONTENT_OPTIONS,
       licenses: LICENSE_TYPE_OPTIONS,
       positions: POSITION_OPTIONS,
-      groups: [],
+      groups: EMPLOYEE_GROUP_OPTIONS,
       version: '1.0.0',
 
       loadDict: async () => {

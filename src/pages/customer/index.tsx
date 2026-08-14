@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import type { FC } from 'react';
-import { Button, Card, Form, Input, Select, Space, Tag, message, Modal } from 'antd';
+import { Avatar, Button, Card, Form, Input, Select, Space, Tag, message, Modal } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/BaseTable';
@@ -12,7 +12,8 @@ import {
   useUpdateCustomer,
   useDeleteCustomer,
 } from '@/queries/useCustomerQueries';
-import { LICENSE_TYPE_MAP, LICENSE_TYPE_OPTIONS } from '@/constants/licenseTypes';
+import { LICENSE_TYPE_MAP } from '@/constants/licenseTypes';
+import { getGroupColor } from '@/utils/groupColor';
 import type { CustomerListParams, CustomerFormData } from '@/api/customer';
 import type { Customer } from '@/types/customer';
 import type { PaginatedResponse } from '@/types/common';
@@ -38,6 +39,10 @@ function renderCustomerCard(
   onDelete: (record: Customer) => void,
   t: (key: string) => string,
 ) {
+  const hasPest = (record.requiredLicenses ?? []).includes('PEST_CONTROL');
+  const hasProf = (record.requiredLicenses ?? []).includes('PROFESSIONAL');
+  const avatarColor = getGroupColor(record.groupId || record.groupName);
+
   return (
     <Card
       hoverable
@@ -46,14 +51,19 @@ function renderCustomerCard(
     >
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         <Space align="start" style={{ justifyContent: 'space-between', width: '100%' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="management-card-title" title={record.groupName}>
-              {record.groupName}
+          <Space align="center" style={{ flex: 1, minWidth: 0 }}>
+            <Avatar style={{ backgroundColor: avatarColor, flexShrink: 0 }}>
+              {record.groupName.slice(0, 1)}
+            </Avatar>
+            <div style={{ minWidth: 0 }}>
+              <div className="management-card-title" title={record.groupName}>
+                {record.groupName}
+              </div>
+              <div className="management-card-subtitle" title={record.branchName}>
+                {record.branchName}
+              </div>
             </div>
-            <div className="management-card-subtitle" title={record.branchName}>
-              {record.branchName}
-            </div>
-          </div>
+          </Space>
           <Button
             type="text"
             danger
@@ -69,19 +79,36 @@ function renderCustomerCard(
         <div className="management-card-info">
           <div>{`${t('customer.contactName')}：${record.contactName}`}</div>
           <div>{`${t('customer.contactPhoneShort')}：${record.contactPhone}`}</div>
-        </div>
-        {(record.requiredLicenses ?? []).length > 0 && (
-          <Space size={[4, 4]} wrap className="management-card-licenses">
-            {(record.requiredLicenses ?? []).map((lic) => (
-              <Tag key={lic}>{LICENSE_TYPE_MAP[lic] ?? lic}</Tag>
-            ))}
-          </Space>
-        )}
-        {record.remarks && (
-          <div className="management-card-note">
-            {t('customer.remarks')}：{record.remarks}
+          <div style={{ marginTop: 4 }}>
+            <span>證照限制：</span>
+            {hasPest ? (
+              <Tag color="blue">需施藥</Tag>
+            ) : hasProf ? (
+              <Tag color="purple">需專技</Tag>
+            ) : record.licenseRestrictionNote ? (
+              <Tag color="orange">{record.licenseRestrictionNote}</Tag>
+            ) : (
+              <Tag>無</Tag>
+            )}
           </div>
-        )}
+          <div
+            style={{ marginTop: 6, paddingTop: 6, borderTop: '1px dashed #f0f0f0' }}
+            className="management-card-note"
+          >
+            <div>客戶備註：</div>
+            <div
+              style={{
+                minHeight: '2.8em',
+                lineHeight: '1.4',
+                color: record.remarks ? 'inherit' : '#bfbfbf',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              {record.remarks || '-'}
+            </div>
+          </div>
+        </div>
       </Space>
     </Card>
   );
@@ -99,12 +126,37 @@ const CustomerPage: FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [form] = Form.useForm<CustomerFormData>();
+
+  // 取得全量客戶資料，供 AutoComplete 動態產生集團與分店模糊搜尋下拉選單
+  const allCustomerQuery = useCustomerList({ page: 1, pageSize: 200 });
+
+  const customerSearchOptions = useMemo(() => {
+    const list = allCustomerQuery.data?.list ?? [];
+    const optionsMap = new Map<string, { label: string; value: string }>();
+    list.forEach((c) => {
+      if (c.groupName && !optionsMap.has(`group-${c.groupName}`)) {
+        optionsMap.set(`group-${c.groupName}`, {
+          label: `${c.groupName} (集團)`,
+          value: c.groupName,
+        });
+      }
+      if (c.branchName && !optionsMap.has(`branch-${c.branchName}`)) {
+        optionsMap.set(`branch-${c.branchName}`, {
+          label: `${c.branchName} (${c.groupName})`,
+          value: c.branchName,
+        });
+      }
+    });
+    return Array.from(optionsMap.values());
+  }, [allCustomerQuery.data?.list]);
+
   const localizedSearchFields: SearchFieldConfig[] = [
     {
       name: 'keyword',
       label: t('common.keyword'),
-      type: 'input',
-      placeholder: t('customer.searchPlaceholder'),
+      type: 'autoComplete',
+      placeholder: '搜尋集團名稱或分店名稱',
+      options: customerSearchOptions,
     },
   ];
 
@@ -144,13 +196,24 @@ const CustomerPage: FC = () => {
   const handleEditClick = useCallback(
     (record: Customer) => {
       setEditingCustomer(record);
+
+      let licenseRestriction = 'NONE';
+      if ((record.requiredLicenses ?? []).includes('PEST_CONTROL')) {
+        licenseRestriction = 'PEST_CONTROL';
+      } else if ((record.requiredLicenses ?? []).includes('PROFESSIONAL')) {
+        licenseRestriction = 'PROFESSIONAL';
+      } else if (record.licenseRestrictionNote) {
+        licenseRestriction = 'CUSTOM';
+      }
+
       form.setFieldsValue({
         groupName: record.groupName,
         branchName: record.branchName,
         address: record.address,
         contactName: record.contactName,
         contactPhone: record.contactPhone,
-        requiredLicenses: record.requiredLicenses,
+        licenseRestriction,
+        licenseRestrictionNote: record.licenseRestrictionNote,
         remarks: record.remarks,
       });
       setModalOpen(true);
@@ -169,11 +232,30 @@ const CustomerPage: FC = () => {
   const handleModalOk = useCallback(async () => {
     const values = await form.validateFields();
 
+    let requiredLicenses: string[] = [];
+    if (values.licenseRestriction === 'PEST_CONTROL') {
+      requiredLicenses = ['PEST_CONTROL'];
+    } else if (values.licenseRestriction === 'PROFESSIONAL') {
+      requiredLicenses = ['PROFESSIONAL'];
+    }
+
+    const payload: CustomerFormData = {
+      groupName: values.groupName,
+      branchName: values.branchName,
+      address: values.address,
+      contactName: values.contactName,
+      contactPhone: values.contactPhone,
+      requiredLicenses,
+      licenseRestrictionNote:
+        values.licenseRestriction === 'CUSTOM' ? values.licenseRestrictionNote : undefined,
+      remarks: values.remarks,
+    };
+
     if (editingCustomer) {
-      await updateMutation.mutateAsync({ id: editingCustomer.id, data: values });
+      await updateMutation.mutateAsync({ id: editingCustomer.id, data: payload });
       message.success(t('customer.updateSuccess'));
     } else {
-      await createMutation.mutateAsync(values);
+      await createMutation.mutateAsync(payload);
       message.success(t('customer.createSuccess'));
     }
 
@@ -250,16 +332,28 @@ const CustomerPage: FC = () => {
       title: t('customer.requiredLicenses'),
       key: 'requiredLicenses',
       width: 220,
-      render: (_value, record) => (
-        <Space size={[4, 4]} wrap>
-          {(record.requiredLicenses ?? []).map((lic) => (
-            <Tag key={lic}>{LICENSE_TYPE_MAP[lic] ?? lic}</Tag>
-          ))}
-        </Space>
-      ),
+      render: (_value, record) => {
+        const hasPest = (record.requiredLicenses ?? []).includes('PEST_CONTROL');
+        const hasProf = (record.requiredLicenses ?? []).includes('PROFESSIONAL');
+        return (
+          <Space size={[4, 4]} wrap>
+            {hasPest ? (
+              <Tag color="blue">需施藥</Tag>
+            ) : hasProf ? (
+              <Tag color="purple">需專技</Tag>
+            ) : record.licenseRestrictionNote ? (
+              <Tag color="orange">{record.licenseRestrictionNote}</Tag>
+            ) : (
+              <Tag>無</Tag>
+            )}
+          </Space>
+        );
+      },
       exportHeader: t('customer.requiredLicenses'),
       exportKey: (record) =>
-        (record.requiredLicenses ?? []).map((lic) => LICENSE_TYPE_MAP[lic] ?? lic).join(', '),
+        record.licenseRestrictionNote ||
+        (record.requiredLicenses ?? []).map((lic) => LICENSE_TYPE_MAP[lic] ?? lic).join(', ') ||
+        '無',
     },
     {
       title: t('customer.remarks'),
@@ -355,16 +449,37 @@ const CustomerPage: FC = () => {
           >
             <Input placeholder={t('customer.contactPhonePlaceholder')} />
           </Form.Item>
-          <Form.Item name="requiredLicenses" label={t('customer.requiredLicenses')}>
+          <Form.Item name="licenseRestriction" label="證照限制" initialValue="NONE">
             <Select
-              mode="multiple"
-              placeholder={t('customer.requiredLicensesPlaceholder')}
-              options={LICENSE_TYPE_OPTIONS}
-              allowClear
+              placeholder="請選擇證照限制"
+              options={[
+                { label: '無', value: 'NONE' },
+                { label: '需施藥', value: 'PEST_CONTROL' },
+                { label: '需專技', value: 'PROFESSIONAL' },
+                { label: '其他', value: 'CUSTOM' },
+              ]}
             />
           </Form.Item>
-          <Form.Item name="remarks" label={t('customer.remarks')}>
-            <TextArea rows={3} placeholder={t('customer.remarksPlaceholder')} />
+          <Form.Item
+            noStyle
+            shouldUpdate={(prevValues, currentValues) =>
+              prevValues.licenseRestriction !== currentValues.licenseRestriction
+            }
+          >
+            {({ getFieldValue }) =>
+              getFieldValue('licenseRestriction') === 'CUSTOM' ? (
+                <Form.Item
+                  name="licenseRestrictionNote"
+                  label="其他證照限制說明"
+                  rules={[{ required: true, message: '請輸入其他證照限制說明' }]}
+                >
+                  <Input placeholder="請說明其他所需證照，例如：需堆高機證" />
+                </Form.Item>
+              ) : null
+            }
+          </Form.Item>
+          <Form.Item name="remarks" label="客戶備註">
+            <TextArea rows={3} placeholder="請輸入客戶備註（可自行鍵入）" />
           </Form.Item>
         </Form>
       </BaseModal>

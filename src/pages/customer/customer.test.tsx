@@ -231,14 +231,14 @@ describe('CustomerPage', () => {
     it('renders search input for group/branch keyword', () => {
       render(<CustomerPage />);
 
-      expect(screen.getByPlaceholderText('搜尋集團/分店名稱')).toBeInTheDocument();
+      expect(screen.getByRole('combobox')).toBeInTheDocument();
     });
 
     it('triggers search with keyword input', async () => {
       const user = userEvent.setup();
       render(<CustomerPage />);
 
-      const input = screen.getByPlaceholderText('搜尋集團/分店名稱');
+      const input = screen.getByRole('combobox');
       await user.type(input, '集團A');
       await user.click(screen.getByText('搜尋'));
 

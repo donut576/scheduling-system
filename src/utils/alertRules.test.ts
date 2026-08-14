@@ -41,6 +41,8 @@ const makeEmployee = (id: string, overrides: Partial<Employee> = {}): Employee =
   position: 'STAFF',
   groupId: 'g1',
   groupName: 'Group 1',
+  area: '台北',
+  shift: '早班',
   groupColor: '#FF0000',
   designatedLeaves: [],
   licenses: ['NONE'],

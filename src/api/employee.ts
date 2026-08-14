@@ -10,6 +10,8 @@ export interface EmployeeListParams {
   pageSize?: number; // 每頁筆數
   keyword?: string; // 關鍵字搜尋
   groupId?: string; // 依所屬群組篩選
+  area?: string; // 依地區篩選
+  shift?: string; // 依班別篩選
   position?: string; // 依職位篩選
   license?: string; // 依證照類型篩選
 }
@@ -21,6 +23,10 @@ export interface EmployeeFormData {
   employeeNo: string; // 員工編號
   position: string; // 職位
   groupId: string; // 所屬群組 id
+  groupName?: string; // 完整組別顯示名 (e.g., '台北早班')
+  area?: string; // 地區 (e.g., '台北')
+  shift?: string; // 班別 (e.g., '早班')
+  leaveType?: string; // 休假類型 (REGULAR_LEAVE | ANNUAL_LEAVE | OTHER_LEAVE)
   designatedLeaves: string[]; // 指定休假日清單
   licenses: string[]; // 持有證照清單
 }

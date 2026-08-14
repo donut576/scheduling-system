@@ -18,6 +18,7 @@ export interface Customer {
   contactName: string;
   contactPhone: string;
   requiredLicenses: LicenseType[];
+  licenseRestrictionNote?: string;
   remarks?: string;
 }
 
@@ -39,6 +40,7 @@ export interface CustomerBranch {
   contactName: string;
   contactPhone: string;
   requiredLicenses: LicenseType[];
+  licenseRestrictionNote?: string;
 }
 
 /** 待排時間客戶：尚未確定具體排班時間之客戶需求 */

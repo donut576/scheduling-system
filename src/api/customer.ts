@@ -22,7 +22,9 @@ export interface CustomerFormData {
   contactName: string; // 聯絡人姓名
   contactPhone: string; // 聯絡人電話
   requiredLicenses: string[]; // 所需證照清單
-  remarks?: string; // 備註
+  licenseRestriction?: string; // 證照限制單選 (NONE, PEST_CONTROL, PROFESSIONAL, CUSTOM)
+  licenseRestrictionNote?: string; // 證照限制選取「備註」時填寫的特定證照說明
+  remarks?: string; // 客戶通用備註
 }
 
 export const customerApi = {

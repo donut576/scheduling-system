@@ -7,7 +7,7 @@
  * 相同的表單結構與樣式。
  */
 import { useCallback } from 'react';
-import { Form, Input, Select, DatePicker, Cascader, Button, Space } from 'antd';
+import { Form, Input, Select, DatePicker, Cascader, Button, Space, AutoComplete } from 'antd';
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { SelectOption } from '@/types/common';
@@ -18,8 +18,8 @@ export interface SearchFieldConfig {
   /** 欄位顯示標籤 */
   label: string;
   /** 欄位型態，決定渲染成何種輸入元件 */
-  type: 'input' | 'select' | 'datePicker' | 'rangePicker' | 'cascader';
-  /** select 或 cascader 型態時所需的選項清單 */
+  type: 'input' | 'select' | 'autoComplete' | 'datePicker' | 'rangePicker' | 'cascader';
+  /** select, autoComplete 或 cascader 型態時所需的選項清單 */
   options?: SelectOption[];
   /** 自訂 placeholder，未提供時會依欄位型態自動組成預設文字 */
   placeholder?: string;
@@ -38,10 +38,61 @@ export interface BaseSearchFormProps {
 
 const { RangePicker } = DatePicker;
 
+interface AutoCompleteSearchFieldProps {
+  value?: string;
+  onChange?: (val: string) => void;
+  options?: SelectOption[];
+  placeholder?: string;
+  onSelectOption?: (val: string) => void;
+}
+
+/**
+ * 專為搜尋表單打造之 AutoComplete 輸入元件
+ * 只有在使用者輸入至少 1 個非空白字元時才提供 options，確保空白搜尋框獲得焦點時絕對不會跳出下拉選單
+ */
+function AutoCompleteSearchField({
+  value = '',
+  onChange,
+  options = [],
+  placeholder,
+  onSelectOption,
+}: AutoCompleteSearchFieldProps) {
+  const hasInputValue = Boolean(value && value.trim().length > 0);
+  const activeOptions = hasInputValue ? options : [];
+
+  return (
+    <AutoComplete
+      value={value}
+      options={activeOptions}
+      placeholder={placeholder}
+      allowClear
+      style={{ width: '100%', minWidth: 260 }}
+      onChange={(val) => {
+        onChange?.(val || '');
+      }}
+      filterOption={(inputValue, option) => {
+        if (!inputValue || !inputValue.trim()) {
+          return false;
+        }
+        return (
+          (option?.value?.toString() ?? '').toLowerCase().includes(inputValue.toLowerCase()) ||
+          (option?.label?.toString() ?? '').toLowerCase().includes(inputValue.toLowerCase())
+        );
+      }}
+      onSelect={(val) => {
+        const valStr = String(val);
+        onChange?.(valStr);
+        onSelectOption?.(valStr);
+      }}
+    />
+  );
+}
+
 // 根據欄位設定的 type，渲染對應的 antd 輸入元件
 function renderField(
   field: SearchFieldConfig,
   t: (key: string, options?: Record<string, string>) => string,
+  onSelectOption?: (fieldName: string, value: string) => void,
 ) {
   switch (field.type) {
     case 'input':
@@ -50,6 +101,16 @@ function renderField(
           placeholder={field.placeholder ?? t('common.inputPlaceholder', { label: field.label })}
           allowClear
           style={{ width: '100%' }}
+        />
+      );
+    case 'autoComplete':
+      return (
+        <AutoCompleteSearchField
+          options={field.options}
+          placeholder={field.placeholder ?? t('common.inputPlaceholder', { label: field.label })}
+          onSelectOption={(val) => {
+            onSelectOption?.(field.name, val);
+          }}
         />
       );
     case 'select':
@@ -94,6 +155,16 @@ function BaseSearchForm({ fields, onSearch, onReset, loading = false }: BaseSear
     onSearch(values);
   }, [form, onSearch]);
 
+  // 當使用者點選 AutoComplete 下拉選項時，自動更新欄位並觸發搜尋
+  const handleSelectOption = useCallback(
+    (fieldName: string, value: string) => {
+      form.setFieldsValue({ [fieldName]: value });
+      const values = form.getFieldsValue();
+      onSearch(values);
+    },
+    [form, onSearch],
+  );
+
   // 先清空表單欄位，再通知呼叫端已重置（讓呼叫端可重新查詢預設資料）
   const handleReset = useCallback(() => {
     form.resetFields();
@@ -116,7 +187,7 @@ function BaseSearchForm({ fields, onSearch, onReset, loading = false }: BaseSear
             label={field.label}
             className="base-search-form-field"
           >
-            {renderField(field, t)}
+            {renderField(field, t, handleSelectOption)}
           </Form.Item>
         ))}
       </div>
