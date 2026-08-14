@@ -10,6 +10,7 @@ export interface ApprovalListParams {
   pageSize?: number; // 每頁筆數
   status?: string; // 審核狀態篩選條件
   type?: string; // 審核類型篩選條件
+  keyword?: string; // 搜尋關鍵字（申請單編號、申請人等模糊搜尋）
 }
 
 export const approvalApi = {

@@ -136,6 +136,21 @@ const customerGroups = [
       },
     ],
   },
+  {
+    id: 'g2',
+    name: '集團B',
+    branches: [
+      {
+        id: 'b2',
+        groupId: 'g2',
+        name: '分店B',
+        address: '',
+        contactName: '',
+        contactPhone: '',
+        requiredLicenses: [],
+      },
+    ],
+  },
 ];
 
 /**

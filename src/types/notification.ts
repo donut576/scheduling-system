@@ -49,14 +49,23 @@ export interface Approval {
   status: ApprovalStatus;
   requestedBy: string;
   requestedByName: string;
+  changeSummary?: string;
+  diff?: {
+    field: string;
+    label: string;
+    before?: string | number | null;
+    after?: string | number | null;
+  }[];
+  overrideRemark?: string;
+  violatedRules?: string[];
   approvers: ApprovalStep[];
   createdAt: string;
   updatedAt: string;
 }
 
-/** 異動核准類型：排班變更／班別變更／警示覆蓋 */
-export type ApprovalType = 'SCHEDULE_CHANGE' | 'SHIFT_CHANGE' | 'ALERT_OVERRIDE';
-/** 異動核准狀態：待審批／已核准／已駁回／已撤回 */
+/** 異動核准類型：任務變更／警示覆蓋 */
+export type ApprovalType = 'TASK_CHANGE' | 'ALERT_OVERRIDE' | 'SCHEDULE_CHANGE' | 'SHIFT_CHANGE';
+/** 異動核准狀態：待核准／已核准／已駁回／已撤回 */
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
 
 /** 單一核准步驟（多層核准流程中的一關） */

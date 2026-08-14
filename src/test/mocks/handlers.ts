@@ -523,7 +523,7 @@ const demoTasks: Task[] = [
     endTime: '17:30',
     isOvernight: false,
     headcount: 2,
-    shift: '台北 早班',
+    shift: '早班',
     route: '第一路',
     contents: ['P', 'S'],
     assignees: [
@@ -549,7 +549,7 @@ const demoTasks: Task[] = [
     endTime: '16:30',
     isOvernight: false,
     headcount: 3,
-    shift: '新竹 早班',
+    shift: '早班',
     route: '第二路',
     contents: ['P', 'TERMITE'],
     assignees: [
@@ -580,7 +580,7 @@ const demoTasks: Task[] = [
     endTime: '02:00',
     isOvernight: true,
     headcount: 2,
-    shift: '台中 晚班',
+    shift: '晚班',
     route: '第三路',
     contents: ['P', 'R', 'FIRE_ANT'],
     assignees: [
@@ -606,7 +606,7 @@ const demoTasks: Task[] = [
     endTime: '18:00',
     isOvernight: false,
     headcount: 1,
-    shift: '台南 早班',
+    shift: '早班',
     route: '第一路',
     contents: ['BED_BUG'],
     assignees: [
@@ -631,7 +631,7 @@ const demoTasks: Task[] = [
     endTime: '12:00',
     isOvernight: false,
     headcount: 2,
-    shift: '台北 早班',
+    shift: '早班',
     route: '第二路',
     contents: ['P', 'R'],
     assignees: [
@@ -657,7 +657,7 @@ const demoTasks: Task[] = [
     endTime: '17:00',
     isOvernight: false,
     headcount: 2,
-    shift: '桃園 早班',
+    shift: '早班',
     route: '第三路',
     contents: ['P', 'TERMITE'],
     assignees: [
@@ -687,7 +687,7 @@ const demoTasks: Task[] = [
     endTime: '01:30',
     isOvernight: true,
     headcount: 2,
-    shift: '台北 晚班',
+    shift: '晚班',
     route: '第四路',
     contents: ['P', 'R'],
     assignees: [
@@ -713,7 +713,7 @@ const demoTasks: Task[] = [
     endTime: '02:00',
     isOvernight: true,
     headcount: 2,
-    shift: '台北 晚班',
+    shift: '晚班',
     route: '第四路',
     contents: ['P', 'R', 'S'],
     assignees: [
@@ -739,7 +739,7 @@ const demoTasks: Task[] = [
     endTime: '06:00',
     isOvernight: false,
     headcount: 4,
-    shift: '台北 大夜班',
+    shift: '大夜班',
     route: '第五路',
     contents: ['P', 'R', 'TERMITE', 'FIRE_ANT'],
     assignees: [
@@ -771,7 +771,7 @@ const demoTasks: Task[] = [
     endTime: '22:30',
     isOvernight: false,
     headcount: 2,
-    shift: '台北 晚班',
+    shift: '晚班',
     route: '第五路',
     contents: ['P', 'R'],
     assignees: [
@@ -797,7 +797,7 @@ const demoTasks: Task[] = [
     endTime: '17:00',
     isOvernight: false,
     headcount: 3,
-    shift: '新竹 早班',
+    shift: '早班',
     route: '第一路',
     contents: ['P', 'S'],
     assignees: [
@@ -830,7 +830,7 @@ const demoTasks: Task[] = [
     endTime: '18:00',
     isOvernight: false,
     headcount: 2,
-    shift: '台中 日班',
+    shift: '午班',
     route: '第二路',
     contents: ['P', 'TERMITE'],
     assignees: [
@@ -856,7 +856,7 @@ const demoTasks: Task[] = [
     endTime: '17:30',
     isOvernight: false,
     headcount: 2,
-    shift: '台南 早班',
+    shift: '早班',
     route: '第三路',
     contents: ['P', 'FIRE_ANT'],
     assignees: [
@@ -882,7 +882,7 @@ const demoTasks: Task[] = [
     endTime: '02:00',
     isOvernight: true,
     headcount: 2,
-    shift: '台北 晚班',
+    shift: '晚班',
     route: '第四路',
     contents: ['P', 'R', 'BED_BUG'],
     assignees: [
@@ -908,7 +908,7 @@ const demoTasks: Task[] = [
     endTime: '02:30',
     isOvernight: true,
     headcount: 2,
-    shift: '台北 晚班',
+    shift: '晚班',
     route: '第二路',
     contents: ['P', 'R'],
     assignees: [
@@ -934,7 +934,7 @@ const demoTasks: Task[] = [
     endTime: '05:30',
     isOvernight: false,
     headcount: 3,
-    shift: '台北 大夜班',
+    shift: '大夜班',
     route: '第五路',
     contents: ['P', 'R', 'BED_BUG', 'S'],
     assignees: [
@@ -966,7 +966,7 @@ const demoTasks: Task[] = [
     endTime: '05:00',
     isOvernight: false,
     headcount: 2,
-    shift: '台南 大夜班',
+    shift: '大夜班',
     route: '第一路',
     contents: ['P', 'BED_BUG'],
     assignees: [
@@ -992,7 +992,7 @@ const demoTasks: Task[] = [
     endTime: '11:00',
     isOvernight: false,
     headcount: 2,
-    shift: '台北 早班',
+    shift: '早班',
     route: '第二路',
     contents: ['P', 'TERMITE'],
     assignees: [
@@ -1018,7 +1018,7 @@ const demoTasks: Task[] = [
     endTime: '13:30',
     isOvernight: false,
     headcount: 2,
-    shift: '台北 早班',
+    shift: '早班',
     route: '第三路',
     contents: ['FIRE_ANT', 'OTHER'],
     otherContentNote: '戶外造景花圃紅火蟻清消',
@@ -1045,7 +1045,7 @@ const demoTasks: Task[] = [
     endTime: '16:00',
     isOvernight: false,
     headcount: 1,
-    shift: '台北 早班',
+    shift: '早班',
     route: '第六路',
     contents: ['P'],
     assignees: [
@@ -1070,7 +1070,7 @@ const demoTasks: Task[] = [
     endTime: '12:00',
     isOvernight: false,
     headcount: 1,
-    shift: '台北 早班',
+    shift: '早班',
     route: '第一路',
     contents: ['R'],
     assignees: [{ employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] }],
@@ -1093,7 +1093,7 @@ const demoTasks: Task[] = [
     endTime: '18:00',
     isOvernight: false,
     headcount: 2,
-    shift: '台中 日班',
+    shift: '午班',
     route: '第二路',
     contents: ['VEHICLE_MAINTENANCE'],
     assignees: [
@@ -1119,7 +1119,7 @@ const demoTasks: Task[] = [
     endTime: '16:30',
     isOvernight: false,
     headcount: 2,
-    shift: '台北 早班',
+    shift: '早班',
     route: '第三路',
     contents: ['P', 'S'],
     assignees: [
@@ -1149,7 +1149,7 @@ const demoTasks: Task[] = [
     endTime: '01:30',
     isOvernight: true,
     headcount: 2,
-    shift: '台北 晚班',
+    shift: '晚班',
     route: '第四路',
     contents: ['P', 'R'],
     assignees: [
@@ -1175,7 +1175,7 @@ const demoTasks: Task[] = [
     endTime: '05:00',
     isOvernight: false,
     headcount: 2,
-    shift: '台北 大夜班',
+    shift: '大夜班',
     route: '第五路',
     contents: ['P', 'R'],
     assignees: [
@@ -1201,7 +1201,7 @@ const demoTasks: Task[] = [
     endTime: '17:00',
     isOvernight: false,
     headcount: 2,
-    shift: '新竹 早班',
+    shift: '早班',
     route: '第一路',
     contents: ['P', 'TRAINING'],
     assignees: [
@@ -1231,7 +1231,7 @@ const demoTasks: Task[] = [
     endTime: '23:00',
     isOvernight: false,
     headcount: 1,
-    shift: '台北 晚班',
+    shift: '晚班',
     route: '第四路',
     contents: ['P'],
     assignees: [
@@ -1256,7 +1256,7 @@ const demoTasks: Task[] = [
     endTime: '05:00',
     isOvernight: false,
     headcount: 2,
-    shift: '台北 大夜班',
+    shift: '大夜班',
     route: '第五路',
     contents: ['P', 'R', 'BED_BUG'],
     assignees: [
@@ -1282,7 +1282,7 @@ const demoTasks: Task[] = [
     endTime: '11:30',
     isOvernight: false,
     headcount: 2,
-    shift: '台北 早班',
+    shift: '早班',
     route: '第二路',
     contents: ['P', 'R'],
     assignees: [
@@ -1697,10 +1697,15 @@ let mockApprovals: Approval[] = [
   {
     id: 'approval-001',
     taskId: 'task-005',
-    type: 'SCHEDULE_CHANGE',
+    type: 'TASK_CHANGE',
     status: 'PENDING',
     requestedBy: 'emp-002',
     requestedByName: '林志豪',
+    changeSummary: '調整施作項目與服務時段（改為臭蟲緊急熱處理）',
+    diff: [
+      { field: 'contents', label: '工作內容', before: 'P、R', after: 'BED_BUG' },
+      { field: 'time', label: '時段', before: '09:00 ~ 13:00', after: '14:00 ~ 18:00' },
+    ],
     approvers: [
       {
         approverId: 'emp-admin',
@@ -1715,10 +1720,15 @@ let mockApprovals: Approval[] = [
   {
     id: 'approval-002',
     taskId: 'task-009',
-    type: 'SCHEDULE_CHANGE',
+    type: 'TASK_CHANGE',
     status: 'PENDING',
     requestedBy: 'emp-004',
     requestedByName: '吳建宏',
+    changeSummary: '商場打烊後深度清消時段微調',
+    diff: [
+      { field: 'time', label: '時段', before: '22:00 ~ 01:00', after: '23:00 ~ 02:00' },
+      { field: 'contents', label: '工作內容', before: 'P、R', after: 'P、R、S' },
+    ],
     approvers: [
       {
         approverId: 'emp-admin',
@@ -1733,10 +1743,12 @@ let mockApprovals: Approval[] = [
   {
     id: 'approval-003',
     taskId: 'task-025',
-    type: 'SCHEDULE_CHANGE',
+    type: 'TASK_CHANGE',
     status: 'PENDING',
     requestedBy: 'emp-001',
     requestedByName: '測試使用者',
+    changeSummary: '客戶要求調整施作路線與指派人員',
+    diff: [{ field: 'route', label: '路次', before: '第二路', after: '第四路' }],
     approvers: [
       {
         approverId: 'emp-admin',
@@ -1751,10 +1763,13 @@ let mockApprovals: Approval[] = [
   {
     id: 'approval-004',
     taskId: 'task-029',
-    type: 'SCHEDULE_CHANGE',
+    type: 'ALERT_OVERRIDE',
     status: 'PENDING',
     requestedBy: 'emp-003',
     requestedByName: '黃俊傑',
+    changeSummary: '夜間跨日排班工安證照覆蓋',
+    overrideRemark: '經理評估現場有主管陪同施作，核准證照覆蓋',
+    violatedRules: ['該任務需至少一人持有病媒防治專業技術人員證照', '夜間工時連續超過限制'],
     approvers: [
       {
         approverId: 'emp-admin',
@@ -1765,6 +1780,51 @@ let mockApprovals: Approval[] = [
     ],
     createdAt: '2026-08-13T14:00:00+08:00',
     updatedAt: '2026-08-13T14:00:00+08:00',
+  },
+  {
+    id: 'approval-005',
+    taskId: 'task-012',
+    type: 'ALERT_OVERRIDE',
+    status: 'APPROVED',
+    requestedBy: 'emp-005',
+    requestedByName: '陳雅婷',
+    changeSummary: '竹科八廠年度環境消毒特種作業',
+    overrideRemark: '經理核准特種環境作業人員調派',
+    violatedRules: ['連續工作天數達上限警示'],
+    approvers: [
+      {
+        approverId: 'emp-admin',
+        approverName: 'Demo 管理員',
+        role: 'ADMIN',
+        status: 'APPROVED',
+        decidedAt: '2026-08-05T10:30:00+08:00',
+        comment: '同意特種環境派工',
+      },
+    ],
+    createdAt: '2026-08-05T10:30:00+08:00',
+    updatedAt: '2026-08-05T10:30:00+08:00',
+  },
+  {
+    id: 'approval-006',
+    taskId: 'task-028',
+    type: 'TASK_CHANGE',
+    status: 'REJECTED',
+    requestedBy: 'emp-002',
+    requestedByName: '林志豪',
+    changeSummary: '臨時夜間縮減排班人力',
+    diff: [{ field: 'headcount', label: '人數需求', before: '2 人', after: '1 人' }],
+    approvers: [
+      {
+        approverId: 'emp-admin',
+        approverName: 'Demo 管理員',
+        role: 'ADMIN',
+        status: 'REJECTED',
+        decidedAt: '2026-08-13T15:00:00+08:00',
+        comment: '商場施作面積過大，維持需至少 2 人進行作業',
+      },
+    ],
+    createdAt: '2026-08-13T10:00:00+08:00',
+    updatedAt: '2026-08-13T15:00:00+08:00',
   },
 ];
 
@@ -2027,14 +2087,69 @@ export const handlers = [
     updated.updatedAt = new Date().toISOString();
     mockTasks = mockTasks.map((t) => (t.id === updated.id ? updated : t));
 
+    // 比較前後差異
+    const diff: {
+      field: string;
+      label: string;
+      before?: string | number | null;
+      after?: string | number | null;
+    }[] = [];
+    if (data.date && data.date !== existing.date) {
+      diff.push({ field: 'date', label: '服務日期', before: existing.date, after: data.date });
+    }
+    if (
+      (data.startTime && data.startTime !== existing.startTime) ||
+      (data.endTime && data.endTime !== existing.endTime)
+    ) {
+      diff.push({
+        field: 'time',
+        label: '服務時段',
+        before: `${existing.startTime} ~ ${existing.endTime}`,
+        after: `${data.startTime || existing.startTime} ~ ${data.endTime || existing.endTime}`,
+      });
+    }
+    if (data.shift && data.shift !== existing.shift) {
+      diff.push({ field: 'shift', label: '班別', before: existing.shift, after: data.shift });
+    }
+    if (data.route && data.route !== existing.route) {
+      diff.push({ field: 'route', label: '路次', before: existing.route, after: data.route });
+    }
+    if (data.headcount && data.headcount !== existing.headcount) {
+      diff.push({
+        field: 'headcount',
+        label: '人數需求',
+        before: `${existing.headcount} 人`,
+        after: `${data.headcount} 人`,
+      });
+    }
+    if (data.contents && JSON.stringify(data.contents) !== JSON.stringify(existing.contents)) {
+      diff.push({
+        field: 'contents',
+        label: '工作內容',
+        before: existing.contents.join('、'),
+        after: data.contents.join('、'),
+      });
+    }
+    if (data.remarks !== undefined && data.remarks !== existing.remarks) {
+      diff.push({
+        field: 'remarks',
+        label: '備註說明',
+        before: existing.remarks || '(無)',
+        after: data.remarks || '(無)',
+      });
+    }
+
     // 同步將該筆異動申請送至「異動核准」列表 (狀態為 PENDING)
     const newApproval: Approval = {
       id: `approval-${Date.now()}`,
       taskId: updated.id,
-      type: 'SCHEDULE_CHANGE',
+      type: 'TASK_CHANGE',
       status: 'PENDING',
       requestedBy: mockUser.id,
       requestedByName: mockUser.name,
+      changeSummary:
+        diff.length > 0 ? diff.map((d) => `${d.label}變更`).join('、') : '任務內容變更',
+      diff: diff.length > 0 ? diff : undefined,
       approvers: [
         {
           approverId: 'emp-admin',
@@ -2195,6 +2310,7 @@ export const handlers = [
     const url = new URL(request.url);
     const status = url.searchParams.get('status');
     const type = url.searchParams.get('type');
+    const keyword = url.searchParams.get('keyword');
     const page = Number(url.searchParams.get('page') || 1);
     const pageSize = Number(url.searchParams.get('pageSize') || 20);
     let list = mockApprovals;
@@ -2203,6 +2319,16 @@ export const handlers = [
     }
     if (type) {
       list = list.filter((a) => a.type === type);
+    }
+    if (keyword) {
+      const kw = keyword.toLowerCase().trim();
+      list = list.filter(
+        (a) =>
+          a.id.toLowerCase().includes(kw) ||
+          a.requestedByName.toLowerCase().includes(kw) ||
+          (a.taskId && a.taskId.toLowerCase().includes(kw)) ||
+          (a.changeSummary && a.changeSummary.toLowerCase().includes(kw)),
+      );
     }
     return HttpResponse.json(ok(paginated<Approval>(list, page, pageSize)));
   }),

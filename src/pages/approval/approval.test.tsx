@@ -1,5 +1,5 @@
 // 審批流程頁面 (ApprovalPage) 單元測試
-// 測試對象：src/pages/approval/index.tsx，涵蓋審批列表呈現、核准操作觸發客戶重新通知、駁回流程驗證
+// 測試對象：src/pages/approval/index.tsx，涵蓋審批列表呈現、關鍵字搜尋、項目對照詳情、彈窗內核准與駁回二次確認
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -39,13 +39,18 @@ vi.mock('@/queries/useNotificationQueries', () => ({
 import { useApprovalList, useApproveRequest, useRejectRequest } from '@/queries/useApprovalQueries';
 import { useSendNotification } from '@/queries/useNotificationQueries';
 
-const scheduleChangeApproval: Approval = {
-  id: 'a1',
+const taskChangeApproval: Approval = {
+  id: 'approval-001',
   taskId: 't1',
-  type: 'SCHEDULE_CHANGE',
+  type: 'TASK_CHANGE',
   status: 'PENDING',
   requestedBy: 'u1',
   requestedByName: '王組長',
+  changeSummary: '調整施作時段與人數需求',
+  diff: [
+    { field: 'time', label: '服務時段', before: '09:00 ~ 12:00', after: '14:00 ~ 18:00' },
+    { field: 'headcount', label: '人數需求', before: '1 人', after: '2 人' },
+  ],
   approvers: [
     {
       approverId: 'ap1',
@@ -54,17 +59,20 @@ const scheduleChangeApproval: Approval = {
       status: 'PENDING',
     },
   ],
-  createdAt: '2024-01-01T00:00:00+08:00',
-  updatedAt: '2024-01-01T00:00:00+08:00',
+  createdAt: '2026-08-01T10:00:00+08:00',
+  updatedAt: '2026-08-01T10:00:00+08:00',
 };
 
-const shiftChangeApproval: Approval = {
-  id: 'a2',
+const alertOverrideApproval: Approval = {
+  id: 'approval-002',
   taskId: 't2',
-  type: 'SHIFT_CHANGE',
+  type: 'ALERT_OVERRIDE',
   status: 'PENDING',
   requestedBy: 'u2',
   requestedByName: '李組長',
+  changeSummary: '夜間跨日排班證照違規覆蓋',
+  overrideRemark: '經理評估現場有主管陪同施作，核准覆蓋',
+  violatedRules: ['連續工作天數達上限警示'],
   approvers: [
     {
       approverId: 'ap3',
@@ -73,8 +81,8 @@ const shiftChangeApproval: Approval = {
       status: 'PENDING',
     },
   ],
-  createdAt: '2024-01-02T00:00:00+08:00',
-  updatedAt: '2024-01-02T00:00:00+08:00',
+  createdAt: '2026-08-02T14:30:00+08:00',
+  updatedAt: '2026-08-02T14:30:00+08:00',
 };
 
 function mockListData(list: Approval[]): PaginatedResponse<Approval> {
@@ -82,15 +90,14 @@ function mockListData(list: Approval[]): PaginatedResponse<Approval> {
 }
 
 /**
- * Unit Tests for 審批流程頁面 (Approval Workflow Page)
- * Validates: Requirements 13.1, 13.3
+ * Unit Tests for 異動核准頁面 (Approval Workflow Page)
  */
 describe('ApprovalPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
     vi.mocked(useApprovalList).mockReturnValue({
-      data: mockListData([scheduleChangeApproval, shiftChangeApproval]),
+      data: mockListData([taskChangeApproval, alertOverrideApproval]),
       isLoading: false,
       isError: false,
       error: null,
@@ -113,39 +120,82 @@ describe('ApprovalPage', () => {
     } as unknown as ReturnType<typeof useSendNotification>);
   });
 
-  describe('審批列表 - Requirement 13.1', () => {
-    it('renders table with required columns and approval rows', () => {
+  describe('異動核准列表呈現與欄位配置', () => {
+    it('renders table with required columns (申請單編號、狀態、類型、建立時間、申請人、功能)', () => {
       render(<ApprovalPage />);
 
-      expect(screen.getAllByText('類型').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('申請人').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('申請單編號').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('狀態').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('審批人').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('類型').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('建立時間').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('申請人').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('功能').length).toBeGreaterThanOrEqual(1);
 
-      expect(screen.getByText('排班變更')).toBeInTheDocument();
-      expect(screen.getByText('班別變更')).toBeInTheDocument();
+      expect(screen.getByText('approval-001')).toBeInTheDocument();
+      expect(screen.getByText('approval-002')).toBeInTheDocument();
+      expect(screen.getByText('任務變更')).toBeInTheDocument();
+      expect(screen.getByText('警示覆蓋')).toBeInTheDocument();
       expect(screen.getByText('王組長')).toBeInTheDocument();
       expect(screen.getByText('李組長')).toBeInTheDocument();
+
+      // Actions only contain 檢視變更 in table rows
+      expect(screen.getAllByText('檢視變更').length).toBeGreaterThanOrEqual(2);
     });
 
-    it('displays approvers with their role and status', () => {
-      render(<ApprovalPage />);
-
-      expect(screen.getAllByText(/陳組長.*組長.*待審批/).length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText(/林經理.*經理.*待審批/)).toBeInTheDocument();
-    });
-  });
-
-  describe('核准操作 - Requirement 13.3', () => {
-    it('approves a SCHEDULE_CHANGE request and triggers customer re-notification since single approval completes it', async () => {
+    it('renders search bar in top left for quick fuzzy search', async () => {
       const user = userEvent.setup();
       render(<ApprovalPage />);
 
-      const approveButtons = screen.getAllByText('核准');
-      await user.click(approveButtons[0]!);
+      const searchInput = screen.getByPlaceholderText('請輸入申請單編號或申請人搜尋');
+      expect(searchInput).toBeInTheDocument();
+
+      await user.type(searchInput, 'approval-001{enter}');
+
+      expect(useApprovalList).toHaveBeenCalledWith(
+        expect.objectContaining({ keyword: 'approval-001' }),
+      );
+    });
+  });
+
+  describe('項目對照與彈窗內審批流程', () => {
+    it('opens diff modal and shows item comparison for task change', async () => {
+      const user = userEvent.setup();
+      render(<ApprovalPage />);
+
+      const viewButtons = screen.getAllByText('檢視變更');
+      await user.click(viewButtons[0]!);
+
+      expect(screen.getByText('異動變更詳情')).toBeInTheDocument();
+      expect(screen.getByText('📋 項目對照')).toBeInTheDocument();
+      expect(screen.getByText('服務時段')).toBeInTheDocument();
+      expect(screen.getByText('09:00 ~ 12:00')).toBeInTheDocument();
+      expect(screen.getByText('14:00 ~ 18:00')).toBeInTheDocument();
+    });
+
+    it('allows approving from inside the diff modal with secondary confirmation', async () => {
+      const user = userEvent.setup();
+      render(<ApprovalPage />);
+
+      const viewButtons = screen.getAllByText('檢視變更');
+      await user.click(viewButtons[0]!);
+
+      // Click 核准 inside the diff modal
+      const approveInModal = screen.getByRole('button', { name: /核准/ });
+      await user.click(approveInModal);
+
+      // Approve confirmation modal opens
+      expect(screen.getByText('核准確認')).toBeInTheDocument();
+      expect(screen.getByText(/確定要核准申請單【approval-001】嗎？/)).toBeInTheDocument();
+
+      const modal = screen.getAllByRole('dialog');
+      const confirmModal = modal[modal.length - 1]!;
+      await user.click(within(confirmModal).getByRole('button', { name: /確定/ }));
 
       await waitFor(() => {
-        expect(mockApproveMutateAsync).toHaveBeenCalledWith({ id: 'a1' });
+        expect(mockApproveMutateAsync).toHaveBeenCalledWith({
+          id: 'approval-001',
+          comment: undefined,
+        });
       });
 
       await waitFor(() => {
@@ -155,60 +205,38 @@ describe('ApprovalPage', () => {
       });
     });
 
-    it('approves a SHIFT_CHANGE request and triggers customer re-notification since single approval completes it', async () => {
+    it('allows rejecting from inside the diff modal with comment requirement', async () => {
       const user = userEvent.setup();
       render(<ApprovalPage />);
 
-      const approveButtons = screen.getAllByText('核准');
-      // Second row corresponds to the SHIFT_CHANGE approval (a2)
-      await user.click(approveButtons[1]!);
+      const viewButtons = screen.getAllByText('檢視變更');
+      await user.click(viewButtons[0]!);
 
-      await waitFor(() => {
-        expect(mockApproveMutateAsync).toHaveBeenCalledWith({ id: 'a2' });
-      });
+      // Click 駁回 inside the diff modal
+      const rejectInModal = screen.getByRole('button', { name: /駁回/ });
+      await user.click(rejectInModal);
 
-      await waitFor(() => {
-        expect(mockSendNotificationMutateAsync).toHaveBeenCalledWith(
-          expect.objectContaining({ taskId: 't2' }),
-        );
-      });
-    });
-  });
+      // Reject confirmation modal opens
+      expect(screen.getByText('駁回確認')).toBeInTheDocument();
 
-  describe('駁回操作', () => {
-    it('requires a comment before rejecting a request', async () => {
-      const user = userEvent.setup();
-      render(<ApprovalPage />);
+      const modal = screen.getAllByRole('dialog');
+      const confirmModal = modal[modal.length - 1]!;
 
-      const rejectButtons = screen.getAllByText('駁回');
-      await user.click(rejectButtons[0]!);
-
-      expect(screen.getByText('駁回審批')).toBeInTheDocument();
-
-      const modal = screen.getByRole('dialog');
-      await user.click(within(modal).getByText('OK'));
-
-      // Validation should block submission without a comment
+      // Click confirm without comment -> blocked
+      await user.click(within(confirmModal).getByRole('button', { name: /確定/ }));
       expect(mockRejectMutateAsync).not.toHaveBeenCalled();
 
+      // Enter comment and submit
       const textarea = screen.getByLabelText('駁回原因');
-      await user.type(textarea, '人力調度不合理');
-      await user.click(within(modal).getByText('OK'));
+      await user.type(textarea, '時段與其他客戶衝突');
+      await user.click(within(confirmModal).getByRole('button', { name: /確定/ }));
 
       await waitFor(() => {
         expect(mockRejectMutateAsync).toHaveBeenCalledWith({
-          id: 'a1',
-          comment: '人力調度不合理',
+          id: 'approval-001',
+          comment: '時段與其他客戶衝突',
         });
       });
-    });
-  });
-
-  describe('匯出 Excel - Requirement 13.4', () => {
-    it('renders export button with 列表匯出', () => {
-      render(<ApprovalPage />);
-
-      expect(screen.getByText('列表匯出')).toBeInTheDocument();
     });
   });
 });
