@@ -90,7 +90,7 @@ src/
 │   └── instance.ts         # Axios 實例與請求/回應攔截器
 ├── components/
 │   ├── base/                # 基礎共用元件（BaseTable, BaseModal, BaseSearchForm, BaseUpload, PageErrorBoundary, RouteLoadingIndicator）
-│   ├── business/             # 業務元件（TaskForm, ScheduleCalendar, EmployeeSelect, ConflictPanel, AlertBadge, RecurrenceEditor, NotificationCenter, MapView）
+│   ├── business/             # 業務元件（TaskForm, ScheduleCalendar, EmployeeSelect, TimeSelect, ConflictPanel, AlertBadge, RecurrenceEditor, NotificationCenter, MapView）
 │   └── layout/                # 版面元件（MainLayout, AppHeader, SideMenu, MapFloatingButton）
 ├── constants/               # 常數定義（權限碼、任務狀態、證照類型、職位、通知類型、錯誤碼）
 ├── hooks/                   # 共用 Hooks（如 useMediaQuery）
@@ -110,13 +110,15 @@ src/
 ## 核心功能模組
 
 - **認證與權限**：登入、Token 管理、角色權限路由守衛（`src/routes`、`src/stores/useUserStore.ts`、`usePermissionStore.ts`）
-- **任務管理**：任務建立/列表/搜尋/匯出、週期任務（`src/pages/task`、`src/components/business/TaskForm`）
-- **警示引擎**：前端即時預檢排班規則（證照、連續工作日、日工時、時段重疊、指定休假、人數需求），詳見 `src/utils/alertRules.ts`
-- **排班總覽**：日/週/月檢視、客戶與員工維度切換，基於 FullCalendar（`src/pages/schedule`、`src/components/business/ScheduleCalendar`）
-- **客戶與員工資料管理**：`src/pages/customer`、`src/pages/employee`
-- **通知與審批**：通知發送、範本管理、變更審批流程（`src/pages/notification`、`src/pages/approval`）
-- **待定客戶管理**：`src/pages/pending-customer`
-- **地圖檢視**：客戶分店位置與人員分布（`src/pages/map`、`src/components/business/MapView`）。入口為畫面右下角的全域浮動按鈕（`src/components/layout/MapFloatingButton.tsx`），而非側邊選單項目，任一頁面皆可點擊開啟（需 `map:view` 權限）
+- **儀表板總覽**：彙整今日排班概要（正常/警示/已覆蓋）、待審核項目件數與近期警示（`src/pages/dashboard`）
+- **任務管理**：任務建立/編輯/搜尋/匯出、週期任務，採 4 大 Card 卡片架構，整合 24 小時 15 分鐘段時間選擇器（`TimeSelect`）、地區與班別分層員工指派（`EmployeeSelect`）、四大標準班次與路線（`src/pages/task`、`src/components/business/TaskForm`）
+- **警示引擎**：前端即時預檢排班規則（證照資格、連續工作日、日工時上限、時段重疊衝突、指定休假衝突、人數需求不符），詳見 `src/utils/alertRules.ts`
+- **排班總覽**：日/週/月檢視、客戶與員工雙維度切換，基於 FullCalendar（`src/pages/schedule`、`src/components/business/ScheduleCalendar`）
+- **待排客戶管理**：支援未確定時間或人員之待排客戶登錄，並可隨時一鍵排定為正式任務（`src/pages/pending-customer`）
+- **異動核准**：任務變更與警示覆蓋專案審批、變更前後項目對照、模糊搜尋與二次確認防呆機制（`src/pages/approval`）
+- **客戶與員工資料管理**：集團/分店資料維護、員工基本資料、證照管理與指定排休設定（`src/pages/customer`、`src/pages/employee`）
+- **通知中心**：排班提醒、客戶通知、員工派工通知、範本管理（`src/pages/notification`）
+- **地圖檢視**：客戶分店位置與人員分布（`src/pages/map`、`src/components/business/MapView`）。入口為畫面右下角全域浮動按鈕（`src/components/layout/MapFloatingButton.tsx`）
 
 ## 測試
 
@@ -127,7 +129,7 @@ npm run test        # 執行一次
 npm run test:watch  # watch 模式
 ```
 
-- 測試設定：`vitest.config.ts`（若存在）、`src/test/setup.ts`
+- 測試設定：`vitest.config.ts`、`src/test/setup.ts`
 - API 模擬：`src/test/mocks/`（MSW handlers）
 - 各模組之 `*.test.ts(x)` 為對應功能之單元/整合測試
 - `alertRules.test.ts`、`recurrence.test.ts` 等含 Property-Based Testing，驗證設計文件中定義之正確性屬性

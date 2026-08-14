@@ -21,11 +21,11 @@ import {
   CloseOutlined,
   DownOutlined,
   EyeOutlined,
-  ReloadOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/BaseTable';
+import BaseSearchForm, { type SearchFieldConfig } from '@/components/base/BaseSearchForm';
 import { useApprovalList, useApproveRequest, useRejectRequest } from '@/queries/useApprovalQueries';
 import { useSendNotification } from '@/queries/useNotificationQueries';
 import type { ApprovalListParams } from '@/api/approval';
@@ -162,7 +162,6 @@ function renderApprovalCard(
 const ApprovalPage: FC = () => {
   const { t } = useTranslation();
   const [filters, setFilters] = useState<ApprovalListParams>({ ...DEFAULT_PARAMS });
-  const [keywordInput, setKeywordInput] = useState<string>('');
 
   // 檢視變更 Modal
   const [diffModalOpen, setDiffModalOpen] = useState(false);
@@ -195,19 +194,26 @@ const ApprovalPage: FC = () => {
     setFilters((prev) => ({ ...prev, status, page: 1 }));
   }, []);
 
-  const handleSearch = useCallback((value: string) => {
-    setFilters((prev) => ({ ...prev, keyword: value.trim() || undefined, page: 1 }));
+  const localizedSearchFields: SearchFieldConfig[] = useMemo(
+    () => [
+      {
+        name: 'keyword',
+        label: t('common.keyword'),
+        type: 'input',
+        placeholder: '輸入申請單編號或申請人',
+      },
+    ],
+    [t],
+  );
+
+  const handleSearch = useCallback((values: Record<string, unknown>) => {
+    const kw = typeof values.keyword === 'string' ? values.keyword.trim() : undefined;
+    setFilters((prev) => ({ ...prev, keyword: kw || undefined, page: 1 }));
   }, []);
 
   const handleResetFilters = useCallback(() => {
-    setKeywordInput('');
     setFilters({ ...DEFAULT_PARAMS });
   }, []);
-
-  const isFiltered = useMemo(
-    () => Boolean(filters.type || filters.status || filters.keyword),
-    [filters],
-  );
 
   /**
    * 審批通過後自動更新通知主旨並重新發送予客戶。
@@ -424,39 +430,17 @@ const ApprovalPage: FC = () => {
 
   return (
     <div className="approval-page">
+      <BaseSearchForm
+        fields={localizedSearchFields}
+        onSearch={handleSearch}
+        onReset={handleResetFilters}
+      />
+
       <BaseTable<Approval>
         columns={columns}
         queryHook={useApprovalListQuery}
         exportable={false}
         onRowClick={handleViewDiff}
-        toolbarExtra={
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              width: '100%',
-              gap: 12,
-            }}
-          >
-            <Space size={8}>
-              <Input.Search
-                placeholder="請輸入申請單編號或申請人搜尋"
-                allowClear
-                enterButton
-                value={keywordInput}
-                onChange={(e) => setKeywordInput(e.target.value)}
-                onSearch={handleSearch}
-                style={{ width: 320 }}
-              />
-              {isFiltered && (
-                <Button icon={<ReloadOutlined />} onClick={handleResetFilters}>
-                  一鍵清除篩選
-                </Button>
-              )}
-            </Space>
-          </div>
-        }
         cardRender={(record) => renderApprovalCard(record, handleViewDiff, t)}
         rowKey="id"
       />

@@ -155,7 +155,7 @@ const CustomerPage: FC = () => {
       name: 'keyword',
       label: t('common.keyword'),
       type: 'autoComplete',
-      placeholder: '搜尋集團名稱或分店名稱',
+      placeholder: '輸入集團名稱',
       options: customerSearchOptions,
     },
   ];

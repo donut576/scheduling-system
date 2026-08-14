@@ -3,14 +3,7 @@ import type { FC } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Row, Col, Card, Statistic, List, Button, Space, Tag, Typography, Empty } from 'antd';
-import {
-  CalendarOutlined,
-  AuditOutlined,
-  AlertOutlined,
-  PlusOutlined,
-  BellOutlined,
-  ScheduleOutlined,
-} from '@ant-design/icons';
+import { CalendarOutlined, AuditOutlined, AlertOutlined } from '@ant-design/icons';
 import { useScheduleData } from '@/queries/useScheduleQueries';
 import { useApprovalList } from '@/queries/useApprovalQueries';
 import { useTaskList } from '@/queries/useTaskQueries';
@@ -213,25 +206,6 @@ const DashboardPage: FC = () => {
           </Card>
         </Col>
       </Row>
-
-      {/* 快捷入口 */}
-      <Card
-        title={t('dashboard.quickEntry')}
-        style={{ marginTop: 16 }}
-        data-testid="quick-entry-card"
-      >
-        <Space wrap size="middle">
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/task')}>
-            {t('task.create')}
-          </Button>
-          <Button icon={<ScheduleOutlined />} onClick={() => navigate('/schedule')}>
-            {t('menu.schedule')}
-          </Button>
-          <Button icon={<BellOutlined />} onClick={() => navigate('/notification')}>
-            {t('notification.center')}
-          </Button>
-        </Space>
-      </Card>
     </div>
   );
 };

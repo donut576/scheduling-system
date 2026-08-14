@@ -201,7 +201,7 @@ describe('DashboardPage', () => {
       const card = screen.getByTestId('pending-approval-card');
       expect(card).toBeInTheDocument();
       expect(screen.getByText('待審核件數')).toBeInTheDocument();
-      expect(screen.getByText('排班變更')).toBeInTheDocument();
+      expect(screen.getByText('任務變更')).toBeInTheDocument();
       expect(screen.getByText('王組長')).toBeInTheDocument();
     });
 
@@ -234,38 +234,10 @@ describe('DashboardPage', () => {
   });
 
   describe('快捷入口', () => {
-    it('renders quick entry buttons for 新增任務、班表總覽、通知中心', () => {
+    it('does not render quick entry section', () => {
       render(<DashboardPage />);
-
-      const card = screen.getByTestId('quick-entry-card');
-      expect(card).toBeInTheDocument();
-      expect(screen.getByText('新增任務')).toBeInTheDocument();
-      expect(screen.getByText('班表總覽')).toBeInTheDocument();
-      expect(screen.getByText('通知中心')).toBeInTheDocument();
-    });
-
-    it('navigates to /task when 新增任務 quick entry is clicked', async () => {
-      const user = userEvent.setup();
-      render(<DashboardPage />);
-
-      await user.click(screen.getByText('新增任務'));
-      expect(mockNavigate).toHaveBeenCalledWith('/task');
-    });
-
-    it('navigates to /schedule when 班表總覽 quick entry is clicked', async () => {
-      const user = userEvent.setup();
-      render(<DashboardPage />);
-
-      await user.click(screen.getByText('班表總覽'));
-      expect(mockNavigate).toHaveBeenCalledWith('/schedule');
-    });
-
-    it('navigates to /notification when 通知中心 quick entry is clicked', async () => {
-      const user = userEvent.setup();
-      render(<DashboardPage />);
-
-      await user.click(screen.getByText('通知中心'));
-      expect(mockNavigate).toHaveBeenCalledWith('/notification');
+      expect(screen.queryByTestId('quick-entry-card')).not.toBeInTheDocument();
+      expect(screen.queryByText('快捷入口')).not.toBeInTheDocument();
     });
   });
 

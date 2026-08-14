@@ -270,7 +270,7 @@ const EmployeePage: FC = () => {
       name: 'keyword',
       label: t('common.keyword'),
       type: 'autoComplete',
-      placeholder: '搜尋員工姓名或員工編號',
+      placeholder: '輸入員工姓名或員工編號',
       options: employeeSearchOptions,
     },
   ];

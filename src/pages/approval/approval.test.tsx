@@ -146,10 +146,12 @@ describe('ApprovalPage', () => {
       const user = userEvent.setup();
       render(<ApprovalPage />);
 
-      const searchInput = screen.getByPlaceholderText('請輸入申請單編號或申請人搜尋');
+      const searchInput = screen.getByPlaceholderText('輸入申請單編號或申請人');
       expect(searchInput).toBeInTheDocument();
+      expect(screen.getByText('全部清除')).toBeInTheDocument();
 
-      await user.type(searchInput, 'approval-001{enter}');
+      await user.type(searchInput, 'approval-001');
+      await user.click(screen.getByText('搜尋'));
 
       expect(useApprovalList).toHaveBeenCalledWith(
         expect.objectContaining({ keyword: 'approval-001' }),
