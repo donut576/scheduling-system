@@ -54,8 +54,13 @@ export interface PendingCustomer {
   date?: string;
   startTime?: string;
   endTime?: string;
+  isOvernight?: boolean;
   headcount: number;
   shift?: string;
+  route?: string;
+  contents?: string[];
+  otherContentNote?: string;
+  assignees?: { employeeId: string; employeeName: string }[];
   remarks?: string;
   createdAt: string;
   updatedAt: string;

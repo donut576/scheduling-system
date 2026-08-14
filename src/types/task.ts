@@ -28,6 +28,7 @@ export interface Task {
   recurrenceId?: string;
   recurrenceRule?: RecurrenceRule;
   status: TaskStatus;
+  isApproved?: boolean;
   alertStatus: AlertStatus;
   overrideRemark?: string;
   createdBy: string;
@@ -51,6 +52,8 @@ export interface TaskFormData {
   assignees: string[];
   remarks?: string;
   recurrence?: RecurrenceRule;
+  overrideRemark?: string;
+  alertStatus?: AlertStatus;
 }
 
 /** 任務指派人員（含姓名與持有證照，供顯示與警示規則檢查使用） */

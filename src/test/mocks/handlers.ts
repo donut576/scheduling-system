@@ -1,8 +1,9 @@
 import { http, HttpResponse } from 'msw';
 import type { ApiResponse, PaginatedResponse } from '@/types/common';
-import type { Task, TaskAssignee, TaskFormData } from '@/types/task';
+import type { Task, TaskAssignee, TaskFormData, ShiftType, TaskContent } from '@/types/task';
 import type { Employee } from '@/types/employee';
 import type { Customer, CustomerGroup, PendingCustomer } from '@/types/customer';
+import type { PendingCustomerFormData, ConvertToTaskData } from '@/api/pending-customer';
 import type { Notification, NotificationTemplate, Approval } from '@/types/notification';
 import type { UserProfile, LoginResponse } from '@/types/auth';
 import type { AlertValidationResult, LicenseType } from '@/types/alert';
@@ -81,7 +82,7 @@ const mockTask: Task = {
   isOvernight: false,
   headcount: 2,
   shift: '早班',
-  route: '路線A',
+  route: '第一路',
   contents: ['P', 'R'],
   assignees: [{ employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] }],
   remarks: '',
@@ -455,7 +456,7 @@ const demoEmployees: Employee[] = [
     position: 'MANAGER',
     groupId: 'group-003',
     groupName: '陽光連鎖餐飲集團',
-    area: '高雄',
+    area: '台南',
     shift: '早班',
     groupColor: '#fa8c16',
     designatedLeaves: [],
@@ -471,7 +472,7 @@ const demoEmployees: Employee[] = [
     groupId: 'group-004',
     groupName: '綠地物業管理顧問',
     area: '台中',
-    shift: '日班',
+    shift: '午班',
     groupColor: '#722ed1',
     designatedLeaves: [],
     licenses: ['SAFETY_MANAGER_B'],
@@ -485,8 +486,8 @@ const demoEmployees: Employee[] = [
     position: 'STAFF',
     groupId: 'group-002',
     groupName: '星耀科技股份有限公司',
-    area: '台北',
-    shift: '中班',
+    area: '新竹',
+    shift: '晚班',
     groupColor: '#0067a0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
@@ -523,7 +524,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '台北 早班',
-    route: '內湖科技線',
+    route: '第一路',
     contents: ['P', 'S'],
     assignees: [
       { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
@@ -549,7 +550,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 3,
     shift: '新竹 早班',
-    route: '竹科專線1',
+    route: '第二路',
     contents: ['P', 'TERMITE'],
     assignees: [
       {
@@ -561,7 +562,7 @@ const demoTasks: Task[] = [
       { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
     ],
     remarks: '無塵室周邊防蟲與白蟻檢測',
-    status: 'CONFIRMED',
+    status: 'SCHEDULED',
     alertStatus: 'CLEAN',
     createdBy: 'emp-001',
     createdAt: '2026-08-01T09:30:00+08:00',
@@ -580,7 +581,7 @@ const demoTasks: Task[] = [
     isOvernight: true,
     headcount: 2,
     shift: '台中 晚班',
-    route: '中港商圈線',
+    route: '第三路',
     contents: ['P', 'R', 'FIRE_ANT'],
     assignees: [
       { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
@@ -605,8 +606,8 @@ const demoTasks: Task[] = [
     endTime: '18:00',
     isOvernight: false,
     headcount: 1,
-    shift: '高雄 早班',
-    route: '南區幹道線',
+    shift: '台南 早班',
+    route: '第一路',
     contents: ['BED_BUG'],
     assignees: [
       { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
@@ -631,14 +632,14 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '台北 早班',
-    route: '新北板橋線',
+    route: '第二路',
     contents: ['P', 'R'],
     assignees: [
       { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
       { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
     ],
     remarks: '地下停車場與公共區域噴藥',
-    status: 'CONFIRMED',
+    status: 'SCHEDULED',
     alertStatus: 'CLEAN',
     createdBy: 'emp-001',
     createdAt: '2026-08-02T15:00:00+08:00',
@@ -657,7 +658,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '桃園 早班',
-    route: '青埔特區線',
+    route: '第三路',
     contents: ['P', 'TERMITE'],
     assignees: [
       {
@@ -687,14 +688,14 @@ const demoTasks: Task[] = [
     isOvernight: true,
     headcount: 2,
     shift: '台北 晚班',
-    route: '信義夜間線',
+    route: '第四路',
     contents: ['P', 'R'],
     assignees: [
       { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
       { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
     ],
     remarks: '打烊後全店病媒防治施作',
-    status: 'CONFIRMED',
+    status: 'SCHEDULED',
     alertStatus: 'CLEAN',
     createdBy: 'emp-001',
     createdAt: '2026-08-03T10:00:00+08:00',
@@ -713,14 +714,14 @@ const demoTasks: Task[] = [
     isOvernight: true,
     headcount: 2,
     shift: '台北 晚班',
-    route: '信義夜間線',
+    route: '第四路',
     contents: ['P', 'R', 'S'],
     assignees: [
       { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
       { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
     ],
     remarks: '商場打烊後廚區徹底清消',
-    status: 'PENDING_APPROVAL',
+    status: 'MODIFIED',
     alertStatus: 'CLEAN',
     createdBy: 'emp-001',
     createdAt: '2026-08-04T11:00:00+08:00',
@@ -739,7 +740,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 4,
     shift: '台北 大夜班',
-    route: '101專案線',
+    route: '第五路',
     contents: ['P', 'R', 'TERMITE', 'FIRE_ANT'],
     assignees: [
       { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
@@ -752,7 +753,7 @@ const demoTasks: Task[] = [
       { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
     ],
     remarks: 'B1-5F 美食街與商場大範圍夜間施作',
-    status: 'CONFIRMED',
+    status: 'SCHEDULED',
     alertStatus: 'CLEAN',
     createdBy: 'emp-001',
     createdAt: '2026-08-04T14:00:00+08:00',
@@ -771,7 +772,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '台北 晚班',
-    route: '101專案線',
+    route: '第五路',
     contents: ['P', 'R'],
     assignees: [
       { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
@@ -797,7 +798,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 3,
     shift: '新竹 早班',
-    route: '半導體專線',
+    route: '第一路',
     contents: ['P', 'S'],
     assignees: [
       {
@@ -808,8 +809,9 @@ const demoTasks: Task[] = [
       { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
       { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
     ],
-    remarks: '全廠區年度環境消毒作業',
-    status: 'CONFIRMED',
+    remarks: '全廠區年度環境消毒作業（主管已核准）',
+    status: 'MODIFIED',
+    isApproved: true,
     alertStatus: 'OVERRIDDEN',
     overrideRemark: '經理核准特種環境作業人員調派',
     createdBy: 'emp-001',
@@ -829,7 +831,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '台中 日班',
-    route: '中科園區線',
+    route: '第二路',
     contents: ['P', 'TERMITE'],
     assignees: [
       { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
@@ -855,14 +857,14 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '台南 早班',
-    route: '南科專線A',
+    route: '第三路',
     contents: ['P', 'FIRE_ANT'],
     assignees: [
       { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
       { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
     ],
     remarks: '紅火蟻熱點巡查與誘餌施放',
-    status: 'CONFIRMED',
+    status: 'SCHEDULED',
     alertStatus: 'CLEAN',
     createdBy: 'emp-001',
     createdAt: '2026-08-06T11:00:00+08:00',
@@ -881,7 +883,7 @@ const demoTasks: Task[] = [
     isOvernight: true,
     headcount: 2,
     shift: '台北 晚班',
-    route: '信義百貨線',
+    route: '第四路',
     contents: ['P', 'R', 'BED_BUG'],
     assignees: [
       { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
@@ -907,14 +909,14 @@ const demoTasks: Task[] = [
     isOvernight: true,
     headcount: 2,
     shift: '台北 晚班',
-    route: '新北商場線',
+    route: '第二路',
     contents: ['P', 'R'],
     assignees: [
       { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
       { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
     ],
     remarks: '地下超市與餐飲街消毒除鼠',
-    status: 'CONFIRMED',
+    status: 'SCHEDULED',
     alertStatus: 'CLEAN',
     createdBy: 'emp-001',
     createdAt: '2026-08-07T16:00:00+08:00',
@@ -933,7 +935,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 3,
     shift: '台北 大夜班',
-    route: '五星飯店線',
+    route: '第五路',
     contents: ['P', 'R', 'BED_BUG', 'S'],
     assignees: [
       {
@@ -944,8 +946,9 @@ const demoTasks: Task[] = [
       { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
       { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
     ],
-    remarks: '宴會廳、廚房後場與指定客房深度清消',
-    status: 'CONFIRMED',
+    remarks: '宴會廳、廚房後場與指定客房深度清消（組長已核准）',
+    status: 'MODIFIED',
+    isApproved: true,
     alertStatus: 'CLEAN',
     createdBy: 'emp-001',
     createdAt: '2026-08-08T09:00:00+08:00',
@@ -964,7 +967,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '台南 大夜班',
-    route: '台南古都線',
+    route: '第一路',
     contents: ['P', 'BED_BUG'],
     assignees: [
       { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
@@ -990,14 +993,14 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '台北 早班',
-    route: '東區文化線',
+    route: '第二路',
     contents: ['P', 'TERMITE'],
     assignees: [
       { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
       { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
     ],
     remarks: '木造書區白蟻檢查與開館前防蟲',
-    status: 'CONFIRMED',
+    status: 'SCHEDULED',
     alertStatus: 'CLEAN',
     createdBy: 'emp-001',
     createdAt: '2026-08-09T09:00:00+08:00',
@@ -1016,7 +1019,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '台北 早班',
-    route: '新店文山線',
+    route: '第三路',
     contents: ['FIRE_ANT', 'OTHER'],
     otherContentNote: '戶外造景花圃紅火蟻清消',
     assignees: [
@@ -1043,7 +1046,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 1,
     shift: '台北 早班',
-    route: '緊急支援線',
+    route: '第六路',
     contents: ['P'],
     assignees: [
       { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
@@ -1068,7 +1071,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 1,
     shift: '台北 早班',
-    route: '內湖科技線',
+    route: '第一路',
     contents: ['R'],
     assignees: [{ employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] }],
     remarks: '會議室老鼠侵入緊急處理',
@@ -1091,14 +1094,14 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '台中 日班',
-    route: '台中特遣線',
+    route: '第二路',
     contents: ['VEHICLE_MAINTENANCE'],
     assignees: [
       { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
       { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
     ],
     remarks: '外送車隊與物流冷鏈車輛消毒',
-    status: 'CONFIRMED',
+    status: 'SCHEDULED',
     alertStatus: 'CLEAN',
     createdBy: 'emp-001',
     createdAt: '2026-08-11T09:00:00+08:00',
@@ -1117,7 +1120,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '台北 早班',
-    route: '新北板橋線',
+    route: '第三路',
     contents: ['P', 'S'],
     assignees: [
       {
@@ -1147,7 +1150,7 @@ const demoTasks: Task[] = [
     isOvernight: true,
     headcount: 2,
     shift: '台北 晚班',
-    route: '信義夜間線',
+    route: '第四路',
     contents: ['P', 'R'],
     assignees: [
       { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
@@ -1173,14 +1176,14 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '台北 大夜班',
-    route: '101專案線',
+    route: '第五路',
     contents: ['P', 'R'],
     assignees: [
       { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
       { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
     ],
     remarks: '美食街夜間維護作業',
-    status: 'CONFIRMED',
+    status: 'SCHEDULED',
     alertStatus: 'CLEAN',
     createdBy: 'emp-001',
     createdAt: '2026-08-12T11:00:00+08:00',
@@ -1199,7 +1202,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '新竹 早班',
-    route: '半導體專線',
+    route: '第一路',
     contents: ['P', 'TRAINING'],
     assignees: [
       {
@@ -1210,7 +1213,7 @@ const demoTasks: Task[] = [
       { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
     ],
     remarks: '廠務新進人員安全作業教育訓練與示範',
-    status: 'CONFIRMED',
+    status: 'SCHEDULED',
     alertStatus: 'CLEAN',
     createdBy: 'emp-001',
     createdAt: '2026-08-13T09:00:00+08:00',
@@ -1229,7 +1232,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 1,
     shift: '台北 晚班',
-    route: '信義夜間線',
+    route: '第四路',
     contents: ['P'],
     assignees: [
       { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
@@ -1254,7 +1257,7 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '台北 大夜班',
-    route: '五星飯店線',
+    route: '第五路',
     contents: ['P', 'R', 'BED_BUG'],
     assignees: [
       { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
@@ -1280,14 +1283,14 @@ const demoTasks: Task[] = [
     isOvernight: false,
     headcount: 2,
     shift: '台北 早班',
-    route: '東區文化線',
+    route: '第二路',
     contents: ['P', 'R'],
     assignees: [
       { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
       { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
     ],
     remarks: '週末商場開館前環境維護',
-    status: 'CONFIRMED',
+    status: 'SCHEDULED',
     alertStatus: 'CLEAN',
     createdBy: 'emp-001',
     createdAt: '2026-08-14T08:00:00+08:00',
@@ -1380,17 +1383,294 @@ const applyTaskUpdate = (existing: Task, data: Partial<TaskFormData>): Task => {
 
 // --- 其他模組的假資料（待排時間客戶、通知、審批、警示、班表） ---
 
-const mockPendingCustomer: PendingCustomer = {
-  id: 'pending-001',
-  groupId: 'group-001',
-  groupName: '測試集團',
-  branchId: 'branch-001',
-  branchName: '測試分店',
-  status: 'PENDING',
-  headcount: 2,
-  createdAt: '2026-01-01T09:00:00+08:00',
-  updatedAt: '2026-01-01T09:00:00+08:00',
-};
+let mockPendingCustomers: PendingCustomer[] = [
+  {
+    id: 'pending-001',
+    groupId: 'group-001',
+    groupName: '測試集團',
+    branchId: 'branch-001',
+    branchName: '測試分店',
+    status: 'PENDING',
+    date: undefined,
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 2,
+    shift: '早班',
+    route: '第一路',
+    contents: ['P', 'R'],
+    assignees: [],
+    remarks: '2026年度合約預排，客戶預計8月底確認具體施作日期',
+    createdAt: '2026-08-01T09:30:00+08:00',
+    updatedAt: '2026-08-01T09:30:00+08:00',
+  },
+  {
+    id: 'pending-002',
+    groupId: 'group-002',
+    groupName: '星耀科技股份有限公司',
+    branchId: 'branch-002-1',
+    branchName: '內湖三期辦公室',
+    status: 'PENDING',
+    date: undefined,
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 3,
+    shift: '晚班',
+    route: '第二路',
+    contents: ['P', 'S'],
+    assignees: [],
+    remarks: '年度合約季度保養，需配合大樓週末夜間門禁施作',
+    createdAt: '2026-08-03T11:15:00+08:00',
+    updatedAt: '2026-08-03T11:15:00+08:00',
+  },
+  {
+    id: 'pending-003',
+    groupId: 'group-003',
+    groupName: '陽光連鎖餐飲集團',
+    branchId: 'branch-003-1',
+    branchName: '台中西屯門市',
+    status: 'PENDING',
+    date: '2026-09-10',
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 2,
+    shift: '午班',
+    route: '第三路',
+    contents: ['P', 'FIRE_ANT'],
+    assignees: [],
+    remarks: '客戶已指定9/10施工，詳細進場時段待店長回覆',
+    createdAt: '2026-08-05T14:20:00+08:00',
+    updatedAt: '2026-08-05T14:20:00+08:00',
+  },
+  {
+    id: 'pending-004',
+    groupId: 'group-004',
+    groupName: '綠地物業管理顧問',
+    branchId: 'branch-004-1',
+    branchName: '板橋大樓管理處',
+    status: 'PENDING',
+    date: undefined,
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 2,
+    shift: '早班',
+    route: '第一路',
+    contents: ['P', 'TERMITE'],
+    assignees: [],
+    remarks: '2026年度新簽合約，待管委會確認施作時段',
+    createdAt: '2026-08-08T10:00:00+08:00',
+    updatedAt: '2026-08-08T10:00:00+08:00',
+  },
+  {
+    id: 'pending-005',
+    groupId: 'group-002',
+    groupName: '星耀科技股份有限公司',
+    branchId: 'branch-002-2',
+    branchName: '新竹科學園區廠',
+    status: 'PENDING',
+    date: undefined,
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 4,
+    shift: '早班',
+    route: '第二路',
+    contents: ['P', 'TRAINING'],
+    assignees: [],
+    remarks: '年度廠區歲修預排，進場人員需具備6小時工安證照',
+    createdAt: '2026-08-10T16:45:00+08:00',
+    updatedAt: '2026-08-10T16:45:00+08:00',
+  },
+  {
+    id: 'pending-006',
+    groupId: 'group-005',
+    groupName: '鼎泰豐餐飲股份有限公司',
+    branchId: 'branch-005-1',
+    branchName: '信義旗艦店',
+    status: 'PENDING',
+    date: undefined,
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 2,
+    shift: '晚班',
+    route: '第四路',
+    contents: ['P', 'R'],
+    assignees: [],
+    remarks: '信義店下半年度夜間例行清消，待店長回簽排程',
+    createdAt: '2026-08-11T09:00:00+08:00',
+    updatedAt: '2026-08-11T09:00:00+08:00',
+  },
+  {
+    id: 'pending-007',
+    groupId: 'group-006',
+    groupName: '台北金融大樓股份有限公司',
+    branchId: 'branch-006-1',
+    branchName: '台北101購物中心',
+    status: 'PENDING',
+    date: undefined,
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 3,
+    shift: '大夜班',
+    route: '第五路',
+    contents: ['P', 'R', 'TERMITE'],
+    assignees: [],
+    remarks: '購物中心公共管道間大範圍白蟻防治工程',
+    createdAt: '2026-08-11T14:30:00+08:00',
+    updatedAt: '2026-08-11T14:30:00+08:00',
+  },
+  {
+    id: 'pending-008',
+    groupId: 'group-007',
+    groupName: '台灣積體電路製造',
+    branchId: 'branch-007-1',
+    branchName: '竹科八廠',
+    status: 'PENDING',
+    date: '2026-09-15',
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 2,
+    shift: '早班',
+    route: '第一路',
+    contents: ['P', 'S'],
+    assignees: [],
+    remarks: '竹科廠區無塵室周邊定期防護，時間待工安主管確認',
+    createdAt: '2026-08-12T10:00:00+08:00',
+    updatedAt: '2026-08-12T10:00:00+08:00',
+  },
+  {
+    id: 'pending-009',
+    groupId: 'group-007',
+    groupName: '台灣積體電路製造',
+    branchId: 'branch-007-2',
+    branchName: '中科十五廠',
+    status: 'PENDING',
+    date: undefined,
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 2,
+    shift: '午班',
+    route: '第二路',
+    contents: ['P', 'FIRE_ANT'],
+    assignees: [],
+    remarks: '中科園區綠化帶紅火蟻熱點預防性施藥',
+    createdAt: '2026-08-12T15:20:00+08:00',
+    updatedAt: '2026-08-12T15:20:00+08:00',
+  },
+  {
+    id: 'pending-010',
+    groupId: 'group-008',
+    groupName: '遠東百貨股份有限公司',
+    branchId: 'branch-008-1',
+    branchName: '信義A13',
+    status: 'PENDING',
+    date: undefined,
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 2,
+    shift: '晚班',
+    route: '第四路',
+    contents: ['BED_BUG', 'P'],
+    assignees: [],
+    remarks: '百貨專櫃換季前深度臭蟲防治預約',
+    createdAt: '2026-08-13T09:40:00+08:00',
+    updatedAt: '2026-08-13T09:40:00+08:00',
+  },
+  {
+    id: 'pending-011',
+    groupId: 'group-008',
+    groupName: '遠東百貨股份有限公司',
+    branchId: 'branch-008-2',
+    branchName: '板橋大遠百',
+    status: 'PENDING',
+    date: undefined,
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 1,
+    shift: '早班',
+    route: '第三路',
+    contents: ['VEHICLE_MAINTENANCE'],
+    assignees: [],
+    remarks: '物流配送車輛全車消毒與設備檢驗',
+    createdAt: '2026-08-13T11:00:00+08:00',
+    updatedAt: '2026-08-13T11:00:00+08:00',
+  },
+  {
+    id: 'pending-012',
+    groupId: 'group-009',
+    groupName: '晶華國際酒店集團',
+    branchId: 'branch-009-1',
+    branchName: '台北晶華酒店',
+    status: 'PENDING',
+    date: undefined,
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 3,
+    shift: '大夜班',
+    route: '第五路',
+    contents: ['P', 'R', 'BED_BUG'],
+    assignees: [],
+    remarks: '客房樓層全面除蟲作業，等候房務部排房確認',
+    createdAt: '2026-08-13T16:00:00+08:00',
+    updatedAt: '2026-08-13T16:00:00+08:00',
+  },
+  {
+    id: 'pending-013',
+    groupId: 'group-009',
+    groupName: '晶華國際酒店集團',
+    branchId: 'branch-009-2',
+    branchName: '台南晶英酒店',
+    status: 'PENDING',
+    date: '2026-09-20',
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 2,
+    shift: '早班',
+    route: '第一路',
+    contents: ['P', 'TERMITE'],
+    assignees: [],
+    remarks: '古蹟周邊園區木構建物白蟻防治',
+    createdAt: '2026-08-14T08:30:00+08:00',
+    updatedAt: '2026-08-14T08:30:00+08:00',
+  },
+  {
+    id: 'pending-014',
+    groupId: 'group-010',
+    groupName: '誠品生活股份有限公司',
+    branchId: 'branch-010-1',
+    branchName: '松菸店',
+    status: 'PENDING',
+    date: undefined,
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 2,
+    shift: '早班',
+    route: '第二路',
+    contents: ['P', 'TRAINING'],
+    assignees: [],
+    remarks: '松菸店員工病媒防治與衛生安全講習',
+    createdAt: '2026-08-14T10:00:00+08:00',
+    updatedAt: '2026-08-14T10:00:00+08:00',
+  },
+  {
+    id: 'pending-015',
+    groupId: 'group-010',
+    groupName: '誠品生活股份有限公司',
+    branchId: 'branch-010-2',
+    branchName: '新店裕隆城店',
+    status: 'PENDING',
+    date: undefined,
+    startTime: undefined,
+    endTime: undefined,
+    headcount: 2,
+    shift: '午班',
+    route: '第三路',
+    contents: ['OTHER'],
+    otherContentNote: '戶外造景特約清消',
+    assignees: [],
+    remarks: '裕隆城戶外水景與植栽區特殊環境維護',
+    createdAt: '2026-08-14T11:30:00+08:00',
+    updatedAt: '2026-08-14T11:30:00+08:00',
+  },
+];
 
 const mockNotification: Notification = {
   id: 'notif-001',
@@ -1413,24 +1693,80 @@ const mockNotificationTemplate: NotificationTemplate = {
   variables: ['customerName'],
 };
 
-const mockApproval: Approval = {
-  id: 'approval-001',
-  taskId: 'task-001',
-  type: 'SCHEDULE_CHANGE',
-  status: 'PENDING',
-  requestedBy: 'emp-001',
-  requestedByName: '測試使用者',
-  approvers: [
-    {
-      approverId: 'emp-002',
-      approverName: '測試經理',
-      role: 'MANAGER',
-      status: 'PENDING',
-    },
-  ],
-  createdAt: '2026-01-01T09:00:00+08:00',
-  updatedAt: '2026-01-01T09:00:00+08:00',
-};
+let mockApprovals: Approval[] = [
+  {
+    id: 'approval-001',
+    taskId: 'task-005',
+    type: 'SCHEDULE_CHANGE',
+    status: 'PENDING',
+    requestedBy: 'emp-002',
+    requestedByName: '林志豪',
+    approvers: [
+      {
+        approverId: 'emp-admin',
+        approverName: 'Demo 管理員',
+        role: 'ADMIN',
+        status: 'PENDING',
+      },
+    ],
+    createdAt: '2026-08-03T14:20:00+08:00',
+    updatedAt: '2026-08-03T14:20:00+08:00',
+  },
+  {
+    id: 'approval-002',
+    taskId: 'task-009',
+    type: 'SCHEDULE_CHANGE',
+    status: 'PENDING',
+    requestedBy: 'emp-004',
+    requestedByName: '吳建宏',
+    approvers: [
+      {
+        approverId: 'emp-admin',
+        approverName: 'Demo 管理員',
+        role: 'ADMIN',
+        status: 'PENDING',
+      },
+    ],
+    createdAt: '2026-08-04T11:00:00+08:00',
+    updatedAt: '2026-08-04T11:00:00+08:00',
+  },
+  {
+    id: 'approval-003',
+    taskId: 'task-025',
+    type: 'SCHEDULE_CHANGE',
+    status: 'PENDING',
+    requestedBy: 'emp-001',
+    requestedByName: '測試使用者',
+    approvers: [
+      {
+        approverId: 'emp-admin',
+        approverName: 'Demo 管理員',
+        role: 'ADMIN',
+        status: 'PENDING',
+      },
+    ],
+    createdAt: '2026-08-12T16:00:00+08:00',
+    updatedAt: '2026-08-12T16:00:00+08:00',
+  },
+  {
+    id: 'approval-004',
+    taskId: 'task-029',
+    type: 'SCHEDULE_CHANGE',
+    status: 'PENDING',
+    requestedBy: 'emp-003',
+    requestedByName: '黃俊傑',
+    approvers: [
+      {
+        approverId: 'emp-admin',
+        approverName: 'Demo 管理員',
+        role: 'ADMIN',
+        status: 'PENDING',
+      },
+    ],
+    createdAt: '2026-08-13T14:00:00+08:00',
+    updatedAt: '2026-08-13T14:00:00+08:00',
+  },
+];
 
 const mockAlertValidationResult: AlertValidationResult = {
   isValid: true,
@@ -1685,7 +2021,33 @@ export const handlers = [
       return HttpResponse.json(ok<Task>(mockTask));
     }
     const updated = applyTaskUpdate(existing, data);
+    // 編輯修改後，狀態設為「更改」(MODIFIED)，未核准 (isApproved: false)，字體反紅
+    updated.status = 'MODIFIED';
+    updated.isApproved = false;
+    updated.updatedAt = new Date().toISOString();
     mockTasks = mockTasks.map((t) => (t.id === updated.id ? updated : t));
+
+    // 同步將該筆異動申請送至「異動核准」列表 (狀態為 PENDING)
+    const newApproval: Approval = {
+      id: `approval-${Date.now()}`,
+      taskId: updated.id,
+      type: 'SCHEDULE_CHANGE',
+      status: 'PENDING',
+      requestedBy: mockUser.id,
+      requestedByName: mockUser.name,
+      approvers: [
+        {
+          approverId: 'emp-admin',
+          approverName: 'Demo 管理員',
+          role: 'ADMIN',
+          status: 'PENDING',
+        },
+      ],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    mockApprovals = [newApproval, ...mockApprovals.filter((a) => a.taskId !== updated.id)];
+
     return HttpResponse.json(ok<Task>(updated));
   }),
   http.post('*/api/v1/tasks/:id/validate', () =>
@@ -1829,19 +2191,154 @@ export const handlers = [
   ),
 
   // approval.ts
-  http.get('*/api/v1/approvals', () => HttpResponse.json(ok(paginated<Approval>([mockApproval])))),
-  http.post('*/api/v1/approvals/:id/approve', () => HttpResponse.json(ok(null))),
-  http.post('*/api/v1/approvals/:id/reject', () => HttpResponse.json(ok(null))),
+  http.get('*/api/v1/approvals', ({ request }) => {
+    const url = new URL(request.url);
+    const status = url.searchParams.get('status');
+    const type = url.searchParams.get('type');
+    const page = Number(url.searchParams.get('page') || 1);
+    const pageSize = Number(url.searchParams.get('pageSize') || 20);
+    let list = mockApprovals;
+    if (status) {
+      list = list.filter((a) => a.status === status);
+    }
+    if (type) {
+      list = list.filter((a) => a.type === type);
+    }
+    return HttpResponse.json(ok(paginated<Approval>(list, page, pageSize)));
+  }),
+  http.post('*/api/v1/approvals/:id/approve', ({ params }) => {
+    const approval = mockApprovals.find((a) => a.id === params.id);
+    if (approval) {
+      approval.status = 'APPROVED';
+      approval.approvers = approval.approvers.map((s) => ({
+        ...s,
+        status: 'APPROVED',
+        decidedAt: new Date().toISOString(),
+      }));
+      // 管理員/組長核准後，將關聯任務之 isApproved 設為 true（狀態仍為「更改」，字體在任務列表轉為藍色）
+      mockTasks = mockTasks.map((t) =>
+        t.id === approval.taskId
+          ? { ...t, status: 'MODIFIED', isApproved: true, updatedAt: new Date().toISOString() }
+          : t,
+      );
+    }
+    return HttpResponse.json(ok(null));
+  }),
+  http.post('*/api/v1/approvals/:id/reject', async ({ params, request }) => {
+    const body = (await request.json().catch(() => ({}))) as { comment?: string };
+    const approval = mockApprovals.find((a) => a.id === params.id);
+    if (approval) {
+      approval.status = 'REJECTED';
+      approval.approvers = approval.approvers.map((s) => ({
+        ...s,
+        status: 'REJECTED',
+        comment: body.comment,
+        decidedAt: new Date().toISOString(),
+      }));
+    }
+    return HttpResponse.json(ok(null));
+  }),
 
   // pending-customer.ts
-  http.get('*/api/v1/pending-customers', () =>
-    HttpResponse.json(ok(paginated<PendingCustomer>([mockPendingCustomer]))),
-  ),
-  http.post('*/api/v1/pending-customers', () =>
-    HttpResponse.json(ok<PendingCustomer>(mockPendingCustomer)),
-  ),
-  http.patch('*/api/v1/pending-customers/:id', () =>
-    HttpResponse.json(ok<PendingCustomer>(mockPendingCustomer)),
-  ),
-  http.post('*/api/v1/pending-customers/:id/convert', () => HttpResponse.json(ok(null))),
+  http.get('*/api/v1/pending-customers', ({ request }) => {
+    const url = new URL(request.url);
+    const groupId = url.searchParams.get('groupId');
+    const branchId = url.searchParams.get('branchId');
+    const startDate = url.searchParams.get('startDate');
+    const endDate = url.searchParams.get('endDate');
+    const page = Number(url.searchParams.get('page') || 1);
+    const pageSize = Number(url.searchParams.get('pageSize') || 20);
+    let list = mockPendingCustomers.filter((p) => p.status !== 'CONVERTED');
+    if (groupId) {
+      list = list.filter((p) => p.groupId === groupId);
+    }
+    if (branchId) {
+      list = list.filter((p) => p.branchId === branchId);
+    }
+    if (startDate) {
+      list = list.filter((p) => !p.date || p.date >= startDate);
+    }
+    if (endDate) {
+      list = list.filter((p) => !p.date || p.date <= endDate);
+    }
+    return HttpResponse.json(ok(paginated<PendingCustomer>(list, page, pageSize)));
+  }),
+  http.post('*/api/v1/pending-customers', async ({ request }) => {
+    const data = (await request.json()) as PendingCustomerFormData;
+    const { groupName, branchName } = resolveGroupBranchNames(data.groupId, data.branchId);
+    const newPending: PendingCustomer = {
+      id: `pending-${Date.now()}`,
+      groupId: data.groupId,
+      groupName,
+      branchId: data.branchId,
+      branchName,
+      status: 'PENDING',
+      date: data.date,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      headcount: data.headcount || 1,
+      shift: data.shift,
+      route: data.route,
+      contents: data.contents ?? ['定期環境清潔'],
+      assignees: data.assignees ?? [],
+      remarks: data.remarks,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    mockPendingCustomers = [newPending, ...mockPendingCustomers];
+    return HttpResponse.json(ok<PendingCustomer>(newPending));
+  }),
+  http.patch('*/api/v1/pending-customers/:id', async ({ params, request }) => {
+    const data = (await request.json()) as Partial<PendingCustomerFormData>;
+    const existing = mockPendingCustomers.find((p) => p.id === params.id);
+    if (!existing) {
+      return HttpResponse.json(ok<PendingCustomer | null>(null));
+    }
+    const { groupName, branchName } = resolveGroupBranchNames(
+      data.groupId ?? existing.groupId,
+      data.branchId ?? existing.branchId,
+    );
+    const updated: PendingCustomer = {
+      ...existing,
+      ...data,
+      groupName,
+      branchName,
+      updatedAt: new Date().toISOString(),
+    };
+    mockPendingCustomers = mockPendingCustomers.map((p) => (p.id === updated.id ? updated : p));
+    return HttpResponse.json(ok<PendingCustomer>(updated));
+  }),
+  http.post('*/api/v1/pending-customers/:id/convert', async ({ params, request }) => {
+    const data = (await request.json()) as ConvertToTaskData;
+    const pending = mockPendingCustomers.find((p) => p.id === params.id);
+    if (pending) {
+      pending.status = 'CONVERTED';
+      const newTask: Task = {
+        id: `task-${Date.now()}`,
+        groupId: pending.groupId,
+        groupName: pending.groupName,
+        branchId: pending.branchId,
+        branchName: pending.branchName,
+        date: data.date,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        isOvernight: isOvernightRange(data.startTime, data.endTime),
+        headcount: data.headcount || 1,
+        shift: (data.shift || '早班') as ShiftType,
+        route: data.route ?? pending.route ?? '路線A',
+        contents: (data.contents ?? pending.contents ?? ['定期環境清潔']) as TaskContent[],
+        assignees: [],
+        remarks: data.remarks ?? pending.remarks,
+        taskType: 'CONTRACT',
+        status: 'SCHEDULED',
+        alertStatus: 'CLEAN',
+        isApproved: true,
+        createdBy: 'emp-admin',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      mockTasks = [newTask, ...mockTasks];
+    }
+    return HttpResponse.json(ok(null));
+  }),
 ];

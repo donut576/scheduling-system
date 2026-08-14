@@ -19,7 +19,7 @@ describe('RecurrenceEditor', () => {
   it('renders with default values when no value is provided', () => {
     render(<RecurrenceEditor onChange={onChange} />);
 
-    expect(screen.getByText('重複頻率')).toBeInTheDocument();
+    expect(screen.getByText('循環頻率')).toBeInTheDocument();
     expect(screen.getByText('結束條件')).toBeInTheDocument();
     expect(screen.getByLabelText('間隔數')).toHaveValue('1');
   });
@@ -30,7 +30,7 @@ describe('RecurrenceEditor', () => {
     expect(screen.getByText('每日')).toBeInTheDocument();
     expect(screen.getByText('每週')).toBeInTheDocument();
     expect(screen.getByText('每月')).toBeInTheDocument();
-    expect(screen.getByText('自訂')).toBeInTheDocument();
+    expect(screen.getByText('每年')).toBeInTheDocument();
   });
 
   it('shows days of week when frequency is weekly', () => {

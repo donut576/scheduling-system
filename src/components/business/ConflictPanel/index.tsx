@@ -113,11 +113,13 @@ const ConflictPanel: React.FC<ConflictPanelProps> = ({ violations, onOverride, c
 
       {canOverride ? (
         <Space direction="vertical" style={{ width: '100%', marginTop: 16 }} size="middle">
-          <Text strong>{t('alert.overrideRemark')}</Text>
+          <Text strong style={{ color: '#d4380d' }}>
+            請填寫備註說明（必填）
+          </Text>
           <TextArea
             value={remark}
             onChange={handleRemarkChange}
-            placeholder={t('alert.overridePlaceholder')}
+            placeholder="請填寫備註說明（必填）"
             rows={3}
             maxLength={500}
             showCount

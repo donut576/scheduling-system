@@ -39,7 +39,7 @@ export const FULL_MENU: MenuItem[] = [
   { key: '/approval', label: '異動核准', permission: 'approval:view', hideFromMenu: true },
   {
     key: '/pending-customer',
-    label: '待排時間客戶',
+    label: '待排客戶',
     permission: 'pending_customer:view',
     hideFromMenu: true,
   },
@@ -60,7 +60,7 @@ const FULL_ROUTES: RouteConfig[] = [
   {
     path: '/pending-customer',
     permission: 'pending_customer:view',
-    meta: { title: '待排時間客戶' },
+    meta: { title: '待排客戶' },
   },
   { path: '/map', permission: 'map:view', meta: { title: '地圖檢視' } },
 ];

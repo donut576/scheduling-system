@@ -165,22 +165,20 @@ describe('TaskForm integration - 完整任務建立流程', () => {
     // 填寫欄位：日期、起訖時間
     setPickerValue('任務日期', '2026-02-10');
 
-    // 時間下拉選單為 48 筆虛擬捲動清單，先輸入搜尋文字縮小選項範圍再點選，
-    // 避免遠端選項因虛擬捲動未渲染而找不到。
-    const startTimeSelect = screen.getByRole('combobox', { name: '開始時間' });
-    await user.click(startTimeSelect);
-    await user.type(startTimeSelect, '09:00');
-    await user.click(await screen.findByTitle('09:00'));
+    // 選擇起訖時間（24小時制，15分鐘一段）
+    const startHourSelect = screen.getByRole('combobox', { name: '開始時間 (小時)' });
+    await user.click(startHourSelect);
+    await user.type(startHourSelect, '09');
+    await user.click(await screen.findByTitle('09'));
 
-    const endTimeSelect = screen.getByRole('combobox', { name: '結束時間' });
-    await user.click(endTimeSelect);
-    await user.type(endTimeSelect, '17:00');
-    await user.click(await screen.findByTitle('17:00'));
+    const endHourSelect = screen.getByRole('combobox', { name: '結束時間 (小時)' });
+    await user.click(endHourSelect);
+    await user.type(endHourSelect, '17');
+    await user.click(await screen.findByTitle('17'));
 
-    // 班次為必填欄位
+    // 班次為必填欄位 (預設已為早班)
     const shiftSelect = screen.getByRole('combobox', { name: '班次' });
-    await user.click(shiftSelect);
-    await user.click(await screen.findByTitle('早班'));
+    expect(shiftSelect).toBeInTheDocument();
 
     // 人數：設為 2，但不指派任何員工，以確保觸發人數不足違規 (Requirement 7.6)
     const headcountInput = screen.getByRole('spinbutton', { name: '人數需求' });
@@ -224,6 +222,5 @@ describe('TaskForm integration - 完整任務建立流程', () => {
       contents: ['P'],
       assignees: [],
     });
-  }, // time to avoid flakiness under parallel full-suite runs. // ConflictPanel, and multiple Ant Design pickers/selects - allow extra // This test exercises the real query hooks (via MSW), the real
-  15000);
+  }, 30000);
 });

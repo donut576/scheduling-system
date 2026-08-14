@@ -30,16 +30,148 @@ html {
   scrollbar-gutter: stable;
 }
 
-/* 已修改資料列標示（例如任務編輯後整列變藍色） */
-.row-modified.ant-table-row > td {
+/* 任務更改資料列（未核准：整行字體皆為紅色） */
+.ant-table-wrapper tr.row-modified-pending td,
+.ant-table-wrapper tr.row-modified-pending td *,
+.ant-table-wrapper tr.row-modified td,
+.ant-table-wrapper tr.row-modified td *,
+tr.row-modified-pending td,
+tr.row-modified-pending td *,
+tr.row-modified td,
+tr.row-modified td * {
+  color: #f5222d !important;
+  font-weight: 500;
+}
+
+.ant-table-wrapper tr.row-modified-pending > td,
+.ant-table-wrapper tr.row-modified > td,
+tr.row-modified-pending > td,
+tr.row-modified > td {
+  background-color: #fff1f0 !important;
+}
+
+.ant-table-wrapper tr.row-modified-pending:hover > td,
+.ant-table-wrapper tr.row-modified:hover > td,
+tr.row-modified-pending:hover > td,
+tr.row-modified:hover > td {
+  background-color: #ffccc7 !important;
+}
+
+/* 確保「更改」狀態 Tag 標籤內的文字為白字，維持最佳對比 */
+.ant-table-wrapper tr.row-modified-pending .ant-tag,
+.ant-table-wrapper tr.row-modified-pending .ant-tag *,
+.ant-table-wrapper tr.row-modified .ant-tag,
+.ant-table-wrapper tr.row-modified .ant-tag *,
+tr.row-modified-pending .ant-tag,
+tr.row-modified-pending .ant-tag *,
+tr.row-modified .ant-tag,
+tr.row-modified .ant-tag * {
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+/* 行動端/卡片檢視：未核准更改卡片（紅字＋粉紅底框） */
+.ant-card.row-modified-pending,
+.ant-card.row-modified,
+.row-modified-pending.base-table-mobile-card,
+.row-modified.base-table-mobile-card {
+  background-color: #fff1f0 !important;
+  border: 1px solid #ffa39e !important;
+  border-radius: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+}
+
+.ant-card.row-modified-pending *,
+.ant-card.row-modified *,
+.row-modified-pending.base-table-mobile-card *,
+.row-modified.base-table-mobile-card * {
+  color: #f5222d !important;
+}
+
+.ant-card.row-modified-pending .ant-tag,
+.ant-card.row-modified-pending .ant-tag *,
+.ant-card.row-modified .ant-tag,
+.ant-card.row-modified .ant-tag *,
+.row-modified-pending.base-table-mobile-card .ant-tag,
+.row-modified-pending.base-table-mobile-card .ant-tag *,
+.row-modified.base-table-mobile-card .ant-tag,
+.row-modified.base-table-mobile-card .ant-tag * {
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+/* 任務更改資料列（核准後：整行字體皆改為藍色） */
+.ant-table-wrapper tr.row-modified-approved td,
+.ant-table-wrapper tr.row-modified-approved td *,
+.ant-table-wrapper tr.row-confirmed td,
+.ant-table-wrapper tr.row-confirmed td *,
+tr.row-modified-approved td,
+tr.row-modified-approved td *,
+tr.row-confirmed td,
+tr.row-confirmed td * {
+  color: #1677ff !important;
+  font-weight: 500;
+}
+
+.ant-table-wrapper tr.row-modified-approved > td,
+.ant-table-wrapper tr.row-confirmed > td,
+tr.row-modified-approved > td,
+tr.row-confirmed > td {
   background-color: #e6f4ff !important;
 }
-.row-modified.ant-table-row:hover > td {
+
+.ant-table-wrapper tr.row-modified-approved:hover > td,
+.ant-table-wrapper tr.row-confirmed:hover > td,
+tr.row-modified-approved:hover > td,
+tr.row-confirmed:hover > td {
   background-color: #bae0ff !important;
 }
-.row-modified.base-table-mobile-card {
-  background-color: #e6f4ff;
+
+/* 確保核准後狀態 Tag 標籤內的文字為白字 */
+.ant-table-wrapper tr.row-modified-approved .ant-tag,
+.ant-table-wrapper tr.row-modified-approved .ant-tag *,
+.ant-table-wrapper tr.row-confirmed .ant-tag,
+.ant-table-wrapper tr.row-confirmed .ant-tag *,
+tr.row-modified-approved .ant-tag,
+tr.row-modified-approved .ant-tag *,
+tr.row-confirmed .ant-tag,
+tr.row-confirmed .ant-tag * {
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+/* 行動端/卡片檢視：已核准更改卡片（藍字＋粉藍底框） */
+.ant-card.row-modified-approved,
+.ant-card.row-confirmed,
+.row-modified-approved.base-table-mobile-card,
+.row-confirmed.base-table-mobile-card {
+  background-color: #e6f4ff !important;
+  border: 1px solid #91caff !important;
   border-radius: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+}
+
+.ant-card.row-modified-approved *,
+.ant-card.row-confirmed *,
+.row-modified-approved.base-table-mobile-card *,
+.row-confirmed.base-table-mobile-card * {
+  color: #1677ff !important;
+}
+
+.ant-card.row-modified-approved .ant-tag,
+.ant-card.row-modified-approved .ant-tag *,
+.ant-card.row-confirmed .ant-tag,
+.ant-card.row-confirmed .ant-tag *,
+.row-modified-approved.base-table-mobile-card .ant-tag,
+.row-modified-approved.base-table-mobile-card .ant-tag *,
+.row-confirmed.base-table-mobile-card .ant-tag,
+.row-confirmed.base-table-mobile-card .ant-tag * {
+  color: #ffffff !important;
+  font-weight: 600;
 }
 
 .base-table .ant-table-pagination.ant-pagination,

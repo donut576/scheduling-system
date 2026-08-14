@@ -1,6 +1,6 @@
 // 待定時間客戶管理頁面 (PendingCustomerPage) 單元測試
 // 測試對象：src/pages/pending-customer/index.tsx，涵蓋列表呈現、新增/編輯、
-// 轉換為正式任務流程與 Excel 匯出
+// 排定正式任務流程與 Excel 匯出
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -46,6 +46,22 @@ import {
 } from '@/queries/usePendingCustomerQueries';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+vi.mock('@/queries/useEmployeeQueries', () => ({
+  useEmployeeList: () => ({
+    data: { list: [], total: 0, page: 1, pageSize: 500 },
+    isLoading: false,
+  }),
+}));
+
+const renderWithClient = (ui: React.ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
+
 const pendingCustomers: PendingCustomer[] = [
   {
     id: 'p1',
@@ -55,6 +71,8 @@ const pendingCustomers: PendingCustomer[] = [
     branchName: '分店A',
     status: 'PENDING',
     headcount: 2,
+    contents: ['P'],
+    route: '第一路',
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',
   },
@@ -64,12 +82,15 @@ const pendingCustomers: PendingCustomer[] = [
     groupName: '集團B',
     branchId: 'b2',
     branchName: '分店B',
-    status: 'CONFIRMED',
+    status: 'PENDING',
     date: '2024-02-10',
     startTime: '09:00',
     endTime: '12:00',
     headcount: 3,
     shift: '早班',
+    route: '第一路',
+    contents: ['P'],
+    assignees: [{ employeeId: 'emp-1', employeeName: '王大明' }],
     createdAt: '2024-01-02T00:00:00Z',
     updatedAt: '2024-01-02T00:00:00Z',
   },
@@ -79,12 +100,14 @@ const pendingCustomers: PendingCustomer[] = [
     groupName: '集團A',
     branchId: 'b1',
     branchName: '分店A',
-    status: 'CONVERTED',
+    status: 'PENDING',
     date: '2024-03-01',
     startTime: '08:00',
     endTime: '10:00',
     headcount: 1,
     shift: '早班',
+    route: '第一路',
+    contents: ['P'],
     createdAt: '2024-01-03T00:00:00Z',
     updatedAt: '2024-01-03T00:00:00Z',
   },
@@ -154,71 +177,70 @@ describe('PendingCustomerPage', () => {
 
   describe('待定客戶列表 - Requirement 14.1', () => {
     it('renders table with required columns and data', () => {
-      render(<PendingCustomerPage />);
+      renderWithClient(<PendingCustomerPage />);
 
+      expect(screen.getAllByText('建立時間').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('集團').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('分店').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('狀態').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('人數').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('日期').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('人數需求').length).toBeGreaterThanOrEqual(1);
 
       expect(screen.getAllByText('集團A').length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText('集團B')).toBeInTheDocument();
     });
 
-    it('renders status tags with correct labels', () => {
-      render(<PendingCustomerPage />);
+    it('renders pending placeholders for unassigned date and time', () => {
+      renderWithClient(<PendingCustomerPage />);
 
-      expect(screen.getByText('待確認')).toBeInTheDocument();
-      expect(screen.getByText('已確認')).toBeInTheDocument();
-      expect(screen.getByText('已轉換')).toBeInTheDocument();
+      expect(screen.getAllByText('待排').length).toBeGreaterThanOrEqual(1);
     });
   });
 
   describe('新增/編輯待定客戶 - Requirement 14.2', () => {
-    it('opens create modal with empty form when 新增待定客戶 is clicked', async () => {
+    it('opens create modal with empty form when 新增待排客戶 is clicked', async () => {
       const user = userEvent.setup();
-      render(<PendingCustomerPage />);
+      renderWithClient(<PendingCustomerPage />);
 
-      await user.click(screen.getByRole('button', { name: /新增待定客戶/ }));
+      await user.click(screen.getByRole('button', { name: /新增待排客戶/ }));
 
       const modal = screen.getByRole('dialog');
-      expect(within(modal).getByText('新增待定客戶')).toBeInTheDocument();
-      expect(screen.getByLabelText('集團')).toBeInTheDocument();
-      expect(screen.getByLabelText('人數')).toBeInTheDocument();
+      expect(within(modal).getByText('新增待排客戶表單')).toBeInTheDocument();
+      expect(within(modal).getByRole('combobox', { name: '集團' })).toBeInTheDocument();
+      expect(within(modal).getByLabelText('人數需求')).toBeInTheDocument();
     });
 
     it('opens edit modal pre-filled with row data when row is clicked', async () => {
       const user = userEvent.setup();
-      render(<PendingCustomerPage />);
+      renderWithClient(<PendingCustomerPage />);
 
       const rows = screen.getAllByText('集團A');
       await user.click(rows[0]!);
 
       await waitFor(() => {
-        expect(screen.getByText('編輯待定客戶')).toBeInTheDocument();
+        expect(screen.getByText('編輯待排客戶表單')).toBeInTheDocument();
       });
     });
 
     it('submits create mutation with form values when saving a new pending customer', async () => {
       const user = userEvent.setup();
-      render(<PendingCustomerPage />);
+      renderWithClient(<PendingCustomerPage />);
 
-      await user.click(screen.getByRole('button', { name: /新增待定客戶/ }));
+      await user.click(screen.getByRole('button', { name: /新增待排客戶/ }));
 
       const modal = screen.getByRole('dialog');
-      await user.click(within(modal).getByLabelText('集團'));
+      await user.click(within(modal).getByRole('combobox', { name: '集團' }));
       const groupOptions = await screen.findAllByText('集團A');
       await user.click(groupOptions[groupOptions.length - 1]!);
 
-      await user.click(within(modal).getByLabelText('分店'));
+      await user.click(within(modal).getByRole('combobox', { name: '分店' }));
       const branchOptions = await screen.findAllByText('分店A');
       await user.click(branchOptions[branchOptions.length - 1]!);
 
-      const headcountInput = within(modal).getByLabelText('人數');
+      const headcountInput = within(modal).getByLabelText('人數需求');
       await user.clear(headcountInput);
       await user.type(headcountInput, '5');
 
-      await user.click(within(modal).getByText('OK'));
+      await user.click(within(modal).getByRole('button', { name: /確定/ }));
 
       await waitFor(() => {
         expect(mockCreateMutateAsync).toHaveBeenCalledWith(
@@ -232,28 +254,27 @@ describe('PendingCustomerPage', () => {
     });
   });
 
-  describe('轉換為正式任務 - Requirement 14.3', () => {
-    it('shows 轉換 action for PENDING and CONFIRMED rows but not CONVERTED', () => {
-      render(<PendingCustomerPage />);
+  describe('排定任務 - Requirement 14.3', () => {
+    it('shows 排定任務 action buttons for pending rows', () => {
+      renderWithClient(<PendingCustomerPage />);
 
-      const convertButtons = screen.getAllByLabelText('轉換為正式任務');
-      // p1 (PENDING) and p2 (CONFIRMED) should have convert action, p3 (CONVERTED) should not
-      expect(convertButtons.length).toBe(2);
+      const convertButtons = screen.getAllByRole('button', { name: /排定任務/ });
+      expect(convertButtons.length).toBe(3);
     });
 
     it('opens convert modal pre-filled with existing values and submits convert mutation', async () => {
       const user = userEvent.setup();
-      render(<PendingCustomerPage />);
+      renderWithClient(<PendingCustomerPage />);
 
-      const convertButtons = screen.getAllByLabelText('轉換為正式任務');
+      const convertButtons = screen.getAllByRole('button', { name: /排定任務/ });
       await user.click(convertButtons[1]!); // p2 has date/startTime/endTime/shift pre-filled
 
       await waitFor(() => {
-        expect(screen.getByText('轉換為正式任務')).toBeInTheDocument();
+        expect(screen.getByText('排定任務表單')).toBeInTheDocument();
       });
 
       const modal = screen.getByRole('dialog');
-      await user.click(within(modal).getByText('OK'));
+      await user.click(within(modal).getByRole('button', { name: /確定/ }));
 
       await waitFor(() => {
         expect(mockConvertMutateAsync).toHaveBeenCalledWith(
@@ -273,10 +294,10 @@ describe('PendingCustomerPage', () => {
   });
 
   describe('匯出 Excel - Requirement 14.4', () => {
-    it('renders export button provided by BaseTable', () => {
-      render(<PendingCustomerPage />);
+    it('renders export button with 列表匯出', () => {
+      renderWithClient(<PendingCustomerPage />);
 
-      expect(screen.getByText('匯出')).toBeInTheDocument();
+      expect(screen.getByText('列表匯出')).toBeInTheDocument();
     });
   });
 });

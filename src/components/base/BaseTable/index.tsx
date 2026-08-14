@@ -75,6 +75,8 @@ export interface BaseTableProps<T extends object> {
   toolbarExtra?: ReactNode;
   /** 依資料列回傳額外的 CSS class（例如標示已修改的資料列），桌面表格與行動卡片檢視皆會套用 */
   rowClassName?: (record: T) => string;
+  /** 當分頁頁碼或每頁筆數變更時的回呼函式（支援頁碼框輸入跳頁） */
+  onPaginationChange?: (page: number, pageSize: number) => void;
 }
 
 function BaseTable<T extends object>({
@@ -87,6 +89,7 @@ function BaseTable<T extends object>({
   rowKey = 'id',
   toolbarExtra,
   rowClassName,
+  onPaginationChange,
 }: BaseTableProps<T>) {
   const { t } = useTranslation();
   // T 為泛型參數，代表單筆資料的型別；queryHook 由呼叫端注入，
@@ -129,9 +132,10 @@ function BaseTable<T extends object>({
           page: paginationConfig.current,
           pageSize: paginationConfig.pageSize,
         });
+        onPaginationChange?.(paginationConfig.current, paginationConfig.pageSize);
       }
     },
-    [],
+    [onPaginationChange],
   );
 
   // 依 columns 設定組出匯出 Excel 所需的欄位定義，
@@ -209,18 +213,25 @@ function BaseTable<T extends object>({
               total: data.total,
               onChange: (page, pageSize) => {
                 setPagination({ page, pageSize });
+                onPaginationChange?.(page, pageSize);
               },
               size: 'small',
               showSizeChanger: false,
+              showQuickJumper: false,
             }}
             renderItem={(item) => (
-              <List.Item key={getRowKey(item)} style={{ display: 'block' }}>
+              <List.Item
+                key={getRowKey(item)}
+                style={{ display: 'block', padding: 0, marginBottom: 8 }}
+              >
                 <div
-                  className={['base-table-mobile-card', rowClassName?.(item)]
-                    .filter(Boolean)
-                    .join(' ')}
+                  className="base-table-mobile-card-container"
                   onClick={() => onRowClick?.(item)}
-                  style={{ cursor: onRowClick ? 'pointer' : 'default' }}
+                  style={{
+                    cursor: onRowClick ? 'pointer' : 'default',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
                   role={onRowClick ? 'button' : undefined}
                   tabIndex={onRowClick ? 0 : undefined}
                   onKeyDown={(e) => {
@@ -275,6 +286,7 @@ function BaseTable<T extends object>({
           total: data?.total ?? 0,
           position: ['bottomCenter'],
           showSizeChanger: true,
+          showQuickJumper: false,
           showTotal: (total) => t('common.totalItems', { total }),
           pageSizeOptions: ['10', '20', '50', '100'],
         }}

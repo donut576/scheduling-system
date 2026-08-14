@@ -9,6 +9,7 @@ export interface ApprovalListParams {
   page?: number; // 目前頁碼
   pageSize?: number; // 每頁筆數
   status?: string; // 審核狀態篩選條件
+  type?: string; // 審核類型篩選條件
 }
 
 export const approvalApi = {

@@ -1,9 +1,9 @@
 /**
  * 測試對象：EmployeeSelect 元件
- * 驗證篩選控制項與員工按鈕渲染、休假員工停用邏輯、
+ * 驗證依「組別」與「證照」篩選控制項與員工按鈕渲染、休假員工標示、
  * 證照符合／不符合圖示顯示，以及選取/取消選取回呼行為。
  */
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -34,7 +34,7 @@ const mockEmployees: Employee[] = [
     position: 'LEADER',
     groupId: 'group-b',
     groupName: 'B組',
-    area: '高雄',
+    area: '台中',
     shift: '晚班',
     groupColor: '#52c41a',
     designatedLeaves: [],
@@ -84,20 +84,20 @@ describe('EmployeeSelect', () => {
     onChange = vi.fn();
   });
 
-  it('renders the filter controls and a toggle button per employee', () => {
+  it('renders the filter controls (地區 & 班別 & 證照) and a toggle button per employee', () => {
     renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} />);
 
-    expect(screen.getByText('篩選組別')).toBeInTheDocument();
-    expect(screen.getByText('篩選證照')).toBeInTheDocument();
-    expect(screen.getByText('休假狀態')).toBeInTheDocument();
+    expect(screen.getByText('地區')).toBeInTheDocument();
+    expect(screen.getByText('班別')).toBeInTheDocument();
+    expect(screen.getByText('證照')).toBeInTheDocument();
 
     expect(screen.getByRole('group', { name: '指派員工' })).toBeInTheDocument();
-    expect(screen.getByText('王大明')).toBeInTheDocument();
-    expect(screen.getByText('李小華')).toBeInTheDocument();
-    expect(screen.getByText('陳志成')).toBeInTheDocument();
+    expect(screen.getByText(/王大明/)).toBeInTheDocument();
+    expect(screen.getByText(/李小華/)).toBeInTheDocument();
+    expect(screen.getByText(/陳志成/)).toBeInTheDocument();
   });
 
-  it('marks employees on leave as disabled (not clickable) when date is provided', () => {
+  it('marks employees on leave with a tag when date is provided', () => {
     renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} date="2024-12-25" />);
 
     // 王大明 and 陳志成 are on leave on 2024-12-25
@@ -126,7 +126,7 @@ describe('EmployeeSelect', () => {
     const user = userEvent.setup();
     renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} />);
 
-    await user.click(screen.getByText('李小華'));
+    await user.click(screen.getByText(/李小華/));
     expect(onChange).toHaveBeenCalledWith(['emp-2']);
   });
 
@@ -134,29 +134,35 @@ describe('EmployeeSelect', () => {
     const user = userEvent.setup();
     renderWithProvider(<EmployeeSelect value={['emp-1', 'emp-2']} onChange={onChange} />);
 
-    await user.click(screen.getByText('李小華'));
+    await user.click(screen.getByText(/李小華/));
     expect(onChange).toHaveBeenCalledWith(['emp-1']);
   });
 
-  it('does not call onChange when clicking an employee on leave', () => {
+  it('allows clicking an employee on leave so alarm can be triggered upon submit', async () => {
+    const user = userEvent.setup();
     renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} date="2024-12-25" />);
 
-    // The button is styled with pointer-events: none (blocking real user clicks);
-    // fireEvent bypasses that hit-testing to directly verify the handler's own guard.
-    fireEvent.click(screen.getByText('王大明'));
-    expect(onChange).not.toHaveBeenCalled();
+    await user.click(screen.getByText(/王大明/));
+    expect(onChange).toHaveBeenCalledWith(['emp-1']);
   });
 
-  it('filters the visible employees by group', async () => {
+  it('filters the visible employees by area and shift', async () => {
     const user = userEvent.setup();
     renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} />);
 
-    const groupFilter = screen.getByRole('combobox', { name: '篩選組別' });
-    await user.click(groupFilter);
-    await user.click(await screen.findByTitle('A組'));
+    const areaFilter = screen.getByRole('combobox', { name: '篩選地區' });
+    await user.click(areaFilter);
+    await user.click(await screen.findByTitle('台北'));
 
-    expect(screen.getByText('王大明')).toBeInTheDocument();
-    expect(screen.getByText('陳志成')).toBeInTheDocument();
-    expect(screen.queryByText('李小華')).not.toBeInTheDocument();
+    expect(screen.getByText(/王大明/)).toBeInTheDocument();
+    expect(screen.getByText(/陳志成/)).toBeInTheDocument();
+    expect(screen.queryByText(/李小華/)).not.toBeInTheDocument();
+
+    const shiftFilter = screen.getByRole('combobox', { name: '篩選班別' });
+    await user.click(shiftFilter);
+    await user.click(await screen.findByTitle('早班'));
+
+    expect(screen.getByText(/王大明/)).toBeInTheDocument();
+    expect(screen.getByText(/陳志成/)).toBeInTheDocument();
   });
 });

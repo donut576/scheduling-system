@@ -64,7 +64,8 @@ export function useCreateTask() {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['approvals'] });
     },
   });
 }
@@ -83,10 +84,11 @@ export function useUpdateTask() {
       return response.data.data;
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({
         queryKey: taskKeys.detail(variables.id),
       });
+      queryClient.invalidateQueries({ queryKey: ['approvals'] });
     },
   });
 }

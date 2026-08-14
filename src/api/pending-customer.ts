@@ -10,6 +10,9 @@ export interface PendingCustomerListParams {
   pageSize?: number; // 每頁筆數
   status?: string; // 依狀態篩選
   groupId?: string; // 依客戶群組篩選
+  branchId?: string; // 依分店篩選
+  startDate?: string; // 開始日期
+  endDate?: string; // 結束日期
 }
 
 // 新增或編輯待處理客戶時使用的表單資料結構
@@ -21,6 +24,10 @@ export interface PendingCustomerFormData {
   endTime?: string; // 結束時間
   headcount: number; // 需求人數
   shift?: string; // 班別
+  route?: string; // 路次
+  contents?: string[]; // 工作內容
+  otherContentNote?: string; // 其他內容說明
+  assignees?: { employeeId: string; employeeName: string }[]; // 指派人員
   remarks?: string; // 備註
 }
 
@@ -31,6 +38,11 @@ export interface ConvertToTaskData {
   endTime: string; // 結束時間
   shift: string; // 班別
   headcount: number; // 需求人數
+  route?: string; // 路次
+  contents?: string[]; // 工作內容
+  otherContentNote?: string; // 其他內容說明
+  assignees?: { employeeId: string; employeeName: string }[]; // 指派人員
+  remarks?: string; // 備註
 }
 
 export const pendingCustomerApi = {

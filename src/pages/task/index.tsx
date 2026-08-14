@@ -1,6 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Button, Modal, Card, Space, Tag, Dropdown, Select, DatePicker, Tabs } from 'antd';
-import { PlusOutlined, EditOutlined, DownOutlined, DownloadOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  EditOutlined,
+  DownOutlined,
+  DownloadOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
@@ -8,33 +14,27 @@ import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/B
 import TaskForm from '@/components/business/TaskForm';
 import PendingCustomerPage from '@/pages/pending-customer';
 import ApprovalPage from '@/pages/approval';
+import { taskApi } from '@/api/task';
 import { useTaskList, useCreateTask, useUpdateTask } from '@/queries/useTaskQueries';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useTaskStore } from '@/stores/useTaskStore';
 import { usePermissionStore } from '@/stores/usePermissionStore';
-import { TASK_STATUS_MAP } from '@/constants/taskStatus';
+import { TASK_STATUS_MAP, TASK_STATUS_OPTIONS, formatTaskContents } from '@/constants/taskStatus';
 import { exportToExcel, type ExcelColumn } from '@/utils/excel';
 import type { Task, TaskFormData, TaskStatus } from '@/types/task';
 import type { CustomerGroup } from '@/types/customer';
 import type { PaginatedResponse } from '@/types/common';
 
-/**
- * 任務建立及一覽頁面
- * 整合 BaseTable + BaseSearchForm，提供完整任務瀏覽、搜尋、匯出功能
- *
- * Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5, 6.1, 6.3
- */
-
-const TASK_STATUS_OPTIONS = Object.entries(TASK_STATUS_MAP).map(([value, { label }]) => ({
-  label,
-  value,
-}));
-
 const getTaskExportColumns = (t: (key: string) => string): ExcelColumn<Task>[] => [
   {
     header: t('task.status'),
-    key: (record) => TASK_STATUS_MAP[record.status]?.label ?? record.status,
-    width: 12,
+    key: (record) => {
+      if (record.status === 'MODIFIED') {
+        return record.isApproved ? '更改 (已確認)' : '更改 (待審核)';
+      }
+      return TASK_STATUS_MAP[record.status]?.label ?? record.status;
+    },
+    width: 16,
   },
   { header: t('task.group'), key: 'groupName', width: 22 },
   { header: t('task.branch'), key: 'branchName', width: 18 },
@@ -50,7 +50,7 @@ const getTaskExportColumns = (t: (key: string) => string): ExcelColumn<Task>[] =
   { header: t('task.route'), key: (record) => record.route ?? '', width: 16 },
   {
     header: t('task.content'),
-    key: (record) => (Array.isArray(record.contents) ? record.contents.join(', ') : ''),
+    key: (record) => formatTaskContents(record.contents, ', '),
     width: 20,
   },
   {
@@ -114,9 +114,23 @@ function baseColumns(
       dataIndex: 'status',
       key: 'status',
       width: 90,
-      render: (value) => {
+      render: (value, record) => {
+        if (record.status === 'MODIFIED') {
+          return (
+            <Tag
+              color={record.isApproved ? '#1677FF' : '#F5222D'}
+              style={{ color: '#ffffff', fontWeight: 600 }}
+            >
+              更改
+            </Tag>
+          );
+        }
         const config = TASK_STATUS_MAP[value as TaskStatus];
-        return <Tag color={config?.color}>{config?.label ?? (value as string)}</Tag>;
+        return (
+          <Tag color={config?.color} style={{ color: '#ffffff', fontWeight: 600 }}>
+            {config?.label ?? (value as string)}
+          </Tag>
+        );
       },
       exportHeader: t('task.status'),
       exportKey: (record) => TASK_STATUS_MAP[record.status]?.label ?? record.status,
@@ -197,10 +211,9 @@ function baseColumns(
       key: 'contents',
       width: 140,
       ellipsis: true,
-      render: (_value, record) =>
-        Array.isArray(record.contents) ? record.contents.join(', ') : '',
+      render: (_value, record) => formatTaskContents(record.contents, ', '),
       exportHeader: t('task.content'),
-      exportKey: (record) => (Array.isArray(record.contents) ? record.contents.join(', ') : ''),
+      exportKey: (record) => formatTaskContents(record.contents, ', '),
     },
     {
       title: t('task.assignees'),
@@ -227,15 +240,36 @@ function baseColumns(
  * Validates: Requirements 16.1
  */
 function renderTaskCard(record: Task, t: (key: string) => string) {
-  const statusConfig = TASK_STATUS_MAP[record.status];
+  const isApproved = Boolean(record.isApproved);
+  const cardClassName =
+    record.status === 'MODIFIED'
+      ? isApproved
+        ? 'row-modified-approved'
+        : 'row-modified-pending'
+      : '';
+  const tagColor =
+    record.status === 'MODIFIED'
+      ? isApproved
+        ? '#1677FF'
+        : '#F5222D'
+      : TASK_STATUS_MAP[record.status]?.color;
+  const tagLabel = TASK_STATUS_MAP[record.status]?.label ?? record.status;
+
   return (
-    <Card size="small" style={{ marginBottom: 8 }} data-testid={`task-card-${record.id}`}>
+    <Card
+      size="small"
+      className={cardClassName}
+      style={{ width: '100%', boxSizing: 'border-box' }}
+      data-testid={`task-card-${record.id}`}
+    >
       <Space direction="vertical" size={4} style={{ width: '100%' }}>
         <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
           <strong>
             {record.groupName} {record.branchName}
           </strong>
-          <Tag color={statusConfig?.color}>{statusConfig?.label ?? record.status}</Tag>
+          <Tag color={tagColor} style={{ color: '#ffffff', fontWeight: 600 }}>
+            {tagLabel}
+          </Tag>
         </Space>
         <span>
           {record.date} {record.startTime} - {record.endTime}
@@ -246,7 +280,7 @@ function renderTaskCard(record: Task, t: (key: string) => string) {
         </span>
         {Array.isArray(record.contents) && record.contents.length > 0 && (
           <span>
-            {t('task.content')}：{record.contents.join('、')}
+            {t('task.content')}：{formatTaskContents(record.contents, '、')}
           </span>
         )}
         {Array.isArray(record.assignees) && record.assignees.length > 0 && (
@@ -300,10 +334,11 @@ function TaskPage() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const hasPermission = usePermissionStore((state) => state.hasPermission);
-  const { filters, setFilters } = useTaskStore();
+  const { filters, setFilters, resetFilters } = useTaskStore();
   const taskListQuery = useTaskList(filters) as QueryResult<PaginatedResponse<Task>>;
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const createMutation = useCreateTask();
   const updateMutation = useUpdateTask();
 
@@ -366,10 +401,39 @@ function TaskPage() {
     setModalOpen(true);
   }, []);
 
-  // 匯出目前查詢結果之任務列表為 Excel 檔案
-  const handleExportTasks = useCallback(() => {
-    exportToExcel(taskListQuery.data?.list ?? [], getTaskExportColumns(t), `tasks_${Date.now()}`);
-  }, [taskListQuery.data?.list, t]);
+  // 匯出目前篩選結果之任務列表為 Excel 檔案
+  const handleExportTasks = useCallback(async () => {
+    try {
+      setIsExporting(true);
+      // 根據當前篩選狀態（狀態、集團、分店、日期區間等）取得符合條件之完整資料
+      const response = await taskApi.list({ ...filters, page: 1, pageSize: 10000 });
+      const tasksToExport = response.data.data.list ?? [];
+
+      const filterSummary: string[] = [];
+      if (filters.status) {
+        filterSummary.push(`狀態-${TASK_STATUS_MAP[filters.status]?.label ?? filters.status}`);
+      }
+      if (filters.startDate || filters.endDate) {
+        filterSummary.push(`日期-${filters.startDate || ''}~${filters.endDate || ''}`);
+      }
+      const filenameSuffix = filterSummary.length > 0 ? `_${filterSummary.join('_')}` : '';
+
+      exportToExcel(
+        tasksToExport,
+        getTaskExportColumns(t),
+        `任務列表${filenameSuffix}_${dayjs().format('YYYYMMDD_HHmmss')}`,
+      );
+    } catch (err) {
+      console.error('Export failed', err);
+      exportToExcel(
+        taskListQuery.data?.list ?? [],
+        getTaskExportColumns(t),
+        `任務列表_${Date.now()}`,
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  }, [filters, t, taskListQuery.data?.list]);
 
   // 關閉新增/編輯任務 Modal
   const handleModalClose = useCallback(() => {
@@ -400,7 +464,7 @@ function TaskPage() {
           options={TASK_STATUS_OPTIONS}
           placeholder={t('task.selectStatus')}
           allowClear
-          style={{ width: 160 }}
+          style={{ width: 140 }}
           onChange={handleStatusFilter}
         />
       </ColumnFilterTitle>
@@ -440,7 +504,9 @@ function TaskPage() {
             filters.startDate ? dayjs(filters.startDate) : null,
             filters.endDate ? dayjs(filters.endDate) : null,
           ]}
+          placeholder={[t('task.selectStartDate'), t('task.selectEndDate')]}
           format="YYYY-MM-DD"
+          allowClear
           onChange={handleDateFilter}
         />
       </ColumnFilterTitle>
@@ -466,16 +532,41 @@ function TaskPage() {
     t,
   ]);
 
-  const rowClassName = useCallback(
-    (record: Task) => (record.status === 'MODIFIED' ? 'row-modified' : ''),
-    [],
-  );
+  const rowClassName = useCallback((record: Task) => {
+    if (record.status === 'MODIFIED') {
+      return record.isApproved ? 'row-modified-approved' : 'row-modified-pending';
+    }
+    return '';
+  }, []);
 
   const useCurrentTaskListQuery = useCallback(() => taskListQuery, [taskListQuery]);
 
+  const hasActiveFilters = Boolean(
+    filters.status ||
+    filters.groupId ||
+    filters.branchId ||
+    filters.startDate ||
+    filters.endDate ||
+    filters.keyword,
+  );
+
   const taskListContent = (
     <>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+        }}
+      >
+        <div>
+          {hasActiveFilters && (
+            <Button icon={<ReloadOutlined />} onClick={() => resetFilters()}>
+              一鍵清除篩選條件
+            </Button>
+          )}
+        </div>
         <Space>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateClick}>
             {t('task.create')}
@@ -483,9 +574,10 @@ function TaskPage() {
           <Button
             icon={<DownloadOutlined />}
             onClick={handleExportTasks}
-            disabled={!taskListQuery.data?.list?.length}
+            loading={isExporting}
+            disabled={!taskListQuery.data?.total}
           >
-            {t('common.export')}
+            列表匯出
           </Button>
         </Space>
       </div>
@@ -497,14 +589,15 @@ function TaskPage() {
         cardRender={(record) => renderTaskCard(record, t)}
         rowKey="id"
         rowClassName={rowClassName}
+        onPaginationChange={(page, pageSize) => setFilters({ page, pageSize })}
       />
 
       <Modal
-        title={editingTask ? t('task.detailEdit') : t('task.create')}
+        title={editingTask ? '編輯任務表單' : '新增任務表單'}
         open={modalOpen}
         onCancel={handleModalClose}
         footer={null}
-        width={1040}
+        width={980}
         destroyOnClose
       >
         {modalOpen && (

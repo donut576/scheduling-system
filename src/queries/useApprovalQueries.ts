@@ -48,8 +48,9 @@ export function useApproveRequest() {
       return response.data.data;
     },
     onSuccess: () => {
-      // 核准成功後，讓所有審核列表快取失效，觸發重新查詢以取得最新狀態
+      // 核准成功後，讓所有審核列表與任務列表快取失效，觸發重新查詢以取得最新狀態
       queryClient.invalidateQueries({ queryKey: approvalKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 }
@@ -70,8 +71,9 @@ export function useRejectRequest() {
       return response.data.data;
     },
     onSuccess: () => {
-      // 拒絕成功後，同樣讓審核列表快取失效以重新取得最新資料
+      // 拒絕成功後，同樣讓審核列表與任務列表快取失效以重新取得最新資料
       queryClient.invalidateQueries({ queryKey: approvalKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 }

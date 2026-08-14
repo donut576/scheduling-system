@@ -125,13 +125,13 @@ describe('BaseTable', () => {
   it('renders export button when exportable is true', () => {
     render(<BaseTable columns={columns} queryHook={createMockQueryHook()} exportable />);
 
-    expect(screen.getByText('匯出')).toBeInTheDocument();
+    expect(screen.getByText('列表匯出')).toBeInTheDocument();
   });
 
   it('does not render export button when exportable is false', () => {
     render(<BaseTable columns={columns} queryHook={createMockQueryHook()} exportable={false} />);
 
-    expect(screen.queryByText('匯出')).not.toBeInTheDocument();
+    expect(screen.queryByText('列表匯出')).not.toBeInTheDocument();
   });
 
   it('shows error message on error state', () => {
@@ -239,7 +239,7 @@ describe('BaseTable', () => {
         />,
       );
 
-      expect(screen.getByText('匯出')).toBeInTheDocument();
+      expect(screen.getByText('列表匯出')).toBeInTheDocument();
     });
 
     it('supports keyboard navigation on cards when onRowClick provided', () => {

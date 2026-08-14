@@ -3,7 +3,7 @@
  * 使用 mock 的 ConflictPanel、EmployeeSelect、RecurrenceEditor 及查詢 hooks，
  * 驗證表單欄位渲染、集團→分店連動、必填驗證等表單層行為。
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -136,10 +136,10 @@ vi.mock('@/stores/useTaskStore', () => ({
 }));
 
 vi.mock('@/components/business/EmployeeSelect', () => ({
-  default: ({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) => (
+  default: ({ value = [], onChange }: { value?: string[]; onChange?: (ids: string[]) => void }) => (
     <div data-testid="employee-select">
-      <span>Selected: {value.length}</span>
-      <button onClick={() => onChange(['emp-1'])}>Select Employee</button>
+      <span>Selected: {(value ?? []).length}</span>
+      <button onClick={() => onChange?.(['emp-1'])}>Select Employee</button>
     </div>
   ),
 }));
@@ -201,8 +201,8 @@ describe('TaskForm', () => {
     expect(screen.getByRole('checkbox', { name: '單次' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'ESR' })).toBeInTheDocument();
     expect(screen.getByLabelText('任務日期')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: '開始時間' })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: '結束時間' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '開始時間 (小時)' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '結束時間 (小時)' })).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: '人數需求' })).toBeInTheDocument();
     // 內容 is rendered as checkboxes (mocked useDictStore contents: P/R/S)
     expect(screen.getByRole('checkbox', { name: 'P' })).toBeInTheDocument();
@@ -274,39 +274,27 @@ describe('TaskForm', () => {
     expect(screen.getByText(/若結束時間早於起始時間，將自動視為跨日任務/)).toBeInTheDocument();
   });
 
-  it('shows recurrence editor when checkbox is toggled', async () => {
+  it('renders recurrence editor when 有週期 is selected and toggles with 無週期', async () => {
     const user = userEvent.setup();
     renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
 
-    // Initially recurrence editor should not be visible
+    expect(screen.getByRole('radio', { name: '有週期' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '無週期' })).toBeInTheDocument();
+    expect(screen.getByTestId('recurrence-editor')).toBeInTheDocument();
+
+    await user.click(screen.getByText('無週期'));
     expect(screen.queryByTestId('recurrence-editor')).not.toBeInTheDocument();
-
-    // Toggle on
-    const toggle = screen.getByRole('checkbox', { name: '啟用週期' });
-    await user.click(toggle);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('recurrence-editor')).toBeInTheDocument();
-    });
   });
 
   it('clears all fields and local state back to defaults when 全部清除 is clicked', async () => {
     const user = userEvent.setup();
     renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
 
-    // Enable recurrence (local component state, independent of AntD Form internals)
-    // so we can reliably observe it being reset back to off.
-    await user.click(screen.getByRole('checkbox', { name: '啟用週期' }));
-    await waitFor(() => {
-      expect(screen.getByTestId('recurrence-editor')).toBeInTheDocument();
-    });
+    expect(screen.getByTestId('recurrence-editor')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '全部清除' }));
 
-    await waitFor(() => {
-      expect(screen.queryByTestId('recurrence-editor')).not.toBeInTheDocument();
-    });
-    expect(screen.getByRole('checkbox', { name: '啟用週期' })).not.toBeChecked();
+    expect(screen.getByTestId('recurrence-editor')).toBeInTheDocument();
   });
 
   it('shows the free-text note field only when 其他 is checked in 內容', async () => {
@@ -317,7 +305,7 @@ describe('TaskForm', () => {
 
     await user.click(screen.getByRole('checkbox', { name: '其他' }));
 
-    expect(screen.getByLabelText('其他內容說明')).toBeInTheDocument();
+    expect(await screen.findByLabelText('其他內容說明')).toBeInTheDocument();
   });
 
   it('renders the task-form data-testid', () => {

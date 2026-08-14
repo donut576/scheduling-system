@@ -7,10 +7,8 @@ import type { SelectOption } from '@/types/common';
 export const AREA_OPTIONS: SelectOption[] = [
   { label: '台北', value: '台北' },
   { label: '新竹', value: '新竹' },
-  { label: '台中', value: '台中' },
   { label: '台南', value: '台南' },
-  { label: '高雄', value: '高雄' },
-  { label: '桃園', value: '桃園' },
+  { label: '台中', value: '台中' },
 ];
 
 /**

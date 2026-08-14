@@ -77,7 +77,7 @@ const employees: Employee[] = [
     position: 'LEADER',
     groupId: 'group-b',
     groupName: '南區',
-    area: '高雄',
+    area: '台南',
     shift: '晚班',
     groupColor: '#52c41a',
     designatedLeaves: [],

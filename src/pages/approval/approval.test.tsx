@@ -203,4 +203,12 @@ describe('ApprovalPage', () => {
       });
     });
   });
+
+  describe('匯出 Excel - Requirement 13.4', () => {
+    it('renders export button with 列表匯出', () => {
+      render(<ApprovalPage />);
+
+      expect(screen.getByText('列表匯出')).toBeInTheDocument();
+    });
+  });
 });

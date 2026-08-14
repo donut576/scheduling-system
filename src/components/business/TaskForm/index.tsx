@@ -2,11 +2,10 @@
  * TaskForm 元件
  *
  * 業務用途：建立/編輯排班任務之主表單，整合集團→分店連動選擇、員工指派、
- * 週期規則設定，並於送出前執行前端警示規則預檢（如證照不符、人數不足、
- * 連續工作超時等），若偵測到違規則顯示 ConflictPanel 供使用者檢視或覆蓋。
- * 編輯週期任務實例時，會另外詢問修改範圍（僅此次／此次及之後）。
+ * 循環頻率設定，並於送出前執行前端警示規則預檢（證照資格、連續7日上班、日工時超10H、
+ * 時段重複、指定休假等）。若偵測到違規則跳出警示並要求填寫必填備註說明後覆蓋排入。
  */
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   Form,
   Select,
@@ -17,9 +16,11 @@ import {
   Space,
   Divider,
   Checkbox,
+  Radio,
   Typography,
   Row,
   Col,
+  Card,
 } from 'antd';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -34,9 +35,9 @@ import { useEmployeeList } from '@/queries/useEmployeeQueries';
 import { useTaskList } from '@/queries/useTaskQueries';
 import { runAlertChecks } from '@/utils/alertRules';
 import { isHoliday } from '@/utils/date';
-import { TIME_OPTIONS } from '@/constants/timeOptions';
 import { HOLIDAYS_2026 } from '@/constants/holidays';
 import EmployeeSelect from '@/components/business/EmployeeSelect';
+import TimeSelect from '@/components/business/TimeSelect';
 import RecurrenceEditor from '@/components/business/RecurrenceEditor';
 import ConflictPanel from '@/components/business/ConflictPanel';
 import RecurrenceModifyScopeDialog from './RecurrenceModifyScope';
@@ -66,7 +67,7 @@ const TaskTypeCheckboxGroup: React.FC<TaskTypeCheckboxGroupProps> = ({
   onChange,
   options,
 }) => (
-  <Space>
+  <Space size="large" wrap>
     {options.map((opt) => (
       <Checkbox
         key={opt.value}
@@ -75,25 +76,30 @@ const TaskTypeCheckboxGroup: React.FC<TaskTypeCheckboxGroupProps> = ({
           if (e.target.checked) onChange?.(opt.value as TaskType);
         }}
       >
-        {opt.label}
+        <span style={{ fontSize: 14, fontWeight: value === opt.value ? 600 : 400 }}>
+          {opt.label}
+        </span>
       </Checkbox>
     ))}
   </Space>
 );
 
+const DEFAULT_RECURRENCE_RULE: RecurrenceRule = {
+  frequency: 'daily',
+  interval: 1,
+  endType: 'never',
+};
+
 /**
  * TaskForm - 任務建立/編輯表單
- * 整合集團→分店連動、警示引擎預檢、ConflictPanel 違規顯示
- *
- * Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8
  */
 const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCancel }) => {
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
-  const [enableRecurrence, setEnableRecurrence] = useState(!!initialData?.recurrenceRule);
-  const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule | undefined>(
-    initialData?.recurrenceRule,
+  const [enableRecurrence, setEnableRecurrence] = useState(true);
+  const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule>(
+    initialData?.recurrenceRule ?? DEFAULT_RECURRENCE_RULE,
   );
   const [alertResults, setAlertResults] = useState<AlertValidationResult | null>(null);
   const [showModifyScope, setShowModifyScope] = useState(false);
@@ -118,6 +124,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
   const watchDate = Form.useWatch('date', form);
   const watchBranchId = Form.useWatch('branchId', form);
   const assigneesValue: string[] = Form.useWatch('assignees', form) ?? [];
+  const contentsValue: TaskContent[] = Form.useWatch('contents', form) ?? [];
   const currentDate = watchDate ? dayjs(watchDate).format('YYYY-MM-DD') : undefined;
 
   const { data: existingTaskData } = useTaskList({
@@ -150,30 +157,22 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     }));
   }, [customerGroups]);
 
-  // Get required licenses for selected branch
+  // Compute required licenses from selected branch
   const requiredLicenses = useMemo(() => {
-    if (!selectedGroupId) return [];
+    if (!selectedGroupId || !watchBranchId) return [];
     const group = customerGroups.find((g: CustomerGroup) => g.id === selectedGroupId);
-    if (!group) return [];
-    const branch = group.branches.find((b) => b.id === watchBranchId);
+    const branch = group?.branches.find((b) => b.id === watchBranchId);
     return branch?.requiredLicenses ?? [];
-  }, [selectedGroupId, customerGroups, watchBranchId]);
+  }, [selectedGroupId, watchBranchId, customerGroups]);
 
-  const defaultFormValues = {
-    taskType: 'CONTRACT' as TaskType,
-    headcount: 1,
-    contents: [] as TaskContent[],
-    assignees: [] as string[],
-  };
-
-  // Initialize form values for edit mode
-  useEffect(() => {
-    if (mode === 'edit' && initialData) {
-      form.setFieldsValue({
+  // Form initial values
+  const defaultFormValues = useMemo(() => {
+    if (initialData) {
+      return {
         groupId: initialData.groupId,
         branchId: initialData.branchId,
         taskType: initialData.taskType,
-        date: dayjs(initialData.date),
+        date: initialData.date ? dayjs(initialData.date) : undefined,
         startTime: initialData.startTime,
         endTime: initialData.endTime,
         headcount: initialData.headcount,
@@ -183,21 +182,22 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         otherContentNote: initialData.otherContentNote,
         assignees: initialData.assignees.map((a) => a.employeeId),
         remarks: initialData.remarks,
-      });
-      setSelectedGroupId(initialData.groupId);
-      if (initialData.recurrenceRule) {
-        setEnableRecurrence(true);
-        setRecurrenceRule(initialData.recurrenceRule);
-      }
+      };
     }
-  }, [mode, initialData, form]);
+    return {
+      taskType: 'CONTRACT',
+      headcount: 1,
+      shift: shifts[0]?.value as string,
+      route: routes[0]?.value as string,
+      contents: [],
+    };
+  }, [initialData, shifts, routes]);
 
-  // Handle group change → clear branch
+  // Handle group change: clear branch
   const handleGroupChange = useCallback(
     (groupId: string) => {
       setSelectedGroupId(groupId);
-      form.setFieldValue('branchId', undefined);
-      // Clear alert results when form changes
+      form.setFieldsValue({ branchId: undefined });
       setAlertResults(null);
     },
     [form],
@@ -218,27 +218,33 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
   );
 
   // Build TaskFormData from form values
-  const buildFormData = useCallback((): TaskFormData | null => {
-    const values = form.getFieldsValue(true);
-    if (!values.groupId || !values.branchId || !values.date) return null;
+  const buildFormData = useCallback(
+    (overrideRemark?: string): TaskFormData | null => {
+      const values = form.getFieldsValue(true);
+      if (!values.groupId || !values.branchId) return null;
 
-    return {
-      groupId: values.groupId,
-      branchId: values.branchId,
-      taskType: values.taskType,
-      date: dayjs(values.date).format('YYYY-MM-DD'),
-      startTime: values.startTime,
-      endTime: values.endTime,
-      headcount: values.headcount ?? 1,
-      shift: values.shift ?? '',
-      route: values.route ?? '',
-      contents: values.contents ?? [],
-      otherContentNote: values.contents?.includes('OTHER') ? values.otherContentNote : undefined,
-      assignees: values.assignees ?? [],
-      remarks: values.remarks,
-      recurrence: enableRecurrence ? recurrenceRule : undefined,
-    };
-  }, [form, enableRecurrence, recurrenceRule]);
+      const isOther = values.contents?.includes('OTHER') || values.contents?.includes('其他');
+
+      return {
+        groupId: values.groupId,
+        branchId: values.branchId,
+        taskType: values.taskType || 'CONTRACT',
+        date: values.date ? dayjs(values.date).format('YYYY-MM-DD') : '',
+        startTime: values.startTime || '',
+        endTime: values.endTime || '',
+        headcount: values.headcount ?? 1,
+        shift: values.shift || (shifts[0]?.value as string) || '早班',
+        route: values.route ?? '',
+        contents: values.contents ?? [],
+        otherContentNote: isOther ? values.otherContentNote : undefined,
+        assignees: values.assignees ?? [],
+        remarks: values.remarks,
+        recurrence: enableRecurrence ? recurrenceRule : undefined,
+        overrideRemark: overrideRemark || values.overrideRemark,
+      };
+    },
+    [form, enableRecurrence, recurrenceRule, shifts],
+  );
 
   // 處理 ConflictPanel 之覆蓋操作：使用者確認覆蓋違規並輸入備註後呼叫
   const handleOverride = useCallback(
@@ -246,7 +252,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
       setAlertResults(null);
       setStoreAlertResults(null);
 
-      const formData = buildFormData();
+      const formData = buildFormData(remark);
       if (!formData) return;
 
       // 若正在編輯週期任務實例，覆蓋後仍需先詢問修改範圍，再送出
@@ -256,17 +262,12 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         return;
       }
 
-      // 附上覆蓋備註並送出（非週期任務情境）
       setSubmitting(true);
       try {
         await onSubmit(formData);
       } finally {
         setSubmitting(false);
       }
-      // Note: In full implementation, the override remark would be sent
-      // to the API via taskApi.overrideWarning. Here we trust the parent
-      // to handle override logic with the remark.
-      void remark;
     },
     [buildFormData, onSubmit, setStoreAlertResults, isRecurringTask],
   );
@@ -290,7 +291,6 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
       setShowModifyScope(false);
       if (!pendingFormData) return;
 
-      // Attach the modify scope to the form data
       const dataWithScope = {
         ...pendingFormData,
         recurrenceModifyScope: scope,
@@ -308,30 +308,30 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     setPendingFormData(null);
   }, []);
 
-  // 表單送出處理：先執行前端警示規則預檢，若有違規則暫停送出並顯示 ConflictPanel
+  // 表單送出處理：先執行前端警示規則預檢，若有違規則暫停送出並顯示 ConflictPanel 要求必填備註
   const handleFinish = useCallback(async () => {
     const formData = buildFormData();
     if (!formData) return;
 
-    // 組合警示規則檢查所需之上下文資料（現有員工、當日既有任務、證照需求、假日清單）
-    const alertContext: AlertContext = {
-      employees,
-      existingTasks,
-      customerLicenses: requiredLicenses,
-      holidays,
-    };
+    // 當已填寫日期與時間時，執行排班預檢（含人數不足、證照不符、連續上班等）
+    if (formData.date && formData.startTime && formData.endTime) {
+      const alertContext: AlertContext = {
+        employees,
+        existingTasks,
+        customerLicenses: requiredLicenses,
+        holidays,
+      };
 
-    // 執行前端預檢（Requirement 3.7）：偵測證照不符、人數不足、連續工作超時等違規
-    const result = runAlertChecks(formData, alertContext);
+      const result = runAlertChecks(formData, alertContext);
 
-    if (!result.isValid) {
-      // 有違規時暫停送出，交由 ConflictPanel 顯示違規清單並等待使用者覆蓋或修改
-      setAlertResults(result);
-      setStoreAlertResults(result);
-      return;
+      if (!result.isValid) {
+        setAlertResults(result);
+        setStoreAlertResults(result);
+        return;
+      }
     }
 
-    // 若正在編輯週期任務實例，送出前先詢問修改範圍（僅此次／此次及之後）
+    // 若正在編輯週期任務實例，送出前先詢問修改範圍
     if (isRecurringTask) {
       setPendingFormData(formData);
       setShowModifyScope(true);
@@ -351,210 +351,240 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     setStoreAlertResults,
   ]);
 
-  // 全部清除：重設表單欄位與週期／預檢等本地狀態，維持視窗開啟
+  // 全部清除
   const handleClearAll = useCallback(() => {
     form.resetFields();
     setSelectedGroupId(undefined);
-    setEnableRecurrence(false);
-    setRecurrenceRule(undefined);
+    setEnableRecurrence(true);
+    setRecurrenceRule(DEFAULT_RECURRENCE_RULE);
     setAlertResults(null);
     setStoreAlertResults(null);
   }, [form, setStoreAlertResults]);
 
-  const contentsValue: TaskContent[] = Form.useWatch('contents', form) ?? [];
-  const showOtherContentNote = contentsValue.includes('OTHER');
+  const showOtherContentNote =
+    contentsValue.includes('OTHER') || (contentsValue as string[]).includes('其他');
 
   return (
-    <div data-testid="task-form">
+    <div data-testid="task-form" style={{ padding: '4px 0' }}>
       <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={defaultFormValues}>
-        <Row gutter={24}>
-          <Col xs={24} md={12}>
-            <Form.Item
-              name="groupId"
-              label={t('task.group')}
-              rules={[{ required: true, message: t('task.groupRequired') }]}
-            >
-              <Select
-                placeholder={t('task.groupSearchPlaceholder')}
-                options={groupOptions}
-                onChange={handleGroupChange}
-                showSearch
-                optionFilterProp="label"
-                aria-label={t('task.group')}
-              />
-            </Form.Item>
+        <Row gutter={[16, 16]}>
+          {/* 左欄：基本資訊 ＋ 排程循環 */}
+          <Col xs={24} lg={12}>
+            {/* 區塊 1: 基本任務資訊 */}
+            <Card size="small" title="🏢 基本資訊" style={{ marginBottom: 16, borderRadius: 8 }}>
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Form.Item
+                    name="groupId"
+                    label={t('task.group')}
+                    rules={[{ required: true, message: t('task.groupRequired') }]}
+                  >
+                    <Select
+                      placeholder={t('task.groupSearchPlaceholder')}
+                      options={groupOptions}
+                      onChange={handleGroupChange}
+                      showSearch
+                      optionFilterProp="label"
+                      aria-label={t('task.group')}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name="branchId"
+                    label={t('task.branch')}
+                    rules={[{ required: true, message: t('task.branchRequired') }]}
+                  >
+                    <Select
+                      placeholder={
+                        selectedGroupId
+                          ? t('task.branchSearchPlaceholder')
+                          : t('task.selectGroupFirst')
+                      }
+                      options={branchOptions}
+                      disabled={!selectedGroupId}
+                      showSearch
+                      optionFilterProp="label"
+                      aria-label={t('task.branch')}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
 
-            <Form.Item
-              name="taskType"
-              label={t('task.taskType')}
-              rules={[{ required: true, message: t('task.taskTypeRequired') }]}
-            >
-              <TaskTypeCheckboxGroup options={taskTypes} />
-            </Form.Item>
-
-            <Form.Item
-              name="branchId"
-              label={t('task.branch')}
-              rules={[{ required: true, message: t('task.branchRequired') }]}
-            >
-              <Select
-                placeholder={
-                  selectedGroupId ? t('task.branchSearchPlaceholder') : t('task.selectGroupFirst')
-                }
-                options={branchOptions}
-                disabled={!selectedGroupId}
-                showSearch
-                optionFilterProp="label"
-                aria-label={t('task.branch')}
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="date"
-              label={t('task.date')}
-              rules={[{ required: true, message: t('task.dateRequired') }]}
-            >
-              <DatePicker
-                style={{ width: '100%' }}
-                format="YYYY-MM-DD"
-                cellRender={(current) => {
-                  if (typeof current === 'number' || typeof current === 'string') {
-                    return <div className="ant-picker-cell-inner">{current}</div>;
-                  }
-                  return dateRender(current as Dayjs);
-                }}
-                aria-label={t('task.taskDate')}
-              />
-            </Form.Item>
-
-            <Space style={{ width: '100%' }} size="middle" align="start">
               <Form.Item
-                name="startTime"
-                label={t('task.startTime')}
-                rules={[{ required: true, message: t('task.startTimeRequired') }]}
-                style={{ flex: 1 }}
+                name="taskType"
+                label={t('task.taskType')}
+                rules={[{ required: true, message: t('task.taskTypeRequired') }]}
+                style={{ marginBottom: 8 }}
               >
-                <Select
-                  placeholder={t('task.startTimePlaceholder')}
-                  options={TIME_OPTIONS}
-                  showSearch
-                  aria-label={t('task.startTime')}
+                <TaskTypeCheckboxGroup options={taskTypes} />
+              </Form.Item>
+            </Card>
+
+            {/* 區塊 2: 排程與循環頻率 */}
+            <Card size="small" title="⏰ 排程與循環" style={{ borderRadius: 8 }}>
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Form.Item
+                    name="shift"
+                    label={t('task.shift')}
+                    rules={[{ required: true, message: t('task.shiftRequired') }]}
+                  >
+                    <Select
+                      placeholder={t('task.shiftPlaceholder')}
+                      options={shifts}
+                      showSearch
+                      optionFilterProp="label"
+                      aria-label={t('task.shift')}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="route" label={t('task.route')}>
+                    <Select
+                      placeholder={t('task.routePlaceholder')}
+                      options={routes}
+                      allowClear
+                      showSearch
+                      optionFilterProp="label"
+                      aria-label={t('task.route')}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Form.Item name="date" label={t('task.date')} extra="未填寫日期將視為待排時間客戶">
+                <DatePicker
+                  style={{ width: '100%' }}
+                  format="YYYY-MM-DD"
+                  placeholder="請選擇日期（可留空為待排）"
+                  cellRender={(current) => {
+                    if (typeof current === 'number' || typeof current === 'string') {
+                      return <div className="ant-picker-cell-inner">{current}</div>;
+                    }
+                    return dateRender(current as Dayjs);
+                  }}
+                  aria-label={t('task.taskDate')}
                 />
               </Form.Item>
-              <Form.Item
-                name="endTime"
-                label={t('task.endTime')}
-                rules={[{ required: true, message: t('task.endTimeRequired') }]}
-                style={{ flex: 1 }}
+
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Form.Item name="startTime" label={t('task.startTime')}>
+                    <TimeSelect aria-label={t('task.startTime')} />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="endTime" label={t('task.endTime')}>
+                    <TimeSelect aria-label={t('task.endTime')} />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Text
+                type="secondary"
+                style={{ display: 'block', marginTop: -8, marginBottom: 12, fontSize: 12 }}
               >
-                <Select
-                  placeholder={t('task.endTimePlaceholder')}
-                  options={TIME_OPTIONS}
-                  showSearch
-                  aria-label={t('task.endTime')}
-                />
+                {t('task.overnightHint')}
+              </Text>
+
+              <Divider style={{ margin: '12px 0' }} />
+
+              <Form.Item label="週期" required style={{ marginBottom: 8 }}>
+                <Radio.Group
+                  value={enableRecurrence ? 'yes' : 'no'}
+                  onChange={(e) => setEnableRecurrence(e.target.value === 'yes')}
+                  style={{ marginBottom: enableRecurrence ? 12 : 0 }}
+                >
+                  <Radio.Button value="no">無週期</Radio.Button>
+                  <Radio.Button value="yes">有週期</Radio.Button>
+                </Radio.Group>
+
+                {enableRecurrence && (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      padding: '12px 14px',
+                      background: '#fafafa',
+                      borderRadius: 6,
+                      border: '1px solid #f0f0f0',
+                    }}
+                  >
+                    <RecurrenceEditor value={recurrenceRule} onChange={setRecurrenceRule} />
+                  </div>
+                )}
               </Form.Item>
-            </Space>
-            <Text type="secondary" style={{ display: 'block', marginTop: -16, marginBottom: 16 }}>
-              {t('task.overnightHint')}
-            </Text>
-
-            <Form.Item
-              name="headcount"
-              label={t('task.headcount')}
-              rules={[{ required: true, message: t('task.headcountRequired') }]}
-            >
-              <InputNumber
-                min={1}
-                max={50}
-                style={{ width: '100%' }}
-                aria-label={t('task.headcount')}
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="shift"
-              label={t('task.shift')}
-              rules={[{ required: true, message: t('task.shiftRequired') }]}
-            >
-              <Select
-                placeholder={t('task.shiftPlaceholder')}
-                options={shifts}
-                showSearch
-                optionFilterProp="label"
-                aria-label={t('task.shift')}
-              />
-            </Form.Item>
-
-            <Form.Item name="route" label={t('task.route')}>
-              <Select
-                placeholder={t('task.routePlaceholder')}
-                options={routes}
-                allowClear
-                showSearch
-                optionFilterProp="label"
-                aria-label={t('task.route')}
-              />
-            </Form.Item>
+            </Card>
           </Col>
 
-          <Col xs={24} md={12}>
-            <Form.Item
-              name="contents"
-              label={t('task.content')}
-              rules={[{ required: true, message: t('task.contentRequired'), type: 'array' }]}
+          {/* 右欄：內容與指派 ＋ 備註 */}
+          <Col xs={24} lg={12}>
+            {/* 區塊 3: 內容與指派人員 */}
+            <Card
+              size="small"
+              title="🛠️ 內容與指派人員"
+              style={{ marginBottom: 16, borderRadius: 8 }}
             >
-              <Checkbox.Group options={contents} />
-            </Form.Item>
+              <Form.Item
+                name="contents"
+                label={t('task.content')}
+                rules={[{ required: true, message: t('task.contentRequired'), type: 'array' }]}
+              >
+                <Checkbox.Group options={contents} />
+              </Form.Item>
 
-            {showOtherContentNote && (
-              <Form.Item name="otherContentNote" label={t('task.otherContentNote')}>
-                <Input
-                  placeholder={t('task.otherContentNotePlaceholder')}
-                  aria-label={t('task.otherContentNote')}
+              {showOtherContentNote && (
+                <Form.Item
+                  name="otherContentNote"
+                  label={t('task.otherContentNote')}
+                  rules={[{ required: true, message: '請輸入其他內容說明' }]}
+                >
+                  <Input
+                    placeholder="請輸入其他內容說明（必填）"
+                    aria-label={t('task.otherContentNote')}
+                  />
+                </Form.Item>
+              )}
+
+              <Form.Item name="headcount" label={t('task.headcount')}>
+                <InputNumber
+                  min={1}
+                  max={50}
+                  style={{ width: '100%' }}
+                  placeholder="人數需求（預設 1 人）"
+                  aria-label={t('task.headcount')}
                 />
               </Form.Item>
-            )}
 
-            <Form.Item name="assignees" label={t('task.assignees')}>
-              <EmployeeSelect
-                value={assigneesValue}
-                onChange={(ids) => form.setFieldValue('assignees', ids)}
-                date={currentDate}
-                requiredLicenses={requiredLicenses}
-              />
-            </Form.Item>
+              <Form.Item name="assignees" label="指派人員（按鈕式點選）">
+                <EmployeeSelect
+                  value={assigneesValue}
+                  onChange={(ids) => form.setFieldValue('assignees', ids)}
+                  date={currentDate}
+                  requiredLicenses={requiredLicenses}
+                />
+              </Form.Item>
+            </Card>
 
-            <Form.Item label={t('task.recurrence')} required>
-              <Checkbox
-                checked={enableRecurrence}
-                onChange={(e) => setEnableRecurrence(e.target.checked)}
-              >
-                {t('task.enableRecurrence')}
-              </Checkbox>
-            </Form.Item>
-
-            {enableRecurrence && (
-              <RecurrenceEditor value={recurrenceRule} onChange={setRecurrenceRule} />
-            )}
-
-            <Form.Item name="remarks" label={t('task.remarks')}>
-              <TextArea
-                rows={3}
-                maxLength={500}
-                showCount
-                placeholder={t('task.remarksPlaceholder')}
-                aria-label={t('task.remarks')}
-              />
-            </Form.Item>
+            {/* 區塊 4: 備註說明 */}
+            <Card size="small" title="📝 備註說明" style={{ borderRadius: 8 }}>
+              <Form.Item name="remarks" style={{ marginBottom: 0 }}>
+                <TextArea
+                  rows={3}
+                  maxLength={500}
+                  showCount
+                  placeholder={t('task.remarksPlaceholder')}
+                  aria-label={t('task.remarks')}
+                />
+              </Form.Item>
+            </Card>
           </Col>
         </Row>
 
-        <Divider />
+        <Divider style={{ margin: '16px 0' }} />
 
-        {/* ConflictPanel - show when violations exist */}
+        {/* ConflictPanel - 當偵測到 5 大警示規則違規時顯示，要求必填備註後覆蓋 */}
         {alertResults && !alertResults.isValid && (
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 20 }}>
             <ConflictPanel
               violations={alertResults.violations}
               onOverride={handleOverride}
