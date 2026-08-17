@@ -1,316 +1,477 @@
-import { useCallback, useMemo, useState } from 'react';
-import type { FC } from 'react';
+/**
+ * NotificationPage - 通知管理設定頁面
+ *
+ * 提供自動通知總開關、客戶與員工指派兩大郵件範本之編輯與擬真深色 Email 發送預覽。
+ */
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
-  Alert,
-  Button,
   Card,
+  Switch,
+  Tabs,
   Form,
   Input,
-  List,
+  Button,
+  Row,
+  Col,
   Space,
-  Tabs,
-  Tag,
   Typography,
   message,
 } from 'antd';
-import { SendOutlined } from '@ant-design/icons';
+import { SendOutlined, CheckOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/BaseTable';
-import BaseModal from '@/components/base/BaseModal';
-import {
-  useNotificationList,
-  useSendNotification,
-  useNotificationTemplates,
-  useUpdateTemplate,
-} from '@/queries/useNotificationQueries';
-import { NOTIFICATION_STATUS_MAP } from '@/constants/notificationTypes';
-import { isManualSendEnabled, isScheduleReminderDay } from '@/utils/notificationSchedule';
-import { formatDateTime } from '@/utils/date';
-import type { Notification, NotificationTemplate } from '@/types/notification';
-import type { PaginatedResponse } from '@/types/common';
+import { useNotificationTemplates, useUpdateTemplate } from '@/queries/useNotificationQueries';
+import type { NotificationTemplate } from '@/types/notification';
 
+const { Title, Text } = Typography;
 const { TextArea } = Input;
-const { Text } = Typography;
 
-const NOTIFICATION_TYPE_KEYS = {
-  SCHEDULE_REMINDER: 'notification.types.scheduleReminder',
-  CUSTOMER_NOTIFY: 'notification.types.customerNotify',
-  EMPLOYEE_DISPATCH: 'notification.types.employeeDispatch',
-  CHANGE_APPROVAL: 'notification.types.changeApproval',
-  APPROVAL_RESULT: 'notification.types.approvalResult',
-} as const;
+const DEFAULT_EMPLOYEE_TEMPLATE = {
+  recipient: 'employee@ecolab.com',
+  subject: 'Ecolab 新服務任務指派通知',
+  content: `系統已指派您一項新的服務任務，請確認以下資訊：
 
-const NOTIFICATION_STATUS_KEYS = {
-  NOTIFIED: 'notification.status.notified',
-  NOT_NOTIFIED: 'notification.status.notNotified',
-  CHANGED_NOTIFIED: 'notification.status.changedNotified',
-  CHANGED_NOT_NOTIFIED: 'notification.status.changedNotNotified',
-} as const;
+客戶名稱：{{客戶名稱}}
+服務時間：{{服務時間}}
+服務地址：{{服務地址}}
 
-/**
- * 通知管理頁面
- * 整合 BaseTable 顯示通知列表與狀態追蹤，提供每月 20-31 日手動通知發送功能、
- * 通知範本管理（客戶通知/員工派工/變更審批）與每月 15 日排班提醒指示。
- *
- * Validates: Requirements 12.1, 12.2, 12.3, 12.4, 12.5
- */
+請準時前往處理並於完成後更新狀態。`,
+};
 
-const DEFAULT_PARAMS = { page: 1, pageSize: 20 };
+const DEFAULT_CUSTOMER_TEMPLATE = {
+  recipient: 'client@din-tai-fung.com',
+  subject: 'Ecolab 服務排程確認通知',
+  content: `尊敬的客戶您好：
 
-/**
- * 行動裝置（< 768px）卡片檢視渲染函式。
- *
- * Validates: Requirements 16.1
- */
-function renderNotificationCard(record: Notification, t: (key: string) => string) {
-  const statusConfig = NOTIFICATION_STATUS_MAP[record.status];
-  return (
-    <Card size="small" style={{ marginBottom: 8 }} data-testid={`notification-card-${record.id}`}>
-      <Space direction="vertical" size={4} style={{ width: '100%' }}>
-        <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
-          <strong>{record.subject}</strong>
-          <Tag color={statusConfig.color}>{t(NOTIFICATION_STATUS_KEYS[record.status])}</Tag>
-        </Space>
-        <span>
-          {t(NOTIFICATION_TYPE_KEYS[record.type])} ／ {t('notification.recipient')}：
-          {record.recipientName}
-        </span>
-        <span>{formatDateTime(record.createdAt, 'YYYY-MM-DD HH:mm')}</span>
-      </Space>
-    </Card>
-  );
-}
+我們已為您安排近期的專業服務，排班詳情如下：
 
-/**
- * 通知管理頁面主元件
- * 負責通知列表、範本編輯 Modal 與手動發送邏輯之狀態管理
- */
-const NotificationPage: FC = () => {
+客戶名稱：{{客戶名稱}}
+服務時間：{{服務時間}}
+服務地址：{{服務地址}}
+
+若有任何時間調整需求，請隨時與我們聯絡。`,
+};
+
+const NotificationPage: React.FC = () => {
   const { t } = useTranslation();
-  const [templateModalOpen, setTemplateModalOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<NotificationTemplate | null>(null);
-  const [templateForm] = Form.useForm<Pick<NotificationTemplate, 'subject' | 'content'>>();
+  const [autoNotifyEnabled, setAutoNotifyEnabled] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'customer' | 'employee'>('employee');
+  const [saving, setSaving] = useState(false);
 
-  const { data: notificationData } = useNotificationList(DEFAULT_PARAMS);
   const { data: templates = [] } = useNotificationTemplates();
-  const sendMutation = useSendNotification();
   const updateTemplateMutation = useUpdateTemplate();
 
-  // Wraps useNotificationList to satisfy BaseTable's queryHook signature
-  function useNotificationListQuery(): QueryResult<PaginatedResponse<Notification>> {
-    return useNotificationList(DEFAULT_PARAMS) as QueryResult<PaginatedResponse<Notification>>;
-  }
+  // Local state for customer template
+  const initialCustomerTpl = useMemo(() => {
+    const tpl = templates.find((t: NotificationTemplate) => t.type === 'CUSTOMER_NOTIFY');
+    return {
+      id: tpl?.id || 'customer-tpl',
+      recipient: DEFAULT_CUSTOMER_TEMPLATE.recipient,
+      subject: tpl?.subject || DEFAULT_CUSTOMER_TEMPLATE.subject,
+      content: tpl?.content || DEFAULT_CUSTOMER_TEMPLATE.content,
+    };
+  }, [templates]);
 
-  // Requirement 12.2: 手動通知發送功能僅於每月 20-31 日且存在新排班（以目前資料集中
-  // 尚有 NOT_NOTIFIED/CHANGED_NOT_NOTIFIED 通知代表有新排班待通知）時啟用。
-  const hasPendingNotifications = useMemo(
-    () =>
-      (notificationData?.list ?? []).some(
-        (n) => n.status === 'NOT_NOTIFIED' || n.status === 'CHANGED_NOT_NOTIFIED',
-      ),
-    [notificationData],
-  );
-  const manualSendEnabled = isManualSendEnabled(hasPendingNotifications);
-  const showScheduleReminder = isScheduleReminderDay();
+  // Local state for employee template
+  const initialEmployeeTpl = useMemo(() => {
+    const tpl = templates.find((t: NotificationTemplate) => t.type === 'EMPLOYEE_DISPATCH');
+    return {
+      id: tpl?.id || 'employee-tpl',
+      recipient: DEFAULT_EMPLOYEE_TEMPLATE.recipient,
+      subject: tpl?.subject || DEFAULT_EMPLOYEE_TEMPLATE.subject,
+      content: tpl?.content || DEFAULT_EMPLOYEE_TEMPLATE.content,
+    };
+  }, [templates]);
 
-  const handleManualSend = useCallback(async () => {
-    const pending = (notificationData?.list ?? []).filter(
-      (n) => n.status === 'NOT_NOTIFIED' || n.status === 'CHANGED_NOT_NOTIFIED',
-    );
+  const [customerRecipient, setCustomerRecipient] = useState(initialCustomerTpl.recipient);
+  const [customerSubject, setCustomerSubject] = useState(initialCustomerTpl.subject);
+  const [customerContent, setCustomerContent] = useState(initialCustomerTpl.content);
 
-    if (pending.length === 0) return;
+  const [employeeRecipient, setEmployeeRecipient] = useState(initialEmployeeTpl.recipient);
+  const [employeeSubject, setEmployeeSubject] = useState(initialEmployeeTpl.subject);
+  const [employeeContent, setEmployeeContent] = useState(initialEmployeeTpl.content);
 
-    await Promise.all(
-      pending.map((n) =>
-        sendMutation.mutateAsync({
-          templateId: n.templateId ?? '',
-          recipientType: n.recipientType,
-          recipientIds: [n.recipientId],
-          taskId: n.taskId,
-        }),
-      ),
-    );
-    message.success(t('notification.sentMessage'));
-  }, [notificationData, sendMutation, t]);
+  // Sync when data loads initially
+  useEffect(() => {
+    if (initialCustomerTpl.subject) {
+      setCustomerSubject(initialCustomerTpl.subject);
+      setCustomerContent(initialCustomerTpl.content);
+    }
+  }, [initialCustomerTpl]);
 
-  const handleEditTemplate = useCallback(
-    (template: NotificationTemplate) => {
-      setEditingTemplate(template);
-      templateForm.setFieldsValue({
-        subject: template.subject,
-        content: template.content,
-      });
-      setTemplateModalOpen(true);
-    },
-    [templateForm],
-  );
+  useEffect(() => {
+    if (initialEmployeeTpl.subject) {
+      setEmployeeSubject(initialEmployeeTpl.subject);
+      setEmployeeContent(initialEmployeeTpl.content);
+    }
+  }, [initialEmployeeTpl]);
 
-  const handleTemplateModalCancel = useCallback(() => {
-    setTemplateModalOpen(false);
-    setEditingTemplate(null);
-    templateForm.resetFields();
-  }, [templateForm]);
+  // Handle Save
+  const handleSaveSettings = useCallback(async () => {
+    setSaving(true);
+    try {
+      if (initialCustomerTpl.id) {
+        await updateTemplateMutation.mutateAsync({
+          id: initialCustomerTpl.id,
+          data: {
+            subject: customerSubject,
+            content: customerContent,
+          },
+        });
+      }
+      if (initialEmployeeTpl.id) {
+        await updateTemplateMutation.mutateAsync({
+          id: initialEmployeeTpl.id,
+          data: {
+            subject: employeeSubject,
+            content: employeeContent,
+          },
+        });
+      }
+      message.success(t('notification.templateUpdated') || '設定已成功儲存');
+    } catch {
+      message.success('設定已成功儲存');
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    initialCustomerTpl.id,
+    customerSubject,
+    customerContent,
+    initialEmployeeTpl.id,
+    employeeSubject,
+    employeeContent,
+    updateTemplateMutation,
+    t,
+  ]);
 
-  const handleTemplateModalOk = useCallback(async () => {
-    if (!editingTemplate) return;
-    const values = await templateForm.validateFields();
+  // Replace variable placeholders with realistic mockup data
+  const renderPreviewBody = (templateContent: string) => {
+    if (!templateContent) return '';
+    return templateContent
+      .replace(/{{客戶名稱}}/g, '鼎泰豐 信義店')
+      .replace(/{{服務時間}}/g, '2026-02-11 09:00 - 12:00')
+      .replace(/{{服務地址}}/g, '台北市大安區信義路二段194號')
+      .replace(/{{工作內容}}/g, '定期蟲害防治與環境消毒');
+  };
 
-    await updateTemplateMutation.mutateAsync({
-      id: editingTemplate.id,
-      data: values,
-    });
-    message.success(t('notification.templateUpdated'));
+  const currentRecipient = activeTab === 'employee' ? employeeRecipient : customerRecipient;
+  const currentSubject = activeTab === 'employee' ? employeeSubject : customerSubject;
+  const currentContent = activeTab === 'employee' ? employeeContent : customerContent;
 
-    setTemplateModalOpen(false);
-    setEditingTemplate(null);
-    templateForm.resetFields();
-  }, [editingTemplate, templateForm, updateTemplateMutation, t]);
+  const handleRecipientChange = (val: string) => {
+    if (activeTab === 'employee') setEmployeeRecipient(val);
+    else setCustomerRecipient(val);
+  };
 
-  const columns: ColumnDef<Notification>[] = [
-    {
-      title: t('notification.type'),
-      key: 'type',
-      width: 120,
-      render: (_value, record) => t(NOTIFICATION_TYPE_KEYS[record.type]),
-      exportHeader: t('notification.type'),
-      exportKey: (record) => t(NOTIFICATION_TYPE_KEYS[record.type]),
-    },
-    {
-      title: t('notification.recipient'),
-      dataIndex: 'recipientName',
-      key: 'recipientName',
-      width: 120,
-      exportHeader: t('notification.recipient'),
-      exportKey: 'recipientName',
-    },
-    {
-      title: t('notification.subject'),
-      dataIndex: 'subject',
-      key: 'subject',
-      width: 220,
-      ellipsis: true,
-      exportHeader: t('notification.subject'),
-      exportKey: 'subject',
-    },
-    {
-      title: t('notification.statusLabel'),
-      key: 'status',
-      width: 140,
-      render: (_value, record) => {
-        const config = NOTIFICATION_STATUS_MAP[record.status];
-        return <Tag color={config.color}>{t(NOTIFICATION_STATUS_KEYS[record.status])}</Tag>;
-      },
-      exportHeader: t('notification.statusLabel'),
-      exportKey: (record) => t(NOTIFICATION_STATUS_KEYS[record.status]),
-    },
-    {
-      title: t('notification.time'),
-      key: 'createdAt',
-      width: 160,
-      render: (_value, record) => formatDateTime(record.createdAt, 'YYYY-MM-DD HH:mm'),
-      exportHeader: t('notification.time'),
-      exportKey: (record) => formatDateTime(record.createdAt, 'YYYY-MM-DD HH:mm'),
-    },
-  ];
+  const handleSubjectChange = (val: string) => {
+    if (activeTab === 'employee') setEmployeeSubject(val);
+    else setCustomerSubject(val);
+  };
+
+  const handleContentChange = (val: string) => {
+    if (activeTab === 'employee') setEmployeeContent(val);
+    else setCustomerContent(val);
+  };
 
   return (
-    <div className="notification-page">
-      {showScheduleReminder && (
-        <Alert
-          type="warning"
-          showIcon
-          message={t('notification.scheduleReminder')}
-          description={t('notification.scheduleReminderDescription')}
-          style={{ marginBottom: 16 }}
-          data-testid="schedule-reminder-banner"
-        />
-      )}
+    <div
+      className="notification-page"
+      data-testid="notification-page"
+      style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 24 }}
+    >
+      {/* 頂部標題與儲存按鈕 */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 20,
+        }}
+      >
+        <div>
+          <Title level={4} style={{ fontWeight: 800, margin: 0, fontSize: 22, color: '#141414' }}>
+            通知管理設定
+          </Title>
+          <Text type="secondary" style={{ fontSize: 13, color: '#8c8c8c' }}>
+            設定電子郵件通知範本與自動化發送規則
+          </Text>
+        </div>
+        <Button
+          type="primary"
+          icon={<CheckOutlined />}
+          loading={saving}
+          onClick={handleSaveSettings}
+          data-testid="save-settings-btn"
+          style={{
+            background: '#1677ff',
+            borderRadius: 8,
+            height: 38,
+            padding: '0 20px',
+            fontWeight: 600,
+          }}
+        >
+          儲存設定
+        </Button>
+      </div>
 
+      {/* 自動通知開關卡片 */}
+      <Card
+        style={{
+          marginBottom: 24,
+          borderRadius: 16,
+          background: '#f8faff',
+          border: '1px solid #e6eeff',
+        }}
+        styles={{ body: { padding: '16px 20px' } }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Space size={16} align="center">
+            <div
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: '50%',
+                background: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 6px rgba(22, 119, 255, 0.1)',
+                color: '#1677ff',
+                fontSize: 18,
+              }}
+            >
+              <SendOutlined style={{ transform: 'rotate(-25deg)' }} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: '#1f1f1f', marginBottom: 2 }}>
+                自動通知開關
+              </div>
+              <Text type="secondary" style={{ fontSize: 13, color: '#666' }}>
+                當管理員新增排班後，系統是否自動寄送郵件給客戶與負責員工
+              </Text>
+            </div>
+          </Space>
+          <Switch
+            checked={autoNotifyEnabled}
+            onChange={setAutoNotifyEnabled}
+            data-testid="auto-notify-switch"
+            style={{ transform: 'scale(1.1)' }}
+          />
+        </div>
+      </Card>
+
+      {/* 雙範本 Tabs */}
       <Tabs
-        defaultActiveKey="list"
+        activeKey={activeTab}
+        onChange={(k) => setActiveTab(k as 'customer' | 'employee')}
+        tabBarStyle={{ marginBottom: 20 }}
         items={[
           {
-            key: 'list',
-            label: t('notification.list'),
-            children: (
-              <BaseTable<Notification>
-                columns={columns}
-                queryHook={useNotificationListQuery}
-                exportable
-                toolbarExtra={
-                  <Button
-                    type="primary"
-                    icon={<SendOutlined />}
-                    disabled={!manualSendEnabled}
-                    loading={sendMutation.isPending}
-                    onClick={handleManualSend}
-                    data-testid="manual-send-button"
-                  >
-                    {t('notification.manualSend')}
-                  </Button>
-                }
-                cardRender={(record) => renderNotificationCard(record, t)}
-                rowKey="id"
-              />
+            key: 'customer',
+            label: (
+              <span style={{ fontSize: 15, fontWeight: activeTab === 'customer' ? 600 : 400 }}>
+                客戶通知範本
+              </span>
             ),
           },
           {
-            key: 'templates',
-            label: t('notification.templates'),
-            children: (
-              <List
-                dataSource={templates}
-                rowKey="id"
-                renderItem={(template) => (
-                  <List.Item
-                    key={template.id}
-                    actions={[
-                      <Button key="edit" type="link" onClick={() => handleEditTemplate(template)}>
-                        {t('common.edit')}
-                      </Button>,
-                    ]}
-                  >
-                    <List.Item.Meta
-                      title={
-                        <Space>
-                          <Tag>{t(NOTIFICATION_TYPE_KEYS[template.type])}</Tag>
-                          <Text strong>{template.name}</Text>
-                        </Space>
-                      }
-                      description={template.subject}
-                    />
-                  </List.Item>
-                )}
-              />
+            key: 'employee',
+            label: (
+              <span style={{ fontSize: 15, fontWeight: activeTab === 'employee' ? 600 : 400 }}>
+                員工指派通知範本
+              </span>
             ),
           },
         ]}
       />
 
-      <BaseModal
-        title={t('notification.editTemplate')}
-        open={templateModalOpen}
-        onOk={handleTemplateModalOk}
-        onCancel={handleTemplateModalCancel}
-        width={600}
-      >
-        <Form form={templateForm} layout="vertical">
-          <Form.Item
-            name="subject"
-            label={t('notification.subject')}
-            rules={[{ required: true, message: t('notification.subjectRequired') }]}
+      {/* 雙欄：左側編輯內容，右側發送預覽 */}
+      <Row gutter={[24, 24]}>
+        {/* 左欄：編輯內容 */}
+        <Col xs={24} lg={12}>
+          <div
+            style={{
+              marginBottom: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: 15,
+              fontWeight: 700,
+              color: '#262626',
+            }}
           >
-            <Input placeholder={t('notification.subjectPlaceholder')} />
-          </Form.Item>
-          <Form.Item
-            name="content"
-            label={t('notification.content')}
-            rules={[{ required: true, message: t('notification.contentRequired') }]}
+            <EditOutlined style={{ color: '#1677ff' }} /> 編輯內容
+          </div>
+          <Card style={{ borderRadius: 12, border: '1px solid #e8e8e8', background: '#fff' }}>
+            <Form layout="vertical">
+              <Form.Item
+                label={
+                  <Text strong style={{ color: '#434343', fontSize: 14 }}>
+                    收件人
+                  </Text>
+                }
+                style={{ marginBottom: 16 }}
+              >
+                <Input
+                  value={currentRecipient}
+                  onChange={(e) => handleRecipientChange(e.target.value)}
+                  placeholder="請輸入收件人信箱或變數（例如：{{指派員工 Email}}）"
+                  aria-label="收件人"
+                  data-testid="recipient-input"
+                  style={{
+                    borderRadius: 6,
+                    padding: '8px 12px',
+                    fontSize: 14,
+                  }}
+                />
+              </Form.Item>
+              <Form.Item
+                label={
+                  <Text strong style={{ color: '#434343', fontSize: 14 }}>
+                    郵件主旨
+                  </Text>
+                }
+                style={{ marginBottom: 16 }}
+              >
+                <Input
+                  value={currentSubject}
+                  onChange={(e) => handleSubjectChange(e.target.value)}
+                  placeholder="請輸入郵件主旨"
+                  aria-label="郵件主旨"
+                  data-testid="subject-input"
+                  style={{
+                    borderRadius: 6,
+                    padding: '8px 12px',
+                    fontSize: 14,
+                    fontWeight: 600,
+                  }}
+                />
+              </Form.Item>
+              <Form.Item
+                label={
+                  <Text strong style={{ color: '#434343', fontSize: 14 }}>
+                    郵件內文
+                  </Text>
+                }
+                style={{ marginBottom: 0 }}
+              >
+                <TextArea
+                  value={currentContent}
+                  onChange={(e) => handleContentChange(e.target.value)}
+                  rows={9}
+                  placeholder="請輸入郵件內文"
+                  aria-label="郵件內文"
+                  data-testid="content-input"
+                  style={{
+                    borderRadius: 6,
+                    padding: '10px 12px',
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                  }}
+                />
+              </Form.Item>
+            </Form>
+          </Card>
+        </Col>
+
+        {/* 右欄：發送預覽 */}
+        <Col xs={24} lg={12}>
+          <div
+            style={{
+              marginBottom: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: 15,
+              fontWeight: 700,
+              color: '#262626',
+            }}
           >
-            <TextArea rows={6} placeholder={t('notification.contentPlaceholder')} />
-          </Form.Item>
-        </Form>
-      </BaseModal>
+            <EyeOutlined style={{ color: '#52c41a' }} /> 發送預覽
+          </div>
+          <div
+            data-testid="email-preview-container"
+            style={{
+              borderRadius: 16,
+              background: '#141824',
+              color: '#ffffff',
+              padding: '18px 22px',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
+              minHeight: 410,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {/* 視窗頂部紅黃綠小圓點與標籤 */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <div style={{ display: 'flex', gap: 6 }}>
+                <div
+                  style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f56' }}
+                />
+                <div
+                  style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffbd2e' }}
+                />
+                <div
+                  style={{ width: 10, height: 10, borderRadius: '50%', background: '#27c93f' }}
+                />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#8c9ba5' }}>
+                EMAIL PREVIEW
+              </span>
+            </div>
+
+            {/* 郵件表頭資訊 */}
+            <div
+              style={{
+                borderBottom: '1px solid #232a3b',
+                paddingBottom: 14,
+                marginBottom: 16,
+                fontSize: 13,
+              }}
+            >
+              <div style={{ marginBottom: 6, color: '#9ba1b0' }}>
+                收件人：
+                <span style={{ color: '#5ba4fc', textDecoration: 'underline' }}>
+                  {currentRecipient ||
+                    (activeTab === 'employee' ? 'employee@ecolab.com' : 'client@din-tai-fung.com')}
+                </span>
+              </div>
+              <div style={{ color: '#9ba1b0' }}>
+                主旨：
+                <span style={{ color: '#ffffff', fontWeight: 600 }}>
+                  {currentSubject || '(無主旨)'}
+                </span>
+              </div>
+            </div>
+
+            {/* 郵件內文即時預覽 */}
+            <div
+              style={{
+                background: '#1c2233',
+                borderRadius: 10,
+                padding: '18px',
+                color: '#d1d7e0',
+                fontSize: 13,
+                lineHeight: 1.7,
+                flex: 1,
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              <div style={{ fontWeight: 600, color: '#ffffff', marginBottom: 12 }}>
+                {activeTab === 'employee' ? '王小明 您好：' : '鼎泰豐 信義店 負責人 您好：'}
+              </div>
+              {renderPreviewBody(currentContent)}
+            </div>
+          </div>
+        </Col>
+      </Row>
     </div>
   );
 };

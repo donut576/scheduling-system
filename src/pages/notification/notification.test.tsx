@@ -1,12 +1,8 @@
-// 通知管理頁面 (NotificationPage) 單元測試
-// 測試對象：src/pages/notification/index.tsx，涵蓋通知列表狀態追蹤、手動發送時機判斷、
-// 通知範本編輯與每月 15 日排班提醒橫幅
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import NotificationPage from './index';
-import type { Notification, NotificationTemplate } from '@/types/notification';
-import type { PaginatedResponse } from '@/types/common';
+import type { NotificationTemplate } from '@/types/notification';
 
 // Mock window.matchMedia for Ant Design responsive components
 Object.defineProperty(window, 'matchMedia', {
@@ -23,92 +19,37 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
-const mockSendMutateAsync = vi.fn().mockResolvedValue(undefined);
 const mockUpdateTemplateMutateAsync = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@/queries/useNotificationQueries', () => ({
-  useNotificationList: vi.fn(),
-  useSendNotification: vi.fn(),
   useNotificationTemplates: vi.fn(),
   useUpdateTemplate: vi.fn(),
 }));
 
-import {
-  useNotificationList,
-  useSendNotification,
-  useNotificationTemplates,
-  useUpdateTemplate,
-} from '@/queries/useNotificationQueries';
-
-const notifiedNotification: Notification = {
-  id: 'n1',
-  type: 'CUSTOMER_NOTIFY',
-  templateId: 't1',
-  recipientType: 'CUSTOMER',
-  recipientId: 'c1',
-  recipientName: '客戶A',
-  subject: '排班通知',
-  content: '內容',
-  status: 'NOTIFIED',
-  createdAt: '2024-01-01T00:00:00+08:00',
-};
-
-const notNotifiedNotification: Notification = {
-  id: 'n2',
-  type: 'EMPLOYEE_DISPATCH',
-  templateId: 't2',
-  recipientType: 'EMPLOYEE',
-  recipientId: 'e1',
-  recipientName: '員工A',
-  subject: '派工通知',
-  content: '內容',
-  status: 'NOT_NOTIFIED',
-  createdAt: '2024-01-02T00:00:00+08:00',
-};
+import { useNotificationTemplates, useUpdateTemplate } from '@/queries/useNotificationQueries';
 
 const templates: NotificationTemplate[] = [
   {
     id: 'tpl1',
     name: '客戶通知範本',
     type: 'CUSTOMER_NOTIFY',
-    subject: '客戶通知主旨',
-    content: '客戶通知內容',
-    variables: [],
+    subject: 'Ecolab 服務排程確認通知',
+    content: '客戶通知內容 {{客戶名稱}}',
+    variables: ['{{客戶名稱}}'],
   },
   {
     id: 'tpl2',
-    name: '員工派工範本',
+    name: '員工指派通知範本',
     type: 'EMPLOYEE_DISPATCH',
-    subject: '員工派工主旨',
-    content: '員工派工內容',
-    variables: [],
+    subject: 'Ecolab 新服務任務指派通知',
+    content: '員工派工內容 {{客戶名稱}}',
+    variables: ['{{客戶名稱}}'],
   },
 ];
 
-function mockListData(list: Notification[]): PaginatedResponse<Notification> {
-  return { list, total: list.length, page: 1, pageSize: 20 };
-}
-
-/**
- * Unit Tests for 通知管理頁面 (Notification Management Page)
- * Validates: Requirements 12.1, 12.2, 12.3, 12.4, 12.5
- */
-describe('NotificationPage', () => {
+describe('NotificationPage - 通知管理設定', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    vi.mocked(useNotificationList).mockReturnValue({
-      data: mockListData([notifiedNotification, notNotifiedNotification]),
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    } as unknown as ReturnType<typeof useNotificationList>);
-
-    vi.mocked(useSendNotification).mockReturnValue({
-      mutateAsync: mockSendMutateAsync,
-      isPending: false,
-    } as unknown as ReturnType<typeof useSendNotification>);
 
     vi.mocked(useNotificationTemplates).mockReturnValue({
       data: templates,
@@ -123,136 +64,81 @@ describe('NotificationPage', () => {
     } as unknown as ReturnType<typeof useUpdateTemplate>);
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
+  it('renders page title, subtitle and save button', () => {
+    render(<NotificationPage />);
+
+    expect(screen.getByText('通知管理設定')).toBeInTheDocument();
+    expect(screen.getByText('設定電子郵件通知範本與自動化發送規則')).toBeInTheDocument();
+    expect(screen.getByTestId('save-settings-btn')).toBeInTheDocument();
   });
 
-  describe('通知列表與狀態追蹤 - Requirement 12.3', () => {
-    it('renders table with required columns and status tags', () => {
-      render(<NotificationPage />);
+  it('renders auto notification switch banner and allows toggling', async () => {
+    const user = userEvent.setup();
+    render(<NotificationPage />);
 
-      expect(screen.getAllByText('類型').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('收件者').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('主旨').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('狀態').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('時間').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('自動通知開關')).toBeInTheDocument();
+    expect(
+      screen.getByText('當管理員新增排班後，系統是否自動寄送郵件給客戶與負責員工'),
+    ).toBeInTheDocument();
 
-      expect(screen.getByText('客戶A')).toBeInTheDocument();
-      expect(screen.getByText('員工A')).toBeInTheDocument();
-      expect(screen.getByText('已通知')).toBeInTheDocument();
-      expect(screen.getByText('未通知')).toBeInTheDocument();
-    });
+    const switchBtn = screen.getByTestId('auto-notify-switch');
+    expect(switchBtn).toBeInTheDocument();
+    await user.click(switchBtn);
+    expect(switchBtn).toHaveAttribute('aria-checked', 'false');
   });
 
-  describe('手動通知發送 - Requirement 12.2', () => {
-    it('disables manual send button when date is outside the 20-31 window even with pending notifications', () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2024-01-10T10:00:00+08:00'));
+  it('renders tabs for customer and employee notification templates', () => {
+    render(<NotificationPage />);
 
-      render(<NotificationPage />);
+    expect(screen.getByText('客戶通知範本')).toBeInTheDocument();
+    expect(screen.getByText('員工指派通知範本')).toBeInTheDocument();
+  });
 
-      expect(screen.getByTestId('manual-send-button')).toBeDisabled();
-    });
+  it('shows live email preview and updates when editing recipient, subject and content', async () => {
+    const user = userEvent.setup();
+    render(<NotificationPage />);
 
-    it('disables manual send button when in window but no pending notifications exist', () => {
-      vi.mocked(useNotificationList).mockReturnValue({
-        data: mockListData([notifiedNotification]),
-        isLoading: false,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-      } as unknown as ReturnType<typeof useNotificationList>);
+    // Default active tab is employee
+    expect(screen.getByText('EMAIL PREVIEW')).toBeInTheDocument();
+    expect(screen.getByText('收件人：')).toBeInTheDocument();
+    expect(screen.getByText('employee@ecolab.com')).toBeInTheDocument();
 
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2024-01-25T10:00:00+08:00'));
+    const recipientInput = screen.getByTestId('recipient-input') as HTMLInputElement;
+    expect(recipientInput.value).toBe('employee@ecolab.com');
 
-      render(<NotificationPage />);
+    await user.clear(recipientInput);
+    await user.type(recipientInput, 'custom-staff@ecolab.com');
+    expect(screen.getByText('custom-staff@ecolab.com')).toBeInTheDocument();
 
-      expect(screen.getByTestId('manual-send-button')).toBeDisabled();
-    });
+    const subjectInput = screen.getByTestId('subject-input') as HTMLInputElement;
+    expect(subjectInput.value).toBe('Ecolab 新服務任務指派通知');
 
-    it('enables manual send button when date is within 20-31 window and pending notifications exist', () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2024-01-25T10:00:00+08:00'));
+    await user.clear(subjectInput);
+    await user.type(subjectInput, '客製化主旨');
 
-      render(<NotificationPage />);
+    expect(screen.getAllByText('客製化主旨').length).toBeGreaterThanOrEqual(1);
 
-      expect(screen.getByTestId('manual-send-button')).toBeEnabled();
-    });
+    // Save changes
+    await user.click(screen.getByTestId('save-settings-btn'));
 
-    it('sends pending notifications when manual send button is clicked', async () => {
-      vi.setSystemTime(new Date('2024-01-31T10:00:00+08:00'));
-      const user = userEvent.setup();
-
-      render(<NotificationPage />);
-
-      await user.click(screen.getByTestId('manual-send-button'));
-
-      await waitFor(() => {
-        expect(mockSendMutateAsync).toHaveBeenCalledWith(
-          expect.objectContaining({ recipientIds: ['e1'] }),
-        );
-      });
+    await waitFor(() => {
+      expect(mockUpdateTemplateMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'tpl2',
+          data: expect.objectContaining({ subject: '客製化主旨' }),
+        }),
+      );
     });
   });
 
-  describe('通知範本管理 - Requirement 12.4', () => {
-    it('renders template list with names and types', async () => {
-      const user = userEvent.setup();
-      render(<NotificationPage />);
+  it('switches to customer template tab and displays customer preview', async () => {
+    const user = userEvent.setup();
+    render(<NotificationPage />);
 
-      await user.click(screen.getByText('通知範本管理'));
+    await user.click(screen.getByText('客戶通知範本'));
 
-      expect(screen.getByText('客戶通知範本')).toBeInTheDocument();
-      expect(screen.getByText('員工派工範本')).toBeInTheDocument();
-    });
-
-    it('opens edit modal pre-filled with template data and saves changes', async () => {
-      const user = userEvent.setup();
-      render(<NotificationPage />);
-
-      await user.click(screen.getByText('通知範本管理'));
-      const editButtons = screen.getAllByText('編輯');
-      await user.click(editButtons[0]!);
-
-      expect(screen.getByText('編輯通知範本')).toBeInTheDocument();
-      const subjectInput = screen.getByLabelText('主旨') as HTMLInputElement;
-      expect(subjectInput.value).toBe('客戶通知主旨');
-
-      await user.clear(subjectInput);
-      await user.type(subjectInput, '更新後主旨');
-
-      const modal = screen.getByRole('dialog');
-      await user.click(within(modal).getByText('OK'));
-
-      await waitFor(() => {
-        expect(mockUpdateTemplateMutateAsync).toHaveBeenCalledWith(
-          expect.objectContaining({
-            id: 'tpl1',
-            data: expect.objectContaining({ subject: '更新後主旨' }),
-          }),
-        );
-      });
-    });
-  });
-
-  describe('每月 15 日排班提醒 - Requirement 12.1', () => {
-    it('shows the schedule reminder banner on the 15th of the month', () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2024-01-15T10:00:00+08:00'));
-
-      render(<NotificationPage />);
-
-      expect(screen.getByTestId('schedule-reminder-banner')).toBeInTheDocument();
-    });
-
-    it('hides the schedule reminder banner on days other than the 15th', () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2024-01-16T10:00:00+08:00'));
-
-      render(<NotificationPage />);
-
-      expect(screen.queryByTestId('schedule-reminder-banner')).not.toBeInTheDocument();
-    });
+    expect(screen.getByText('client@din-tai-fung.com')).toBeInTheDocument();
+    const subjectInput = screen.getByTestId('subject-input') as HTMLInputElement;
+    expect(subjectInput.value).toBe('Ecolab 服務排程確認通知');
   });
 });

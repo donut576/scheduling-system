@@ -3,44 +3,32 @@ import type { FC } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Row, Col, Card, Statistic, List, Button, Space, Tag, Typography, Empty } from 'antd';
-import { CalendarOutlined, AuditOutlined, AlertOutlined } from '@ant-design/icons';
+import { CalendarOutlined, AuditOutlined, AlertOutlined, BellOutlined } from '@ant-design/icons';
 import { useScheduleData } from '@/queries/useScheduleQueries';
 import { useApprovalList } from '@/queries/useApprovalQueries';
 import { useTaskList } from '@/queries/useTaskQueries';
+import { useNotificationList } from '@/queries/useNotificationQueries';
 import AlertBadge from '@/components/business/AlertBadge';
 import { APPROVAL_TYPE_MAP } from '@/constants/approvalTypes';
-import { getToday, dayjs } from '@/utils/date';
+import {
+  NOTIFICATION_TYPE_KEYS,
+  NOTIFICATION_STATUS_KEYS,
+  NOTIFICATION_STATUS_MAP,
+} from '@/constants/notificationTypes';
+import { getToday, dayjs, formatDateTime } from '@/utils/date';
 import type { Task } from '@/types/task';
+import type { Notification } from '@/types/notification';
 
 const { Text, Title } = Typography;
 
 /**
  * Dashboard 首頁
  *
- * 作為登入後之預設首頁（Requirement 2.1：登入成功後依角色建立可存取路由，
- * 首頁為所有角色共同之登陸頁面），提供三項概要資訊與快捷入口：
- *
- * - 今日排班概要：以 useScheduleData 查詢當日（dimension=customer）排班事件，
- *   統計今日任務數並依 alertStatus 分類（正常/警示/已覆蓋）。
- * - 待審核項目：以 useApprovalList 查詢 status=PENDING 之審批單，顯示件數與
- *   最近幾筆列表。
- * - 近期警示：以 useTaskList 查詢近 7 日內任務，篩選出 alertStatus 為
- *   VIOLATED 或 OVERRIDDEN 之任務（即「近期警示」，對應 Alert_Engine 產生
- *   之違規/覆蓋標記，而非通知模組），取最近 5 筆顯示。
- * - 快捷入口：任務建立（導向 /task，該頁提供「新增任務」按鈕）、排班總覽
- *   （導向 /schedule）、通知中心。
- *
- *   關於「通知中心」快捷入口：NotificationCenter 元件原設計為 AppHeader 鈴鐺
- *   圖標觸發之彈出面板，若直接嵌入 Dashboard 頁面內將與 AppHeader 之呈現重複
- *   且需額外處理版面配置。因此此處選擇較單純的作法：提供一個按鈕導向完整的
- *   通知管理頁面（/notification），使用者可在該頁查看所有通知列表、發送通知
- *   與管理範本，功能較嵌入式面板更完整。
- *
- * Validates: Requirements 2.1
- */
-/**
- * Dashboard 首頁主元件
- * 彙整今日排班、待審核項目、近期警示三張概要卡片與快捷入口按鈕
+ * 作為登入後之預設首頁，提供四項概要資訊：
+ * - 今日排班概要
+ * - 待審核項目
+ * - 近期警示
+ * - 近期發送通知紀錄
  */
 const DashboardPage: FC = () => {
   const navigate = useNavigate();
@@ -85,6 +73,16 @@ const DashboardPage: FC = () => {
       .sort((a, b) => (a.date < b.date ? 1 : -1))
       .slice(0, 5);
   }, [recentTaskData]);
+
+  // 近期發送通知紀錄
+  const { data: notificationData, isLoading: notificationLoading } = useNotificationList({
+    page: 1,
+    pageSize: 5,
+  });
+  const recentNotifications = useMemo<Notification[]>(
+    () => notificationData?.list ?? [],
+    [notificationData],
+  );
 
   return (
     <div className="dashboard-page" data-testid="dashboard-page">
@@ -219,6 +217,54 @@ const DashboardPage: FC = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* 近期發送通知紀錄 */}
+      <Card
+        title={
+          <Space>
+            <BellOutlined />
+            <span>近期通知發送紀錄</span>
+          </Space>
+        }
+        loading={notificationLoading}
+        style={{ marginTop: 16 }}
+        extra={
+          <Button type="link" onClick={() => navigate('/notification')}>
+            通知管理設定
+          </Button>
+        }
+      >
+        {recentNotifications.length === 0 ? (
+          <Empty description="目前無發送紀錄" />
+        ) : (
+          <List
+            size="small"
+            dataSource={recentNotifications}
+            renderItem={(item: Notification) => {
+              const statusConfig = NOTIFICATION_STATUS_MAP[item.status];
+              return (
+                <List.Item key={item.id}>
+                  <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
+                    <Space size={12}>
+                      <Tag color="blue">{t(NOTIFICATION_TYPE_KEYS[item.type]) || item.type}</Tag>
+                      <Text strong>{item.subject}</Text>
+                      <Text type="secondary">收件人：{item.recipientName}</Text>
+                    </Space>
+                    <Space size={12}>
+                      <Tag color={statusConfig?.color}>
+                        {t(NOTIFICATION_STATUS_KEYS[item.status]) || item.status}
+                      </Tag>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {formatDateTime(item.createdAt, 'YYYY-MM-DD HH:mm')}
+                      </Text>
+                    </Space>
+                  </Space>
+                </List.Item>
+              );
+            }}
+          />
+        )}
+      </Card>
     </div>
   );
 };

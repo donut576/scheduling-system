@@ -40,10 +40,14 @@ vi.mock('@/queries/useApprovalQueries', () => ({
 vi.mock('@/queries/useTaskQueries', () => ({
   useTaskList: vi.fn(),
 }));
+vi.mock('@/queries/useNotificationQueries', () => ({
+  useNotificationList: vi.fn(),
+}));
 
 import { useScheduleData } from '@/queries/useScheduleQueries';
 import { useApprovalList } from '@/queries/useApprovalQueries';
 import { useTaskList } from '@/queries/useTaskQueries';
+import { useNotificationList } from '@/queries/useNotificationQueries';
 
 const scheduleData: ScheduleData = {
   events: [
@@ -169,6 +173,13 @@ describe('DashboardPage', () => {
       isError: false,
       error: null,
     } as unknown as ReturnType<typeof useTaskList>);
+
+    vi.mocked(useNotificationList).mockReturnValue({
+      data: { list: [], total: 0, page: 1, pageSize: 5 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof useNotificationList>);
   });
 
   describe('今日排班概要', () => {
