@@ -87,15 +87,27 @@ export const toResourceInputs = (
   }));
 };
 
-export const toEventInputs = (events: ScheduleEvent[]): EventInput[] => {
+export const toEventInputs = (
+  events: ScheduleEvent[],
+  viewMode?: 'day' | 'week' | 'month',
+): EventInput[] => {
   return events.map((event) => {
     let end = event.end;
 
     if (event.isOvernight) {
       const startDay = dayjs(event.start);
       const endDay = dayjs(event.end);
-      if (!endDay.isAfter(startDay, 'day')) {
-        end = dayjs(event.end).add(1, 'day').toISOString();
+      if (viewMode === 'week' || viewMode === 'month') {
+        // 在以天為格位的週視圖與月視圖中，大夜跨日班次（如 8/17 22:00-05:00+1）屬於 8/17 當日排班，
+        // 限制在 8/17 當日內結束，避免在天級網格中不當橫跨整整兩天佔據 8/18。
+        if (endDay.diff(startDay, 'hour') <= 24) {
+          end = startDay.endOf('day').toISOString();
+        }
+      } else {
+        // 日視圖（24 小時連續時間軸）：確保 end 正確標註為隔日凌晨
+        if (!endDay.isAfter(startDay, 'day')) {
+          end = dayjs(event.end).add(1, 'day').toISOString();
+        }
       }
     }
 

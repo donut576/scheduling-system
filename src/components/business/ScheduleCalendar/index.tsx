@@ -58,6 +58,11 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   // 縮放時間顆粒度：日檢視中支援 15m, 30m, 1h
   const slotDurations = useMemo(() => ['00:15:00', '00:30:00', '01:00:00'], []);
   const [daySlotDurationIndex, setDaySlotDurationIndex] = useState<number>(2); // 預設 1h
+  // 時間軸寬度（支援滑鼠拖曳縮放與滾輪手勢微調）
+  const [timelineSlotMinWidth, setTimelineSlotMinWidth] = useState<number>(60);
+  const isDraggingTimelineRef = useRef<boolean>(false);
+  const dragStartXRef = useRef<number>(0);
+  const dragStartWidthRef = useRef<number>(60);
 
   // 查詢排班資料（由 TanStack Query 管理快取）
   const queryParams = useMemo(
@@ -77,7 +82,10 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
 
   const { data: scheduleData, isLoading } = useScheduleData(queryParams);
 
-  const events = useMemo(() => toEventInputs(scheduleData?.events ?? []), [scheduleData?.events]);
+  const events = useMemo(
+    () => toEventInputs(scheduleData?.events ?? [], viewMode),
+    [scheduleData?.events, viewMode],
+  );
 
   const resources = useMemo(
     () =>
@@ -130,21 +138,85 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
 
   const handleWheel = useCallback(
     (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey && !e.altKey) return;
+      const target = e.target as HTMLElement;
+      const isHeaderOrSlots = Boolean(
+        target.closest('.fc-timeline-header') ||
+        target.closest('.fc-col-header') ||
+        target.closest('.fc-timeline-slots'),
+      );
+
+      if (!isHeaderOrSlots && !e.ctrlKey && !e.metaKey && !e.altKey) return;
       e.preventDefault();
 
+      const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      if (Math.abs(delta) < 2) return;
+
+      // 依滾輪方向微調 slot 寬度
+      if (delta < 0) {
+        setTimelineSlotMinWidth((prev) => Math.min(160, prev + 5));
+      } else {
+        setTimelineSlotMinWidth((prev) => Math.max(35, prev - 5));
+      }
+
       const now = Date.now();
-      if (now - lastWheelTimeRef.current < 250) return;
+      if (now - lastWheelTimeRef.current < 300) return;
       lastWheelTimeRef.current = now;
 
-      if (e.deltaY < 0) {
+      if (delta < -40) {
         handleZoom('in');
-      } else if (e.deltaY > 0) {
+      } else if (delta > 40) {
         handleZoom('out');
       }
     },
     [handleZoom],
   );
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLElement;
+      // 當在時間軸標頭、時間格或空表格區域按下左鍵時啟動拖曳縮放
+      if (
+        target.closest('.fc-timeline-header') ||
+        target.closest('.fc-col-header') ||
+        (target.closest('.fc-timeline-slots') && !target.closest('.fc-timeline-event'))
+      ) {
+        isDraggingTimelineRef.current = true;
+        dragStartXRef.current = e.clientX;
+        dragStartWidthRef.current = timelineSlotMinWidth;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+      }
+    },
+    [timelineSlotMinWidth],
+  );
+
+  useEffect(() => {
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      if (!isDraggingTimelineRef.current) return;
+      const deltaX = e.clientX - dragStartXRef.current;
+      const nextWidth = Math.max(
+        35,
+        Math.min(160, Math.round(dragStartWidthRef.current + deltaX * 0.5)),
+      );
+      setTimelineSlotMinWidth(nextWidth);
+    };
+
+    const handleWindowMouseUp = () => {
+      if (isDraggingTimelineRef.current) {
+        isDraggingTimelineRef.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+    };
+  }, []);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     if (e.touches.length === 2 && e.touches[0] && e.touches[1]) {
@@ -472,6 +544,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
       ref={containerRef}
       data-testid="schedule-calendar"
       className="schedule-calendar-container"
+      onMouseDown={handleMouseDown}
       style={{ height: '100%' }}
     >
       <style>{`
@@ -517,6 +590,49 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           max-width: 400px;
           margin: 0 auto !important;
         }
+        /* 嚴格固定每一行資源列與時間軸軌道的高度一致（統一 64px） */
+        .fc-datagrid-cell-frame {
+          min-height: 64px !important;
+          height: 64px !important;
+          padding: 8px 12px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: center !important;
+          box-sizing: border-box !important;
+        }
+        .fc-datagrid-cell-cushion {
+          width: 100%;
+          padding: 0 !important;
+        }
+        .fc-timeline-lane {
+          min-height: 64px !important;
+          height: 64px !important;
+        }
+        .fc-timeline-lane-frame {
+          min-height: 64px !important;
+          height: 64px !important;
+          display: flex !important;
+          align-items: center !important;
+        }
+        .fc-timeline-event-harness {
+          top: 50% !important;
+          transform: translateY(-50%) !important;
+        }
+        .fc-timeline-event {
+          min-height: 46px !important;
+          height: 46px !important;
+          border-radius: 6px !important;
+          overflow: hidden !important;
+          display: flex !important;
+          align-items: center !important;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+        }
+        /* 時間軸標頭支援拖曳縮放游標樣式 */
+        .fc-timeline-header,
+        .fc-timeline-header .fc-timeline-slot {
+          cursor: col-resize;
+          user-select: none;
+        }
       `}</style>
       <FullCalendar
         ref={calendarRef}
@@ -539,6 +655,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         slotEventOverlap={false}
         allDaySlot={false}
         eventMinHeight={38}
+        slotMinWidth={timelineSlotMinWidth}
         resourceAreaWidth={isMobile ? '180px' : '300px'}
         resourceAreaHeaderContent={
           isMobile

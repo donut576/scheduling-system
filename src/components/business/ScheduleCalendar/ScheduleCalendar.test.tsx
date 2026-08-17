@@ -435,8 +435,7 @@ describe('ScheduleCalendar - Property 19: 行事曆事件方塊資訊完整性',
       }),
       { numRuns: 20 },
     );
-  }, // under jsdom, especially under full-suite parallel load. Raise this // and waits (up to 5000ms each) for its async render, which is expensive // Each of the 20 property runs mounts/unmounts a full FullCalendar instance
-  // test's own timeout above the suite-wide default (see vitest.config.ts)
+  }, // test's own timeout above the suite-wide default (see vitest.config.ts) // under jsdom, especially under full-suite parallel load. Raise this // and waits (up to 5000ms each) for its async render, which is expensive // Each of the 20 property runs mounts/unmounts a full FullCalendar instance
   // to give the 20 cumulative runs enough headroom rather than reducing
   // numRuns or weakening the property.
   60000);
@@ -513,7 +512,7 @@ describe('ScheduleCalendar - Property 20: 跨日事件時間跨度', () => {
   it('extends the end date to start date + 1 day for any overnight event', () => {
     fc.assert(
       fc.property(arbOvernightEventCase, ({ event, expectedEndDate, endHH, endMM }) => {
-        const [eventInput] = toEventInputs([event]);
+        const [eventInput] = toEventInputs([event], 'day');
         if (!eventInput) {
           throw new Error('Expected toEventInputs to return one EventInput for one ScheduleEvent');
         }
