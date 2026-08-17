@@ -64,10 +64,32 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
   };
 
   // 地區選項（台北、新竹、台南、台中）
-  const areaOptions = AREA_OPTIONS;
+  const areaOptions = useMemo(() => {
+    const map: Record<string, string> = {
+      台北: t('employee.areas.taipei'),
+      新竹: t('employee.areas.hsinchu'),
+      台中: t('employee.areas.taichung'),
+      台南: t('employee.areas.tainan'),
+    };
+    return AREA_OPTIONS.map((opt) => ({
+      label: map[String(opt.value)] ?? opt.label,
+      value: opt.value,
+    }));
+  }, [t]);
 
   // 班別選項（早班、午班、晚班、大夜班）
-  const shiftOptions = EMPLOYEE_SHIFT_OPTIONS;
+  const shiftOptions = useMemo(() => {
+    const map: Record<string, string> = {
+      早班: t('task.shifts.morning'),
+      午班: t('task.shifts.afternoon'),
+      晚班: t('task.shifts.evening'),
+      大夜班: t('task.shifts.night'),
+    };
+    return EMPLOYEE_SHIFT_OPTIONS.map((opt) => ({
+      label: map[String(opt.value)] ?? opt.label,
+      value: opt.value,
+    }));
+  }, [t]);
 
   // 依「地區」、「班別」與「證照」篩選出的員工列表
   const filteredEmployees = useMemo(() => {
@@ -95,9 +117,20 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
   };
 
   // 證照篩選下拉選項
-  const licenseFilterOptions = Object.entries(LICENSE_TYPE_MAP)
-    .filter(([key]) => key !== 'NONE')
-    .map(([val, label]) => ({ label, value: val }));
+  const licenseFilterOptions = useMemo(() => {
+    const map: Record<string, string> = {
+      PROFESSIONAL: t('employee.licensesMap.professional'),
+      PEST_CONTROL: t('employee.licensesMap.pestControl'),
+      FIRE_ANT: t('employee.licensesMap.fireAnt'),
+      SAFETY_6HR: t('employee.licensesMap.safety6hr'),
+      SAFETY_MANAGER_A: t('employee.licensesMap.safetyManagerA'),
+      SAFETY_MANAGER_B: t('employee.licensesMap.safetyManagerB'),
+      SAFETY_MANAGER_C: t('employee.licensesMap.safetyManagerC'),
+    };
+    return Object.entries(LICENSE_TYPE_MAP)
+      .filter(([key]) => key !== 'NONE')
+      .map(([val, label]) => ({ label: map[val] ?? label, value: val }));
+  }, [t]);
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="small">

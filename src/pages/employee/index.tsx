@@ -28,9 +28,8 @@ import {
   useDeleteEmployee,
 } from '@/queries/useEmployeeQueries';
 import { usePermissionStore } from '@/stores/usePermissionStore';
-import { LICENSE_TYPE_MAP, LICENSE_TYPE_OPTIONS } from '@/constants/licenseTypes';
-import { POSITION_MAP, POSITION_OPTIONS } from '@/constants/positions';
-import { AREA_OPTIONS, EMPLOYEE_SHIFT_OPTIONS } from '@/constants/groups';
+import { LICENSE_TYPE_MAP } from '@/constants/licenseTypes';
+import { POSITION_MAP } from '@/constants/positions';
 import { PERMISSIONS } from '@/constants/permissions';
 import { hasLicenseConflict, hasOnlyPestControlLicense } from '@/utils/licenseValidation';
 import { getGroupColor } from '@/utils/groupColor';
@@ -126,6 +125,70 @@ const DesignatedLeavesEditor: FC<DesignatedLeavesEditorProps> = ({
 
 const DEFAULT_PARAMS = { page: 1, pageSize: 20 };
 
+const getPositionLabel = (pos: string | undefined, t: (k: string) => string): string => {
+  if (!pos) return '-';
+  const map: Record<string, string> = {
+    STAFF: t('employee.positions.staff'),
+    LEADER: t('employee.positions.leader'),
+    MANAGER: t('employee.positions.manager'),
+    ADMIN_STAFF: t('employee.positions.adminStaff'),
+  };
+  return map[pos] ?? POSITION_MAP[pos as keyof typeof POSITION_MAP] ?? pos;
+};
+
+const getLicenseLabel = (lic: LicenseType | string, t: (k: string) => string): string => {
+  const map: Record<string, string> = {
+    NONE: t('customer.licenseNone'),
+    PROFESSIONAL: t('employee.licensesMap.professional'),
+    PEST_CONTROL: t('employee.licensesMap.pestControl'),
+    FIRE_ANT: t('employee.licensesMap.fireAnt'),
+    SAFETY_6HR: t('employee.licensesMap.safety6hr'),
+    SAFETY_MANAGER_A: t('employee.licensesMap.safetyManagerA'),
+    SAFETY_MANAGER_B: t('employee.licensesMap.safetyManagerB'),
+    SAFETY_MANAGER_C: t('employee.licensesMap.safetyManagerC'),
+  };
+  return map[lic] ?? LICENSE_TYPE_MAP[lic as LicenseType] ?? lic;
+};
+
+const getLeaveTypeLabel = (lt: string | undefined, t: (k: string) => string): string => {
+  if (!lt) return '';
+  const map: Record<string, string> = {
+    REGULAR_LEAVE: t('employee.leaveTypes.regular'),
+    ANNUAL_LEAVE: t('employee.leaveTypes.annual'),
+    OTHER_LEAVE: t('employee.leaveTypes.other'),
+  };
+  return map[lt] ?? LEAVE_TYPE_MAP[lt as keyof typeof LEAVE_TYPE_MAP] ?? lt;
+};
+
+const getAreaLabel = (area: string | undefined, t: (k: string) => string): string => {
+  if (!area) return '';
+  const map: Record<string, string> = {
+    台北: t('employee.areas.taipei'),
+    新竹: t('employee.areas.hsinchu'),
+    台中: t('employee.areas.taichung'),
+    台南: t('employee.areas.tainan'),
+  };
+  return map[area] ?? area;
+};
+
+const getShiftLabel = (shift: string | undefined, t: (k: string) => string): string => {
+  if (!shift) return '';
+  const map: Record<string, string> = {
+    早班: t('task.shifts.morning'),
+    午班: t('task.shifts.afternoon'),
+    晚班: t('task.shifts.evening'),
+    大夜班: t('task.shifts.night'),
+  };
+  return map[shift] ?? shift;
+};
+
+const getDisplayGroup = (record: Employee, t: (k: string) => string): string => {
+  if (record.area && record.shift) {
+    return `${getAreaLabel(record.area, t)} ${getShiftLabel(record.shift, t)}`;
+  }
+  return record.groupName || '-';
+};
+
 /**
  * 行動裝置（< 768px）卡片檢視渲染函式。
  *
@@ -137,8 +200,7 @@ function renderEmployeeCard(
   t: (key: string) => string,
 ) {
   const groupColor = record.groupColor || getGroupColor(record.area || record.groupId);
-  const displayGroup =
-    record.area && record.shift ? `${record.area} ${record.shift}` : record.groupName;
+  const displayGroup = getDisplayGroup(record, t);
   const isOnlyPest = hasOnlyPestControlLicense(record.licenses ?? []);
 
   return (
@@ -177,11 +239,11 @@ function renderEmployeeCard(
         <div className="management-card-info">
           {/* 職位行：移除「職位：」前綴，字體加黑加粗，並在下方空一行/留邊距 */}
           <div style={{ fontWeight: 700, color: '#000', fontSize: 15, marginBottom: 8 }}>
-            {POSITION_MAP[record.position] ?? record.position}
+            {getPositionLabel(record.position, t)}
           </div>
           <div>{`${t('employee.phoneLabel')}：${formatPhone(record.phone)}`}</div>
           <div className="management-card-group-line">
-            <span>組別：</span>
+            <span>{t('employee.group')}：</span>
             {/* 組別以地區色彩 + 文字呈現 */}
             <span
               className="management-card-group-dot"
@@ -194,10 +256,10 @@ function renderEmployeeCard(
           </div>
         </div>
         <div className="management-card-note" style={{ minHeight: '2.8em', marginBottom: 8 }}>
-          <span>指定排休：</span>
+          <span>{t('employee.designatedLeave')}：</span>
           {record.leaveType && (
             <Tag color="orange" style={{ marginInlineEnd: 4 }}>
-              {LEAVE_TYPE_MAP[record.leaveType] ?? record.leaveType}
+              {getLeaveTypeLabel(record.leaveType, t)}
             </Tag>
           )}
           <span>
@@ -213,15 +275,15 @@ function renderEmployeeCard(
             {(record.licenses ?? []).length > 0 ? (
               (record.licenses ?? []).map((lic) => (
                 <Tag key={lic} color={lic === 'PEST_CONTROL' && isOnlyPest ? 'red' : undefined}>
-                  {LICENSE_TYPE_MAP[lic] ?? lic}
+                  {getLicenseLabel(lic, t)}
                 </Tag>
               ))
             ) : (
-              <Tag>無</Tag>
+              <Tag>{t('customer.licenseNone')}</Tag>
             )}
             {isOnlyPest && (
               <Tag color="error" icon={<WarningOutlined />}>
-                ⚠️ 僅有施藥證 (Alarm)
+                ⚠️ {t('employee.onlyPestControlWarningTitle')}
               </Tag>
             )}
           </Space>
@@ -270,7 +332,7 @@ const EmployeePage: FC = () => {
       name: 'keyword',
       label: t('common.keyword'),
       type: 'autoComplete',
-      placeholder: '輸入員工姓名或員工編號',
+      placeholder: t('employee.searchPlaceholder'),
       options: employeeSearchOptions,
     },
   ];
@@ -395,6 +457,50 @@ const EmployeePage: FC = () => {
     [deleteMutation, t],
   );
 
+  const localizedPositionOptions = useMemo(
+    () => [
+      { label: t('employee.positions.staff'), value: 'STAFF' },
+      { label: t('employee.positions.leader'), value: 'LEADER' },
+      { label: t('employee.positions.manager'), value: 'MANAGER' },
+      { label: t('employee.positions.adminStaff'), value: 'ADMIN_STAFF' },
+    ],
+    [t],
+  );
+
+  const localizedAreaOptions = useMemo(
+    () => [
+      { label: t('employee.areas.taipei'), value: '台北' },
+      { label: t('employee.areas.hsinchu'), value: '新竹' },
+      { label: t('employee.areas.taichung'), value: '台中' },
+      { label: t('employee.areas.tainan'), value: '台南' },
+    ],
+    [t],
+  );
+
+  const localizedShiftOptions = useMemo(
+    () => [
+      { label: t('task.shifts.morning'), value: '早班' },
+      { label: t('task.shifts.evening'), value: '晚班' },
+      { label: t('task.shifts.afternoon'), value: '午班' },
+      { label: t('task.shifts.night'), value: '大夜班' },
+    ],
+    [t],
+  );
+
+  const localizedLicenseOptions = useMemo(
+    () => [
+      { label: t('customer.licenseNone'), value: 'NONE' },
+      { label: t('employee.licensesMap.professional'), value: 'PROFESSIONAL' },
+      { label: t('employee.licensesMap.pestControl'), value: 'PEST_CONTROL' },
+      { label: t('employee.licensesMap.fireAnt'), value: 'FIRE_ANT' },
+      { label: t('employee.licensesMap.safety6hr'), value: 'SAFETY_6HR' },
+      { label: t('employee.licensesMap.safetyManagerA'), value: 'SAFETY_MANAGER_A' },
+      { label: t('employee.licensesMap.safetyManagerB'), value: 'SAFETY_MANAGER_B' },
+      { label: t('employee.licensesMap.safetyManagerC'), value: 'SAFETY_MANAGER_C' },
+    ],
+    [t],
+  );
+
   const columns: ColumnDef<Employee>[] = [
     {
       title: t('employee.name'),
@@ -424,44 +530,40 @@ const EmployeePage: FC = () => {
       title: t('employee.position'),
       key: 'position',
       width: 100,
-      render: (_value, record) => POSITION_MAP[record.position] ?? record.position,
+      render: (_value, record) => getPositionLabel(record.position, t),
       exportHeader: t('employee.position'),
-      exportKey: (record) => POSITION_MAP[record.position] ?? record.position,
+      exportKey: (record) => getPositionLabel(record.position, t),
     },
     {
-      title: '組別',
+      title: t('employee.group'),
       key: 'group',
       width: 120,
       render: (_value, record) => {
-        const displayGroup =
-          record.area && record.shift ? `${record.area} ${record.shift}` : record.groupName;
+        const displayGroup = getDisplayGroup(record, t);
         return (
           <Tag color={record.groupColor || getGroupColor(record.area || record.groupId)}>
             {displayGroup}
           </Tag>
         );
       },
-      exportHeader: '組別',
-      exportKey: (record) =>
-        record.area && record.shift ? `${record.area} ${record.shift}` : record.groupName,
+      exportHeader: t('employee.group'),
+      exportKey: (record) => getDisplayGroup(record, t),
     },
     {
-      title: '指定排休',
+      title: t('employee.designatedLeave'),
       key: 'designatedLeaves',
       width: 220,
       render: (_value, record) => (
         <Space size={[4, 4]} wrap>
-          {record.leaveType && (
-            <Tag color="orange">{LEAVE_TYPE_MAP[record.leaveType] ?? record.leaveType}</Tag>
-          )}
+          {record.leaveType && <Tag color="orange">{getLeaveTypeLabel(record.leaveType, t)}</Tag>}
           {(record.designatedLeaves ?? []).map((d) => (
             <Tag key={d}>{d}</Tag>
           ))}
         </Space>
       ),
-      exportHeader: '指定排休',
+      exportHeader: t('employee.designatedLeave'),
       exportKey: (record) =>
-        `${record.leaveType ? LEAVE_TYPE_MAP[record.leaveType] + ' ' : ''}${(record.designatedLeaves ?? []).join(', ')}`,
+        `${record.leaveType ? getLeaveTypeLabel(record.leaveType, t) + ' ' : ''}${(record.designatedLeaves ?? []).join(', ')}`,
     },
     {
       title: t('employee.licenses'),
@@ -470,13 +572,13 @@ const EmployeePage: FC = () => {
       render: (_value, record) => (
         <Space size={[4, 4]} wrap>
           {(record.licenses ?? []).map((lic) => (
-            <Tag key={lic}>{LICENSE_TYPE_MAP[lic] ?? lic}</Tag>
+            <Tag key={lic}>{getLicenseLabel(lic, t)}</Tag>
           ))}
         </Space>
       ),
       exportHeader: t('employee.licenses'),
       exportKey: (record) =>
-        (record.licenses ?? []).map((lic) => LICENSE_TYPE_MAP[lic] ?? lic).join(', '),
+        (record.licenses ?? []).map((lic) => getLicenseLabel(lic, t)).join(', '),
     },
     {
       title: t('common.actions'),
@@ -554,33 +656,44 @@ const EmployeePage: FC = () => {
             label={t('employee.position')}
             rules={[{ required: true, message: t('employee.positionRequired') }]}
           >
-            <Select placeholder={t('employee.positionPlaceholder')} options={POSITION_OPTIONS} />
+            <Select
+              placeholder={t('employee.positionPlaceholder')}
+              options={localizedPositionOptions}
+            />
           </Form.Item>
-          <Form.Item label="組別" required style={{ marginBottom: 16 }}>
+          <Form.Item label={t('employee.group')} required style={{ marginBottom: 16 }}>
             <Space style={{ width: '100%', display: 'flex' }} size={8}>
-              <Form.Item name="area" noStyle rules={[{ required: true, message: '請選擇地區' }]}>
+              <Form.Item
+                name="area"
+                noStyle
+                rules={[{ required: true, message: t('employee.groupRequired') }]}
+              >
                 <Select
-                  placeholder="選地區 (例如: 台北)"
-                  options={AREA_OPTIONS}
+                  placeholder={t('employee.groupPlaceholder')}
+                  options={localizedAreaOptions}
                   style={{ width: 260 }}
                 />
               </Form.Item>
-              <Form.Item name="shift" noStyle rules={[{ required: true, message: '請選擇班別' }]}>
+              <Form.Item
+                name="shift"
+                noStyle
+                rules={[{ required: true, message: t('task.shiftRequired') }]}
+              >
                 <Select
-                  placeholder="選班別 (例如: 早班)"
-                  options={EMPLOYEE_SHIFT_OPTIONS}
+                  placeholder={t('task.shiftPlaceholder')}
+                  options={localizedShiftOptions}
                   style={{ width: 260 }}
                 />
               </Form.Item>
             </Space>
           </Form.Item>
 
-          <Form.Item label="指定排休">
+          <Form.Item label={t('employee.designatedLeave')}>
             <Form.Item name="leaveType" noStyle initialValue="REGULAR_LEAVE">
               <Radio.Group style={{ marginBottom: 8 }} onChange={() => setDatePickerOpen(true)}>
-                <Radio value="REGULAR_LEAVE">例假</Radio>
-                <Radio value="ANNUAL_LEAVE">年假</Radio>
-                <Radio value="OTHER_LEAVE">其他</Radio>
+                <Radio value="REGULAR_LEAVE">{t('employee.leaveTypes.regular')}</Radio>
+                <Radio value="ANNUAL_LEAVE">{t('employee.leaveTypes.annual')}</Radio>
+                <Radio value="OTHER_LEAVE">{t('employee.leaveTypes.other')}</Radio>
               </Radio.Group>
             </Form.Item>
             <Form.Item
@@ -598,7 +711,7 @@ const EmployeePage: FC = () => {
 
           <Form.Item
             name="licenses"
-            label="證照"
+            label={t('employee.licenses')}
             initialValue={['NONE']}
             rules={[
               {
@@ -614,7 +727,7 @@ const EmployeePage: FC = () => {
             <Select
               mode="multiple"
               placeholder={t('employee.licensesPlaceholder')}
-              options={LICENSE_TYPE_OPTIONS}
+              options={localizedLicenseOptions}
               allowClear
               onChange={(selectedValues: LicenseType[]) => {
                 let newValues = selectedValues;
@@ -645,7 +758,7 @@ const EmployeePage: FC = () => {
                 return (
                   <Alert
                     type="warning"
-                    message="⚠️ 警示：該員工僅持有「施藥」證照，請留意資格是否足夠！"
+                    message={`⚠️ ${t('employee.onlyPestControlWarningTitle')}：${t('employee.onlyPestControlWarningContent')}`}
                     showIcon
                     style={{ marginTop: 8 }}
                   />

@@ -37,7 +37,7 @@ export const useAppStore = create<AppState>()(
       toggleSidebar: () => set({ sidebarCollapsed: !get().sidebarCollapsed }),
       setSidebarCollapsed: (collapsed: boolean) => set({ sidebarCollapsed: collapsed }),
       setTheme: (theme: 'light' | 'dark') => set({ theme }),
-      setLocale: (locale: 'zh-TW' | 'en-US') => set({ locale }),
+      setLocale: (_locale: 'zh-TW' | 'en-US') => set({ locale: 'zh-TW' }),
     }),
     {
       name: 'ecolab-app-store',
@@ -45,7 +45,6 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
         theme: state.theme,
-        locale: state.locale,
       }),
     },
   ),

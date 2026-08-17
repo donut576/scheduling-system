@@ -19,6 +19,7 @@ import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useEmployeeList } from '@/queries/useEmployeeQueries';
 import { useTaskDetail, useUpdateTask } from '@/queries/useTaskQueries';
 import { AREA_OPTIONS, EMPLOYEE_SHIFT_OPTIONS } from '@/constants/groups';
+import { formatTaskContents } from '@/constants/taskStatus';
 import type {
   ScheduleDimension,
   ScheduleEvent,
@@ -343,7 +344,9 @@ const SchedulePage: FC = () => {
       selectedEvent.extendedProps.assignees?.map((a) => a.employeeName).join('、') ||
       t('schedule.unassigned');
 
-    const contentsStr = selectedEvent.extendedProps.contents?.join('、') || '-';
+    const contentsStr = selectedEvent.extendedProps.contents
+      ? formatTaskContents(selectedEvent.extendedProps.contents, ', ', t)
+      : '-';
 
     return {
       groupName: selectedEvent.groupName,
@@ -366,6 +369,16 @@ const SchedulePage: FC = () => {
       if (!detailRows || event.id !== selectedEvent?.id) return null;
       const eventColor = event.backgroundColor || '#7a69c0';
       const assigneeArea = event.extendedProps?.assignees?.[0]?.area;
+      const shiftLabel =
+        detailRows.shift === '早班'
+          ? t('task.shifts.morning')
+          : detailRows.shift === '午班'
+            ? t('task.shifts.afternoon')
+            : detailRows.shift === '晚班'
+              ? t('task.shifts.evening')
+              : detailRows.shift === '大夜班'
+                ? t('task.shifts.night')
+                : detailRows.shift;
 
       return (
         <div
@@ -399,17 +412,17 @@ const SchedulePage: FC = () => {
                 fontSize: 12,
               }}
             >
-              {assigneeArea ? `${assigneeArea} · ${detailRows.shift}` : detailRows.shift}
+              {assigneeArea ? `${assigneeArea} · ${shiftLabel}` : shiftLabel}
             </span>
             <div style={{ display: 'flex', gap: 4 }}>
               {event.alertStatus === 'OVERRIDDEN' && (
                 <Tag color="warning" style={{ margin: 0, fontWeight: 600 }}>
-                  ⚠️ {t('alert.overriddenTooltip') || '此任務違規已被核准'}
+                  ⚠️ {t('alert.overriddenTooltip')}
                 </Tag>
               )}
               {event.alertStatus === 'VIOLATED' && (
                 <Tag color="error" style={{ margin: 0, fontWeight: 600 }}>
-                  🚨 違規
+                  🚨 {t('alert.warning')}
                 </Tag>
               )}
             </div>

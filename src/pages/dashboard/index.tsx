@@ -153,14 +153,27 @@ const DashboardPage: FC = () => {
                 style={{ marginTop: 12 }}
                 size="small"
                 dataSource={pendingApprovals}
-                renderItem={(item) => (
-                  <List.Item key={item.id}>
-                    <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
-                      <span>{APPROVAL_TYPE_MAP[item.type] ?? item.type}</span>
-                      <Text type="secondary">{item.requestedByName}</Text>
-                    </Space>
-                  </List.Item>
-                )}
+                renderItem={(item) => {
+                  const typeLabel =
+                    item.type === 'TASK_CHANGE'
+                      ? t('approval.types.taskChange')
+                      : item.type === 'ALERT_OVERRIDE'
+                        ? t('approval.types.alertOverride')
+                        : item.type === 'SCHEDULE_CHANGE'
+                          ? t('approval.types.scheduleChange')
+                          : item.type === 'SHIFT_CHANGE'
+                            ? t('approval.types.shiftChange')
+                            : (APPROVAL_TYPE_MAP[item.type] ?? item.type);
+
+                  return (
+                    <List.Item key={item.id}>
+                      <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+                        <span>{typeLabel}</span>
+                        <Text type="secondary">{item.requestedByName}</Text>
+                      </Space>
+                    </List.Item>
+                  );
+                }}
               />
             )}
           </Card>

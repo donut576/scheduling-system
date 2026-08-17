@@ -6,6 +6,7 @@
  */
 import React, { useMemo, useCallback } from 'react';
 import { Select, Space } from 'antd';
+import { useTranslation } from 'react-i18next';
 
 export interface TimeSelectProps {
   value?: string;
@@ -36,6 +37,7 @@ const TimeSelect: React.FC<TimeSelectProps> = ({
   'aria-label': ariaLabel,
   disabled = false,
 }) => {
+  const { t } = useTranslation();
   const [selectedHour, selectedMinute] = useMemo(() => {
     if (!value || typeof value !== 'string') return [undefined, undefined];
     const parts = value.split(':');
@@ -67,7 +69,7 @@ const TimeSelect: React.FC<TimeSelectProps> = ({
   return (
     <Space.Compact style={{ width: '100%' }}>
       <Select
-        placeholder="時"
+        placeholder={t('task.hour')}
         value={selectedHour}
         onChange={handleHourChange}
         options={HOUR_OPTIONS}
@@ -79,7 +81,7 @@ const TimeSelect: React.FC<TimeSelectProps> = ({
         aria-label={ariaLabel ? `${ariaLabel} (小時)` : '小時'}
       />
       <Select
-        placeholder="分"
+        placeholder={t('task.minute')}
         value={selectedMinute}
         onChange={handleMinuteChange}
         options={MINUTE_OPTIONS}

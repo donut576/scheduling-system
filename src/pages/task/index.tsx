@@ -19,20 +19,66 @@ import { useTaskList, useCreateTask, useUpdateTask } from '@/queries/useTaskQuer
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useTaskStore } from '@/stores/useTaskStore';
 import { usePermissionStore } from '@/stores/usePermissionStore';
-import { TASK_STATUS_MAP, TASK_STATUS_OPTIONS, formatTaskContents } from '@/constants/taskStatus';
+import { TASK_STATUS_MAP, formatTaskContents } from '@/constants/taskStatus';
 import { exportToExcel, type ExcelColumn } from '@/utils/excel';
 import type { Task, TaskFormData, TaskStatus } from '@/types/task';
 import type { CustomerGroup } from '@/types/customer';
 import type { PaginatedResponse } from '@/types/common';
+
+const getTaskStatusLabel = (status: TaskStatus, t: (key: string) => string): string => {
+  switch (status) {
+    case 'SCHEDULED':
+      return t('task.statusScheduled');
+    case 'UNSCHEDULED':
+      return t('task.statusUnscheduled');
+    case 'MODIFIED':
+      return t('task.statusModified');
+    case 'CANCELLED':
+      return t('task.statusCancelled');
+    case 'CONFIRMED':
+      return t('task.statusConfirmed');
+    case 'PENDING_APPROVAL':
+      return t('task.statusPendingApproval');
+    default:
+      return TASK_STATUS_MAP[status]?.label ?? status;
+  }
+};
+
+const getShiftLabel = (shift: string | undefined, t: (key: string) => string): string => {
+  if (!shift) return '-';
+  if (shift === '早班') return t('task.shifts.morning');
+  if (shift === '午班') return t('task.shifts.afternoon');
+  if (shift === '晚班') return t('task.shifts.evening');
+  if (shift === '大夜班') return t('task.shifts.night');
+  return shift;
+};
+
+const getRouteLabel = (route: string | undefined, t: (key: string) => string): string => {
+  if (!route) return '';
+  const routeMap: Record<string, string> = {
+    第一路: t('task.routes.route1'),
+    第二路: t('task.routes.route2'),
+    第三路: t('task.routes.route3'),
+    第四路: t('task.routes.route4'),
+    第五路: t('task.routes.route5'),
+    第六路: t('task.routes.route6'),
+    第七路: t('task.routes.route7'),
+    第八路: t('task.routes.route8'),
+  };
+  return routeMap[route] ?? route;
+};
 
 const getTaskExportColumns = (t: (key: string) => string): ExcelColumn<Task>[] => [
   {
     header: t('task.status'),
     key: (record) => {
       if (record.status === 'MODIFIED') {
-        return record.isApproved ? '更改 (已確認)' : '更改 (待審核)';
+        const approvedSuffix = record.isApproved
+          ? ` (${t('approval.status.approved')})`
+          : ` (${t('approval.status.pending')})`;
+        return `${t('task.statusModified')}${approvedSuffix}`;
       }
-      return TASK_STATUS_MAP[record.status]?.label ?? record.status;
+      return getTaskStatusLabel(record.status, t);
     },
     width: 16,
   },
@@ -46,11 +92,11 @@ const getTaskExportColumns = (t: (key: string) => string): ExcelColumn<Task>[] =
     width: 14,
   },
   { header: t('task.headcount'), key: 'headcount', width: 12 },
-  { header: t('task.shift'), key: 'shift', width: 12 },
-  { header: t('task.route'), key: (record) => record.route ?? '', width: 16 },
+  { header: t('task.shift'), key: (record) => getShiftLabel(record.shift, t), width: 12 },
+  { header: t('task.route'), key: (record) => getRouteLabel(record.route, t), width: 16 },
   {
     header: t('task.content'),
-    key: (record) => formatTaskContents(record.contents, ', '),
+    key: (record) => formatTaskContents(record.contents, ', ', t),
     width: 20,
   },
   {
@@ -121,19 +167,19 @@ function baseColumns(
               color={record.isApproved ? '#1677FF' : '#F5222D'}
               style={{ color: '#ffffff', fontWeight: 600 }}
             >
-              更改
+              {getTaskStatusLabel('MODIFIED', t)}
             </Tag>
           );
         }
         const config = TASK_STATUS_MAP[value as TaskStatus];
         return (
           <Tag color={config?.color} style={{ color: '#ffffff', fontWeight: 600 }}>
-            {config?.label ?? (value as string)}
+            {getTaskStatusLabel(value as TaskStatus, t)}
           </Tag>
         );
       },
       exportHeader: t('task.status'),
-      exportKey: (record) => TASK_STATUS_MAP[record.status]?.label ?? record.status,
+      exportKey: (record) => getTaskStatusLabel(record.status, t),
     },
     {
       title: groupTitle,
@@ -176,10 +222,10 @@ function baseColumns(
       key: 'endTime',
       width: 90,
       render: (value, record) =>
-        `${value as string}${record.isOvernight ? `（${t('task.overnight')}）` : ''}`,
+        `${value as string}${record.isOvernight ? ` (${t('task.overnight')})` : ''}`,
       exportHeader: t('task.endTime'),
       exportKey: (record) =>
-        `${record.endTime}${record.isOvernight ? `（${t('task.overnight')}）` : ''}`,
+        `${record.endTime}${record.isOvernight ? ` (${t('task.overnight')})` : ''}`,
     },
     {
       title: t('task.headcount'),
@@ -194,8 +240,9 @@ function baseColumns(
       dataIndex: 'shift',
       key: 'shift',
       width: 100,
+      render: (value) => getShiftLabel(value as string, t),
       exportHeader: t('task.shift'),
-      exportKey: 'shift',
+      exportKey: (record) => getShiftLabel(record.shift, t),
     },
     {
       title: t('task.route'),
@@ -203,17 +250,18 @@ function baseColumns(
       key: 'route',
       width: 100,
       ellipsis: true,
+      render: (value) => getRouteLabel(value as string, t),
       exportHeader: t('task.route'),
-      exportKey: 'route',
+      exportKey: (record) => getRouteLabel(record.route, t),
     },
     {
       title: t('task.content'),
       key: 'contents',
       width: 140,
       ellipsis: true,
-      render: (_value, record) => formatTaskContents(record.contents, ', '),
+      render: (_value, record) => formatTaskContents(record.contents, ', ', t),
       exportHeader: t('task.content'),
-      exportKey: (record) => formatTaskContents(record.contents, ', '),
+      exportKey: (record) => formatTaskContents(record.contents, ', ', t),
     },
     {
       title: t('task.assignees'),
@@ -253,7 +301,7 @@ function renderTaskCard(record: Task, t: (key: string) => string) {
         ? '#1677FF'
         : '#F5222D'
       : TASK_STATUS_MAP[record.status]?.color;
-  const tagLabel = TASK_STATUS_MAP[record.status]?.label ?? record.status;
+  const tagLabel = getTaskStatusLabel(record.status, t);
 
   return (
     <Card
@@ -273,14 +321,15 @@ function renderTaskCard(record: Task, t: (key: string) => string) {
         </Space>
         <span>
           {record.date} {record.startTime} - {record.endTime}
-          {record.isOvernight ? `（${t('task.overnight')}）` : ''}
+          {record.isOvernight ? ` (${t('task.overnight')})` : ''}
         </span>
         <span>
-          {t('task.shift')}：{record.shift || '-'} ／ {t('task.headcount')}：{record.headcount}
+          {t('task.shift')}：{getShiftLabel(record.shift, t)} ／ {t('task.headcount')}：
+          {record.headcount}
         </span>
         {Array.isArray(record.contents) && record.contents.length > 0 && (
           <span>
-            {t('task.content')}：{formatTaskContents(record.contents, '、')}
+            {t('task.content')}：{formatTaskContents(record.contents, ', ', t)}
           </span>
         )}
         {Array.isArray(record.assignees) && record.assignees.length > 0 && (
@@ -457,11 +506,18 @@ function TaskPage() {
 
   // 組合表格欄位定義，將狀態/集團/分店/日期篩選 UI 注入對應欄位標題
   const tableColumns = useMemo(() => {
+    const statusOptions = [
+      { label: t('task.statusScheduled'), value: 'SCHEDULED' },
+      { label: t('task.statusUnscheduled'), value: 'UNSCHEDULED' },
+      { label: t('task.statusModified'), value: 'MODIFIED' },
+      { label: t('task.statusCancelled'), value: 'CANCELLED' },
+    ];
+
     const statusTitle = (
       <ColumnFilterTitle label={t('task.status')} active={!!filters.status}>
         <Select
           value={filters.status}
-          options={TASK_STATUS_OPTIONS}
+          options={statusOptions}
           placeholder={t('task.selectStatus')}
           allowClear
           style={{ width: 140 }}
@@ -563,7 +619,7 @@ function TaskPage() {
         <div>
           {hasActiveFilters && (
             <Button icon={<ReloadOutlined />} onClick={() => resetFilters()}>
-              一鍵清除篩選條件
+              {t('common.clearFilters')}
             </Button>
           )}
         </div>
@@ -577,7 +633,7 @@ function TaskPage() {
             loading={isExporting}
             disabled={!taskListQuery.data?.total}
           >
-            列表匯出
+            {t('task.export')}
           </Button>
         </Space>
       </div>
@@ -593,7 +649,7 @@ function TaskPage() {
       />
 
       <Modal
-        title={editingTask ? '編輯任務表單' : '新增任務表單'}
+        title={editingTask ? t('task.editTitle') : t('task.createTitle')}
         open={modalOpen}
         onCancel={handleModalClose}
         footer={null}

@@ -59,13 +59,22 @@ export const TASK_CONTENT_LABEL_MAP: Record<string, string> = {
   OTHER: '其他',
 };
 
-/** 格式化任務內容陣列為中文顯示字串 */
+/** 格式化任務內容陣列為顯示字串（支援多語系翻譯） */
 export const formatTaskContents = (
   contents?: string[] | null,
   separator: string = '、',
+  t?: (key: string) => string,
 ): string => {
   if (!Array.isArray(contents) || contents.length === 0) return '-';
-  return contents.map((c) => TASK_CONTENT_LABEL_MAP[c] || c).join(separator);
+  return contents
+    .map((c) => {
+      if (t) {
+        const translated = t(`task.contents.${c}`);
+        if (translated && !translated.startsWith('task.contents.')) return translated;
+      }
+      return TASK_CONTENT_LABEL_MAP[c] || c;
+    })
+    .join(separator);
 };
 
 // 班次下拉選單假資料（demo 用途，供 useDictStore 預設值使用）

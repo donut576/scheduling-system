@@ -74,10 +74,21 @@ const MapView: FC<MapViewProps> = ({
               data-testid={`map-marker-${customer.id}`}
             >
               <Popup>
-                <div data-testid={`map-popup-${customer.id}`}>
-                  <div>{customer.groupName}</div>
-                  <div>{customer.branchName}</div>
-                  <div>{customer.address}</div>
+                <div data-testid={`map-popup-${customer.id}`} style={{ minWidth: 160 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>
+                    {customer.groupName}
+                  </div>
+                  <div
+                    style={{
+                      color: '#1677ff',
+                      fontWeight: 600,
+                      fontSize: 12,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {customer.branchName}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#666' }}>{customer.address}</div>
                 </div>
               </Popup>
             </CircleMarker>

@@ -6,13 +6,7 @@
  */
 import React from 'react';
 import { Layout, Button, Dropdown, Space, Typography } from 'antd';
-import {
-  DownOutlined,
-  GlobalOutlined,
-  LogoutOutlined,
-  MenuOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
+import { DownOutlined, LogoutOutlined, MenuOutlined, UserOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/stores/useAppStore';
 import { useUserStore } from '@/stores/useUserStore';
@@ -20,13 +14,11 @@ import { useUserStore } from '@/stores/useUserStore';
 const { Header } = Layout;
 const { Text } = Typography;
 
-// 頂部導覽列：包含側邊選單開關、品牌 Logo、語言切換與使用者選單
+// 頂部導覽列：包含側邊選單開關、品牌 Logo 與使用者選單
 const AppHeader: React.FC = () => {
   const { t } = useTranslation();
-  const { locale, setLocale, toggleSidebar } = useAppStore();
+  const { toggleSidebar } = useAppStore();
   const { user, logout } = useUserStore();
-  // 依目前語系顯示對應的語言標籤文字
-  const languageLabel = locale === 'zh-TW' ? '中文' : 'EN';
 
   return (
     <Header
@@ -52,25 +44,6 @@ const AppHeader: React.FC = () => {
         Ecolab
       </Text>
       <Space size={8} style={{ marginLeft: 'auto' }}>
-        {/* 語言切換下拉選單：點選項目後直接呼叫 setLocale 切換語系 */}
-        <Dropdown
-          trigger={['click']}
-          menu={{
-            selectedKeys: [locale],
-            onClick: ({ key }) => setLocale(key as 'zh-TW' | 'en-US'),
-            items: [
-              { key: 'zh-TW', label: '中文' },
-              { key: 'en-US', label: 'English' },
-            ],
-          }}
-        >
-          <Button icon={<GlobalOutlined />}>
-            <Space size={4}>
-              {languageLabel}
-              <DownOutlined />
-            </Space>
-          </Button>
-        </Dropdown>
         {/* 使用者資訊下拉選單：顯示姓名/員工編號/職位（不可點選），並提供登出按鈕 */}
         <Dropdown
           trigger={['click']}

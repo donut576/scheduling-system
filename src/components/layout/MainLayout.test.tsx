@@ -122,11 +122,10 @@ describe('MainLayout', () => {
     mockMediaQueryListeners.length = 0;
   });
 
-  it('renders top navbar with hamburger, brand, language dropdown and user dropdown', () => {
+  it('renders top navbar with hamburger, brand, and user dropdown', () => {
     renderLayout();
     expect(screen.getByRole('button', { name: 'Open sidebar' })).toBeInTheDocument();
     expect(screen.getByText('Ecolab')).toBeInTheDocument();
-    expect(screen.getByText('中文')).toBeInTheDocument();
     expect(screen.getByText('測試用戶')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /登出/ })).not.toBeInTheDocument();
   });
@@ -141,15 +140,6 @@ describe('MainLayout', () => {
     expect(screen.getByText('儀表板')).toBeInTheDocument();
     expect(screen.getByText('任務管理')).toBeInTheDocument();
     expect(screen.getByText('班表總覽')).toBeInTheDocument();
-  });
-
-  it('updates locale from the top language dropdown', async () => {
-    const user = userEvent.setup();
-    renderLayout();
-
-    await user.click(screen.getByRole('button', { name: /中文/ }));
-    await user.click(await screen.findByText('English'));
-    expect(useAppStore.getState().locale).toBe('en-US');
   });
 
   it('shows account details and logout in the user dropdown', async () => {

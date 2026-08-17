@@ -113,6 +113,72 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
   const { taskTypes, shifts, routes, contents } = useDictStore();
   const { setAlertResults: setStoreAlertResults } = useTaskStore();
 
+  const localizedTaskTypes = useMemo(
+    () =>
+      taskTypes.map((opt) => ({
+        label:
+          opt.value === 'CONTRACT'
+            ? t('task.contract')
+            : opt.value === 'ONETIME'
+              ? t('task.onetime')
+              : opt.value === 'ESR'
+                ? t('task.esr')
+                : opt.label,
+        value: opt.value,
+      })),
+    [taskTypes, t],
+  );
+
+  const localizedShifts = useMemo(
+    () =>
+      shifts.map((opt) => {
+        const str = String(opt.value);
+        let label = opt.label;
+        if (str === '早班') label = t('task.shifts.morning');
+        else if (str === '午班') label = t('task.shifts.afternoon');
+        else if (str === '晚班') label = t('task.shifts.evening');
+        else if (str === '大夜班') label = t('task.shifts.night');
+        return { label, value: opt.value };
+      }),
+    [shifts, t],
+  );
+
+  const localizedRoutes = useMemo(() => {
+    const routeMap: Record<string, string> = {
+      第一路: t('task.routes.route1'),
+      第二路: t('task.routes.route2'),
+      第三路: t('task.routes.route3'),
+      第四路: t('task.routes.route4'),
+      第五路: t('task.routes.route5'),
+      第六路: t('task.routes.route6'),
+      第七路: t('task.routes.route7'),
+      第八路: t('task.routes.route8'),
+    };
+    return routes.map((opt) => ({
+      label: routeMap[String(opt.value)] ?? opt.label,
+      value: opt.value,
+    }));
+  }, [routes, t]);
+
+  const localizedContents = useMemo(() => {
+    const contentMap: Record<string, string> = {
+      P: t('task.contents.P'),
+      R: t('task.contents.R'),
+      S: t('task.contents.S'),
+      TERMITE: t('task.contents.TERMITE'),
+      FIRE_ANT: t('task.contents.FIRE_ANT'),
+      BED_BUG: t('task.contents.BED_BUG'),
+      VEHICLE_MAINTENANCE: t('task.contents.VEHICLE_MAINTENANCE'),
+      TRAINING: t('task.contents.TRAINING'),
+      TRAINING_MEETING: t('task.contents.TRAINING'),
+      OTHER: t('task.contents.OTHER'),
+    };
+    return contents.map((opt) => ({
+      label: contentMap[String(opt.value)] ?? opt.label,
+      value: opt.value,
+    }));
+  }, [contents, t]);
+
   // Fetch customer groups for cascading group → branch
   const { data: customerGroups = [] } = useCustomerGroups();
 
@@ -371,7 +437,11 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
           {/* 左欄：基本資訊 ＋ 排程循環 */}
           <Col xs={24} lg={12}>
             {/* 區塊 1: 基本任務資訊 */}
-            <Card size="small" title="🏢 基本資訊" style={{ marginBottom: 16, borderRadius: 8 }}>
+            <Card
+              size="small"
+              title={`🏢 ${t('task.basicInfo')}`}
+              style={{ marginBottom: 16, borderRadius: 8 }}
+            >
               <Row gutter={12}>
                 <Col span={12}>
                   <Form.Item
@@ -417,12 +487,16 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                 rules={[{ required: true, message: t('task.taskTypeRequired') }]}
                 style={{ marginBottom: 8 }}
               >
-                <TaskTypeCheckboxGroup options={taskTypes} />
+                <TaskTypeCheckboxGroup options={localizedTaskTypes} />
               </Form.Item>
             </Card>
 
             {/* 區塊 2: 排程與循環頻率 */}
-            <Card size="small" title="⏰ 排程與循環" style={{ borderRadius: 8 }}>
+            <Card
+              size="small"
+              title={`⏰ ${t('task.scheduleAndRecurrence')}`}
+              style={{ borderRadius: 8 }}
+            >
               <Row gutter={12}>
                 <Col span={12}>
                   <Form.Item
@@ -432,7 +506,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                   >
                     <Select
                       placeholder={t('task.shiftPlaceholder')}
-                      options={shifts}
+                      options={localizedShifts}
                       showSearch
                       optionFilterProp="label"
                       aria-label={t('task.shift')}
@@ -443,7 +517,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                   <Form.Item name="route" label={t('task.route')}>
                     <Select
                       placeholder={t('task.routePlaceholder')}
-                      options={routes}
+                      options={localizedRoutes}
                       allowClear
                       showSearch
                       optionFilterProp="label"
@@ -453,11 +527,11 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                 </Col>
               </Row>
 
-              <Form.Item name="date" label={t('task.date')} extra="未填寫日期將視為待排時間客戶">
+              <Form.Item name="date" label={t('task.date')} extra={t('task.dateExtra')}>
                 <DatePicker
                   style={{ width: '100%' }}
                   format="YYYY-MM-DD"
-                  placeholder="請選擇日期（可留空為待排）"
+                  placeholder={t('task.selectDatePlaceholder')}
                   cellRender={(current) => {
                     if (typeof current === 'number' || typeof current === 'string') {
                       return <div className="ant-picker-cell-inner">{current}</div>;
@@ -489,14 +563,14 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
 
               <Divider style={{ margin: '12px 0' }} />
 
-              <Form.Item label="週期" required style={{ marginBottom: 8 }}>
+              <Form.Item label={t('task.recurrence')} required style={{ marginBottom: 8 }}>
                 <Radio.Group
                   value={enableRecurrence ? 'yes' : 'no'}
                   onChange={(e) => setEnableRecurrence(e.target.value === 'yes')}
                   style={{ marginBottom: enableRecurrence ? 12 : 0 }}
                 >
-                  <Radio.Button value="no">無週期</Radio.Button>
-                  <Radio.Button value="yes">有週期</Radio.Button>
+                  <Radio.Button value="no">{t('task.noRecurrence')}</Radio.Button>
+                  <Radio.Button value="yes">{t('task.hasRecurrence')}</Radio.Button>
                 </Radio.Group>
 
                 {enableRecurrence && (
@@ -521,7 +595,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
             {/* 區塊 3: 內容與指派人員 */}
             <Card
               size="small"
-              title="🛠️ 內容與指派人員"
+              title={`🛠️ ${t('task.contentAndAssignees')}`}
               style={{ marginBottom: 16, borderRadius: 8 }}
             >
               <Form.Item
@@ -529,17 +603,17 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                 label={t('task.content')}
                 rules={[{ required: true, message: t('task.contentRequired'), type: 'array' }]}
               >
-                <Checkbox.Group options={contents} />
+                <Checkbox.Group options={localizedContents} />
               </Form.Item>
 
               {showOtherContentNote && (
                 <Form.Item
                   name="otherContentNote"
                   label={t('task.otherContentNote')}
-                  rules={[{ required: true, message: '請輸入其他內容說明' }]}
+                  rules={[{ required: true, message: t('task.otherContentNoteRequired') }]}
                 >
                   <Input
-                    placeholder="請輸入其他內容說明（必填）"
+                    placeholder={t('task.otherContentNotePlaceholder')}
                     aria-label={t('task.otherContentNote')}
                   />
                 </Form.Item>
@@ -550,12 +624,12 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                   min={1}
                   max={50}
                   style={{ width: '100%' }}
-                  placeholder="人數需求（預設 1 人）"
+                  placeholder={t('task.headcountPlaceholder')}
                   aria-label={t('task.headcount')}
                 />
               </Form.Item>
 
-              <Form.Item name="assignees" label="指派人員（按鈕式點選）">
+              <Form.Item name="assignees" label={t('task.assigneesSelection')}>
                 <EmployeeSelect
                   value={assigneesValue}
                   onChange={(ids) => form.setFieldValue('assignees', ids)}
@@ -566,7 +640,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
             </Card>
 
             {/* 區塊 4: 備註說明 */}
-            <Card size="small" title="📝 備註說明" style={{ borderRadius: 8 }}>
+            <Card size="small" title={`📝 ${t('task.remarksSection')}`} style={{ borderRadius: 8 }}>
               <Form.Item name="remarks" style={{ marginBottom: 0 }}>
                 <TextArea
                   rows={3}

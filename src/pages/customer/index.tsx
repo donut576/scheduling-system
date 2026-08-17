@@ -80,22 +80,22 @@ function renderCustomerCard(
           <div>{`${t('customer.contactName')}：${record.contactName}`}</div>
           <div>{`${t('customer.contactPhoneShort')}：${record.contactPhone}`}</div>
           <div style={{ marginTop: 4 }}>
-            <span>證照限制：</span>
+            <span>{t('customer.requiredLicenses')}：</span>
             {hasPest ? (
-              <Tag color="blue">需施藥</Tag>
+              <Tag color="blue">{t('customer.licensePestControl')}</Tag>
             ) : hasProf ? (
-              <Tag color="purple">需專技</Tag>
+              <Tag color="purple">{t('customer.licenseProfessional')}</Tag>
             ) : record.licenseRestrictionNote ? (
               <Tag color="orange">{record.licenseRestrictionNote}</Tag>
             ) : (
-              <Tag>無</Tag>
+              <Tag>{t('customer.licenseNone')}</Tag>
             )}
           </div>
           <div
             style={{ marginTop: 6, paddingTop: 6, borderTop: '1px dashed #f0f0f0' }}
             className="management-card-note"
           >
-            <div>客戶備註：</div>
+            <div>{t('customer.remarks')}：</div>
             <div
               style={{
                 minHeight: '2.8em',
@@ -136,7 +136,7 @@ const CustomerPage: FC = () => {
     list.forEach((c) => {
       if (c.groupName && !optionsMap.has(`group-${c.groupName}`)) {
         optionsMap.set(`group-${c.groupName}`, {
-          label: `${c.groupName} (集團)`,
+          label: `${c.groupName} (${t('customer.groupTag')})`,
           value: c.groupName,
         });
       }
@@ -148,14 +148,14 @@ const CustomerPage: FC = () => {
       }
     });
     return Array.from(optionsMap.values());
-  }, [allCustomerQuery.data?.list]);
+  }, [allCustomerQuery.data?.list, t]);
 
   const localizedSearchFields: SearchFieldConfig[] = [
     {
       name: 'keyword',
       label: t('common.keyword'),
       type: 'autoComplete',
-      placeholder: '輸入集團名稱',
+      placeholder: t('customer.searchPlaceholder'),
       options: customerSearchOptions,
     },
   ];
@@ -338,13 +338,13 @@ const CustomerPage: FC = () => {
         return (
           <Space size={[4, 4]} wrap>
             {hasPest ? (
-              <Tag color="blue">需施藥</Tag>
+              <Tag color="blue">{t('customer.licensePestControl')}</Tag>
             ) : hasProf ? (
-              <Tag color="purple">需專技</Tag>
+              <Tag color="purple">{t('customer.licenseProfessional')}</Tag>
             ) : record.licenseRestrictionNote ? (
               <Tag color="orange">{record.licenseRestrictionNote}</Tag>
             ) : (
-              <Tag>無</Tag>
+              <Tag>{t('customer.licenseNone')}</Tag>
             )}
           </Space>
         );
@@ -353,7 +353,7 @@ const CustomerPage: FC = () => {
       exportKey: (record) =>
         record.licenseRestrictionNote ||
         (record.requiredLicenses ?? []).map((lic) => LICENSE_TYPE_MAP[lic] ?? lic).join(', ') ||
-        '無',
+        t('customer.licenseNone'),
     },
     {
       title: t('customer.remarks'),
@@ -449,14 +449,18 @@ const CustomerPage: FC = () => {
           >
             <Input placeholder={t('customer.contactPhonePlaceholder')} />
           </Form.Item>
-          <Form.Item name="licenseRestriction" label="證照限制" initialValue="NONE">
+          <Form.Item
+            name="licenseRestriction"
+            label={t('customer.requiredLicenses')}
+            initialValue="NONE"
+          >
             <Select
-              placeholder="請選擇證照限制"
+              placeholder={t('customer.licenseRestrictionPlaceholder')}
               options={[
-                { label: '無', value: 'NONE' },
-                { label: '需施藥', value: 'PEST_CONTROL' },
-                { label: '需專技', value: 'PROFESSIONAL' },
-                { label: '其他', value: 'CUSTOM' },
+                { label: t('customer.licenseNone'), value: 'NONE' },
+                { label: t('customer.licensePestControl'), value: 'PEST_CONTROL' },
+                { label: t('customer.licenseProfessional'), value: 'PROFESSIONAL' },
+                { label: t('customer.licenseCustom'), value: 'CUSTOM' },
               ]}
             />
           </Form.Item>
@@ -470,16 +474,18 @@ const CustomerPage: FC = () => {
               getFieldValue('licenseRestriction') === 'CUSTOM' ? (
                 <Form.Item
                   name="licenseRestrictionNote"
-                  label="其他證照限制說明"
-                  rules={[{ required: true, message: '請輸入其他證照限制說明' }]}
+                  label={t('customer.licenseRestrictionNote')}
+                  rules={[
+                    { required: true, message: t('customer.licenseRestrictionNoteRequired') },
+                  ]}
                 >
-                  <Input placeholder="請說明其他所需證照，例如：需堆高機證" />
+                  <Input placeholder={t('customer.licenseRestrictionNotePlaceholder')} />
                 </Form.Item>
               ) : null
             }
           </Form.Item>
-          <Form.Item name="remarks" label="客戶備註">
-            <TextArea rows={3} placeholder="請輸入客戶備註（可自行鍵入）" />
+          <Form.Item name="remarks" label={t('customer.remarks')}>
+            <TextArea rows={3} placeholder={t('customer.remarksPlaceholder')} />
           </Form.Item>
         </Form>
       </BaseModal>
