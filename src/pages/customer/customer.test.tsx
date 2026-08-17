@@ -173,7 +173,7 @@ describe('CustomerPage', () => {
 
       await user.type(screen.getByLabelText('集團名稱'), '集團C');
       await user.type(screen.getByLabelText('分店名稱'), '分店C');
-      await user.type(screen.getByLabelText('地址'), '高雄市');
+      await user.type(screen.getByLabelText('地址'), '台南市');
       await user.type(screen.getByLabelText('聯絡窗口'), '林小美');
       await user.type(screen.getByLabelText('電話'), '0922222222');
 
@@ -185,7 +185,7 @@ describe('CustomerPage', () => {
           expect.objectContaining({
             groupName: '集團C',
             branchName: '分店C',
-            address: '高雄市',
+            address: '台南市',
             contactName: '林小美',
             contactPhone: '0922222222',
           }),
