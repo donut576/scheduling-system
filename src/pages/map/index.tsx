@@ -8,7 +8,7 @@ import { useCustomerList, useCustomerGroups } from '@/queries/useCustomerQueries
 import { useEmployeeList } from '@/queries/useEmployeeQueries';
 import { useTaskList } from '@/queries/useTaskQueries';
 import { filterCustomersByLocation } from '@/utils/mapFilter';
-import { getGroupColor } from '@/utils/groupColor';
+import { getGroupColor, AREA_COLOR_MAP } from '@/utils/groupColor';
 import type { Customer } from '@/types/customer';
 
 const { Text } = Typography;
@@ -91,7 +91,9 @@ const MapPage: FC = () => {
     const employeeColorById = new Map(
       employees.map((employee) => [
         employee.id,
-        employee.groupColor || getGroupColor(employee.groupId),
+        (employee.area && AREA_COLOR_MAP[employee.area]) ||
+          employee.groupColor ||
+          getGroupColor(employee.groupId),
       ]),
     );
 
@@ -101,7 +103,11 @@ const MapPage: FC = () => {
           (item) => item.branchId === customer.branchId && item.assignees.length > 0,
         );
         const assigneeId = task?.assignees[0]?.employeeId;
-        return [customer.id, (assigneeId && employeeColorById.get(assigneeId)) || ECOLAB_BLUE];
+        const color =
+          (assigneeId && employeeColorById.get(assigneeId)) ||
+          getGroupColor(customer.groupId) ||
+          ECOLAB_BLUE;
+        return [customer.id, color];
       }),
     );
   }, [employees, filteredCustomers, tasks]);

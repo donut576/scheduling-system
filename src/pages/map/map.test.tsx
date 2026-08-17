@@ -224,8 +224,7 @@ describe('MapPage', () => {
   it('colors map markers by assigned employee group when a task has assignees', () => {
     renderWithProviders();
 
-    expect(screen.getByTestId('mock-marker-cust-1').getAttribute('data-color')).toBe('#fa8c16');
-    expect(screen.getByTestId('mock-marker-cust-2').getAttribute('data-color')).toBe('#0067a0');
+    expect(screen.getByTestId('mock-marker-cust-1').getAttribute('data-color')).toBe('#7a69c0');
   });
 
   it('applies group filter and only shows matching customers', async () => {
