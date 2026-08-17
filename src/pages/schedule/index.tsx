@@ -256,8 +256,20 @@ const SchedulePage: FC = () => {
     [handleViewModeChange],
   );
 
-  // 組合傳入 ScheduleCalendar 之篩選條件（地區 + 班別即代表分組）
+  // 組合傳入 ScheduleCalendar 之篩選條件（各維度/Tab 獨立篩選，總覽 Tab 永遠不受集團與員工 Tab 篩選影響）
   const filters: ScheduleFilters = useMemo(() => {
+    if (dimension === 'overview') {
+      return {};
+    }
+
+    if (dimension === 'customer') {
+      return {
+        groupId: groupId || undefined,
+        branchId: branchId || undefined,
+      };
+    }
+
+    // employee dimension
     const matchedEmployee = employees.find(
       (e) =>
         (selectedArea && e.area === selectedArea && selectedShift && e.shift === selectedShift) ||
@@ -266,14 +278,13 @@ const SchedulePage: FC = () => {
     const areaId = matchedEmployee?.groupId || selectedArea || undefined;
 
     return {
-      groupId: groupId || undefined,
-      branchId: branchId || undefined,
       employeeId: employeeId || undefined,
+      groupId: areaId,
       areaId,
       area: selectedArea || undefined,
       shift: selectedShift || undefined,
     };
-  }, [branchId, employeeId, employees, groupId, selectedArea, selectedShift]);
+  }, [branchId, dimension, employeeId, employees, groupId, selectedArea, selectedShift]);
 
   // 事件點擊處理
   const handleEventClick = useCallback((event: ScheduleEvent) => {

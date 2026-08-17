@@ -2640,8 +2640,13 @@ export const handlers = [
     });
 
     if (groupId) {
+      const targetGroup = mockCustomerGroups.find((g) => g.id === groupId);
+      const groupName = targetGroup?.name;
       events = events.filter(
-        (e) => e.groupName.includes(groupId) || e.resourceId.includes(groupId),
+        (e) =>
+          (groupName && e.groupName.includes(groupName)) ||
+          e.groupName.includes(groupId) ||
+          e.resourceId.includes(groupId),
       );
     }
     if (branchId) {
@@ -2661,9 +2666,24 @@ export const handlers = [
 
     let resources: ScheduleResource[] = [];
     if (dim === 'customer') {
-      resources = mockScheduleData.resources;
+      let groups = mockScheduleData.resources;
+      if (groupId) {
+        groups = groups.filter((g) => g.id === groupId || g.title.includes(groupId));
+      }
+      if (branchId) {
+        groups = groups
+          .map((g) => ({
+            ...g,
+            children: g.children?.filter((b) => b.id === branchId),
+          }))
+          .filter((g) => g.children && g.children.length > 0);
+      }
+      resources = groups;
     } else if (dim === 'employee') {
       let emps = mockEmployees;
+      if (employeeId) {
+        emps = emps.filter((e) => e.id === employeeId);
+      }
       if (area) emps = emps.filter((e) => e.area === area || e.groupName?.includes(area));
       if (shift) emps = emps.filter((e) => e.shift === shift || e.groupName?.includes(shift));
       resources = emps.map((e) => ({

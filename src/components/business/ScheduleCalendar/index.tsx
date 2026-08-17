@@ -372,9 +372,44 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
       ).format('HH:mm')}${isOvernight ? '+1' : ''}`;
 
       const showOverridden = scheduleEvent.alertStatus === 'OVERRIDDEN';
-      const eventColor = scheduleEvent.backgroundColor || '#1890ff';
+      const eventColor = scheduleEvent.backgroundColor || arg.event.backgroundColor || '#7a69c0';
+      const isMonthGrid = effectiveView === 'dayGridMonth';
 
-      const eventCard = (
+      const eventCard = isMonthGrid ? (
+        <div
+          data-testid={`schedule-event-${scheduleEvent.id}`}
+          style={{
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 4,
+            padding: '2px 6px',
+            backgroundColor: eventColor,
+            borderRadius: 4,
+            width: '100%',
+            color: '#ffffff',
+            fontSize: 11,
+            fontWeight: 600,
+            overflow: 'hidden',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.12)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
+            <span style={{ opacity: 0.9, fontSize: 10, flexShrink: 0 }}>
+              {dayjs(scheduleEvent.start).format('HH:mm')}
+            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {scheduleEvent.groupName} · {scheduleEvent.branchName}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+            {scheduleEvent.isRecurring && <span style={{ fontSize: 12, lineHeight: 1 }}>∞</span>}
+            {showOverridden && <span style={{ fontSize: 10 }}>⚠️</span>}
+          </div>
+        </div>
+      ) : (
         <div
           data-testid={`schedule-event-${scheduleEvent.id}`}
           style={{
@@ -382,6 +417,8 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             display: 'grid',
             gap: 1,
             padding: '3px 18px 3px 5px',
+            backgroundColor: eventColor,
+            borderRadius: 6,
             overflow: 'hidden',
             width: '100%',
             minHeight: 46,
@@ -468,7 +505,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         </Popover>
       );
     },
-    [onEventClick, onEventDetailClose, openEventId, renderEventDetail, t],
+    [effectiveView, onEventClick, onEventDetailClose, openEventId, renderEventDetail, t],
   );
 
   // 資源標籤渲染（兩行設計：上面黑粗體主標題，下面灰色次標題）
@@ -627,6 +664,28 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           align-items: center !important;
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
         }
+        /* 總覽月視圖事件卡片樣式 */
+        .fc-daygrid-event-harness {
+          margin: 1px 2px !important;
+        }
+        .fc-daygrid-event {
+          background-color: transparent !important;
+          border: none !important;
+          padding: 0 !important;
+        }
+        .fc-daygrid-event-dot {
+          display: none !important;
+        }
+        .fc-daygrid-dot-event {
+          background-color: transparent !important;
+          border: none !important;
+          padding: 0 !important;
+        }
+        .fc-daygrid-block-event {
+          background-color: transparent !important;
+          border: none !important;
+          padding: 0 !important;
+        }
         /* 時間軸標頭支援拖曳縮放游標樣式 */
         .fc-timeline-header,
         .fc-timeline-header .fc-timeline-slot {
@@ -724,6 +783,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           dayGridMonth: {
             type: 'dayGridMonth',
             dayHeaderFormat: { weekday: 'short' },
+            eventDisplay: 'block',
           },
           resourceTimelineDay: {
             type: 'resourceTimeline',
