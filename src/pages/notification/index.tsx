@@ -51,9 +51,32 @@ const DEFAULT_CUSTOMER_TEMPLATE = {
 若有任何時間調整需求，請隨時與我們聯絡。`,
 };
 
+const STORAGE_KEY = 'ecolab_notification_settings';
+
+interface StoredNotificationSettings {
+  autoNotifyEnabled: boolean;
+  customerRecipient: string;
+  customerSubject: string;
+  customerContent: string;
+  employeeRecipient: string;
+  employeeSubject: string;
+  employeeContent: string;
+}
+
 const NotificationPage: React.FC = () => {
   const { t } = useTranslation();
-  const [autoNotifyEnabled, setAutoNotifyEnabled] = useState<boolean>(true);
+  const [autoNotifyEnabled, setAutoNotifyEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as StoredNotificationSettings;
+        return parsed.autoNotifyEnabled ?? true;
+      }
+    } catch {
+      // fallback
+    }
+    return true;
+  });
   const [activeTab, setActiveTab] = useState<'customer' | 'employee'>('employee');
   const [saving, setSaving] = useState(false);
 
@@ -64,7 +87,7 @@ const NotificationPage: React.FC = () => {
   const initialCustomerTpl = useMemo(() => {
     const tpl = templates.find((t: NotificationTemplate) => t.type === 'CUSTOMER_NOTIFY');
     return {
-      id: tpl?.id || 'customer-tpl',
+      id: tpl?.id || 'template-001',
       recipient: DEFAULT_CUSTOMER_TEMPLATE.recipient,
       subject: tpl?.subject || DEFAULT_CUSTOMER_TEMPLATE.subject,
       content: tpl?.content || DEFAULT_CUSTOMER_TEMPLATE.content,
@@ -75,33 +98,115 @@ const NotificationPage: React.FC = () => {
   const initialEmployeeTpl = useMemo(() => {
     const tpl = templates.find((t: NotificationTemplate) => t.type === 'EMPLOYEE_DISPATCH');
     return {
-      id: tpl?.id || 'employee-tpl',
+      id: tpl?.id || 'template-002',
       recipient: DEFAULT_EMPLOYEE_TEMPLATE.recipient,
       subject: tpl?.subject || DEFAULT_EMPLOYEE_TEMPLATE.subject,
       content: tpl?.content || DEFAULT_EMPLOYEE_TEMPLATE.content,
     };
   }, [templates]);
 
-  const [customerRecipient, setCustomerRecipient] = useState(initialCustomerTpl.recipient);
-  const [customerSubject, setCustomerSubject] = useState(initialCustomerTpl.subject);
-  const [customerContent, setCustomerContent] = useState(initialCustomerTpl.content);
+  const [customerRecipient, setCustomerRecipient] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved)
+        return (
+          (JSON.parse(saved) as StoredNotificationSettings).customerRecipient ||
+          initialCustomerTpl.recipient
+        );
+    } catch {
+      /* noop */
+    }
+    return initialCustomerTpl.recipient;
+  });
 
-  const [employeeRecipient, setEmployeeRecipient] = useState(initialEmployeeTpl.recipient);
-  const [employeeSubject, setEmployeeSubject] = useState(initialEmployeeTpl.subject);
-  const [employeeContent, setEmployeeContent] = useState(initialEmployeeTpl.content);
+  const [customerSubject, setCustomerSubject] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved)
+        return (
+          (JSON.parse(saved) as StoredNotificationSettings).customerSubject ||
+          initialCustomerTpl.subject
+        );
+    } catch {
+      /* noop */
+    }
+    return initialCustomerTpl.subject;
+  });
 
-  // Sync when data loads initially
+  const [customerContent, setCustomerContent] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved)
+        return (
+          (JSON.parse(saved) as StoredNotificationSettings).customerContent ||
+          initialCustomerTpl.content
+        );
+    } catch {
+      /* noop */
+    }
+    return initialCustomerTpl.content;
+  });
+
+  const [employeeRecipient, setEmployeeRecipient] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved)
+        return (
+          (JSON.parse(saved) as StoredNotificationSettings).employeeRecipient ||
+          initialEmployeeTpl.recipient
+        );
+    } catch {
+      /* noop */
+    }
+    return initialEmployeeTpl.recipient;
+  });
+
+  const [employeeSubject, setEmployeeSubject] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved)
+        return (
+          (JSON.parse(saved) as StoredNotificationSettings).employeeSubject ||
+          initialEmployeeTpl.subject
+        );
+    } catch {
+      /* noop */
+    }
+    return initialEmployeeTpl.subject;
+  });
+
+  const [employeeContent, setEmployeeContent] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved)
+        return (
+          (JSON.parse(saved) as StoredNotificationSettings).employeeContent ||
+          initialEmployeeTpl.content
+        );
+    } catch {
+      /* noop */
+    }
+    return initialEmployeeTpl.content;
+  });
+
+  // Sync with loaded templates if no local storage was saved
   useEffect(() => {
-    if (initialCustomerTpl.subject) {
-      setCustomerSubject(initialCustomerTpl.subject);
-      setCustomerContent(initialCustomerTpl.content);
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) {
+      if (initialCustomerTpl.subject) {
+        setCustomerSubject(initialCustomerTpl.subject);
+        setCustomerContent(initialCustomerTpl.content);
+      }
     }
   }, [initialCustomerTpl]);
 
   useEffect(() => {
-    if (initialEmployeeTpl.subject) {
-      setEmployeeSubject(initialEmployeeTpl.subject);
-      setEmployeeContent(initialEmployeeTpl.content);
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) {
+      if (initialEmployeeTpl.subject) {
+        setEmployeeSubject(initialEmployeeTpl.subject);
+        setEmployeeContent(initialEmployeeTpl.content);
+      }
     }
   }, [initialEmployeeTpl]);
 
@@ -109,6 +214,19 @@ const NotificationPage: React.FC = () => {
   const handleSaveSettings = useCallback(async () => {
     setSaving(true);
     try {
+      // 1. Save to localStorage
+      const settingsToSave: StoredNotificationSettings = {
+        autoNotifyEnabled,
+        customerRecipient,
+        customerSubject,
+        customerContent,
+        employeeRecipient,
+        employeeSubject,
+        employeeContent,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settingsToSave));
+
+      // 2. Save via API
       if (initialCustomerTpl.id) {
         await updateTemplateMutation.mutateAsync({
           id: initialCustomerTpl.id,
@@ -134,12 +252,15 @@ const NotificationPage: React.FC = () => {
       setSaving(false);
     }
   }, [
-    initialCustomerTpl.id,
+    autoNotifyEnabled,
+    customerRecipient,
     customerSubject,
     customerContent,
-    initialEmployeeTpl.id,
+    employeeRecipient,
     employeeSubject,
     employeeContent,
+    initialCustomerTpl.id,
+    initialEmployeeTpl.id,
     updateTemplateMutation,
     t,
   ]);

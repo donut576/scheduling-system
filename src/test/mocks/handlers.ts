@@ -1767,14 +1767,38 @@ const mockNotification: Notification = {
   createdAt: '2026-01-01T09:00:00+08:00',
 };
 
-const mockNotificationTemplate: NotificationTemplate = {
-  id: 'template-001',
-  name: '客戶通知範本',
-  type: 'CUSTOMER_NOTIFY',
-  subject: '排班通知',
-  content: '親愛的{{customerName}}，您的排班已確認',
-  variables: ['customerName'],
-};
+const mockNotificationTemplates: NotificationTemplate[] = [
+  {
+    id: 'template-001',
+    name: '客戶通知範本',
+    type: 'CUSTOMER_NOTIFY',
+    subject: 'Ecolab 服務排程確認通知',
+    content: `尊敬的客戶您好：
+
+我們已為您安排近期的專業服務，排班詳情如下：
+
+客戶名稱：{{客戶名稱}}
+服務時間：{{服務時間}}
+服務地址：{{服務地址}}
+
+若有任何時間調整需求，請隨時與我們聯絡。`,
+    variables: ['{{客戶名稱}}', '{{服務時間}}', '{{服務地址}}'],
+  },
+  {
+    id: 'template-002',
+    name: '員工指派通知範本',
+    type: 'EMPLOYEE_DISPATCH',
+    subject: 'Ecolab 新服務任務指派通知',
+    content: `系統已指派您一項新的服務任務，請確認以下資訊：
+
+客戶名稱：{{客戶名稱}}
+服務時間：{{服務時間}}
+服務地址：{{服務地址}}
+
+請準時前往處理並於完成後更新狀態。`,
+    variables: ['{{客戶名稱}}', '{{服務時間}}', '{{服務地址}}'],
+  },
+];
 
 let mockApprovals: Approval[] = [
   {
@@ -2905,11 +2929,26 @@ export const handlers = [
   ),
   http.post('*/api/v1/notifications/send', () => HttpResponse.json(ok(null))),
   http.get('*/api/v1/notifications/templates', () =>
-    HttpResponse.json(ok<NotificationTemplate[]>([mockNotificationTemplate])),
+    HttpResponse.json(ok<NotificationTemplate[]>(mockNotificationTemplates)),
   ),
-  http.patch('*/api/v1/notifications/templates/:id', () =>
-    HttpResponse.json(ok<NotificationTemplate>(mockNotificationTemplate)),
-  ),
+  http.patch('*/api/v1/notifications/templates/:id', async ({ params, request }) => {
+    const body = (await request.json()) as Partial<NotificationTemplate>;
+    const idx = mockNotificationTemplates.findIndex((t) => t.id === params.id);
+    if (idx !== -1) {
+      mockNotificationTemplates[idx] = { ...mockNotificationTemplates[idx]!, ...body };
+      return HttpResponse.json(ok<NotificationTemplate>(mockNotificationTemplates[idx]!));
+    }
+    const newTpl: NotificationTemplate = {
+      id: String(params.id),
+      name: '自訂範本',
+      type: 'CUSTOMER_NOTIFY',
+      subject: body.subject || '',
+      content: body.content || '',
+      variables: [],
+    };
+    mockNotificationTemplates.push(newTpl);
+    return HttpResponse.json(ok<NotificationTemplate>(newTpl));
+  }),
 
   // approval.ts
   http.get('*/api/v1/approvals', ({ request }) => {
