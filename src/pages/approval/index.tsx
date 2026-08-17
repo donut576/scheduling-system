@@ -29,7 +29,7 @@ import BaseSearchForm, { type SearchFieldConfig } from '@/components/base/BaseSe
 import { useApprovalList, useApproveRequest, useRejectRequest } from '@/queries/useApprovalQueries';
 import { useSendNotification } from '@/queries/useNotificationQueries';
 import type { ApprovalListParams } from '@/api/approval';
-import { APPROVAL_STATUS_MAP } from '@/constants/approvalTypes';
+import { APPROVAL_STATUS_MAP, APPROVAL_TYPE_MAP } from '@/constants/approvalTypes';
 import { formatDateTime } from '@/utils/date';
 import type { Approval } from '@/types/notification';
 import type { PaginatedResponse } from '@/types/common';
@@ -220,11 +220,7 @@ const ApprovalPage: FC = () => {
    */
   const notifyApprovalResult = useCallback(
     async (approval: Approval) => {
-      const isTaskChange =
-        approval.type === 'TASK_CHANGE' ||
-        approval.type === 'SCHEDULE_CHANGE' ||
-        approval.type === 'SHIFT_CHANGE';
-      const typeLabel = isTaskChange ? '任務變更' : '警示覆蓋';
+      const typeLabel = APPROVAL_TYPE_MAP[approval.type] || '任務變更';
       await sendNotificationMutation.mutateAsync({
         templateId: 'approval-result',
         recipientType: 'CUSTOMER',
@@ -384,13 +380,9 @@ const ApprovalPage: FC = () => {
       key: 'type',
       width: 130,
       render: (_value, record) => {
-        const isTaskChange =
-          record.type === 'TASK_CHANGE' ||
-          record.type === 'SCHEDULE_CHANGE' ||
-          record.type === 'SHIFT_CHANGE';
-        return (
-          <Tag color={isTaskChange ? 'blue' : 'gold'}>{isTaskChange ? '任務變更' : '警示覆蓋'}</Tag>
-        );
+        const isTaskChange = record.type !== 'ALERT_OVERRIDE';
+        const label = APPROVAL_TYPE_MAP[record.type] || '任務變更';
+        return <Tag color={isTaskChange ? 'blue' : 'gold'}>{label}</Tag>;
       },
     },
     {
@@ -496,11 +488,9 @@ const ApprovalPage: FC = () => {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="申請類型">
-                {selectedApproval.type === 'ALERT_OVERRIDE' ? (
-                  <Tag color="gold">警示覆蓋</Tag>
-                ) : (
-                  <Tag color="blue">任務變更</Tag>
-                )}
+                <Tag color={selectedApproval.type === 'ALERT_OVERRIDE' ? 'gold' : 'blue'}>
+                  {APPROVAL_TYPE_MAP[selectedApproval.type] || '任務變更'}
+                </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="申請人">
                 {selectedApproval.requestedByName}
@@ -633,7 +623,7 @@ const ApprovalPage: FC = () => {
               style={{ marginBottom: 16 }}
               message={`確定要核准申請單【${approvingApproval.id}】嗎？`}
               description={`申請人：${approvingApproval.requestedByName} ｜ 類型：${
-                approvingApproval.type === 'ALERT_OVERRIDE' ? '警示覆蓋' : '任務變更'
+                APPROVAL_TYPE_MAP[approvingApproval.type] || '任務變更'
               }`}
             />
             <Form.Item name="comment" label={t('approval.approveComment')}>
@@ -679,7 +669,7 @@ const ApprovalPage: FC = () => {
               style={{ marginBottom: 16 }}
               message={`確定要駁回申請單【${rejectingApproval.id}】嗎？`}
               description={`申請人：${rejectingApproval.requestedByName} ｜ 類型：${
-                rejectingApproval.type === 'ALERT_OVERRIDE' ? '警示覆蓋' : '任務變更'
+                APPROVAL_TYPE_MAP[rejectingApproval.type] || '任務變更'
               }`}
             />
             <Form.Item

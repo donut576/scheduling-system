@@ -27,7 +27,7 @@ describe('AlertBadge', () => {
     render(<AlertBadge status="overridden" />);
     const badge = screen.getByTestId('alert-badge-overridden');
     expect(badge).toBeInTheDocument();
-    expect(badge).toHaveTextContent('已覆蓋');
+    expect(badge).toHaveTextContent('已核准');
   });
 
   it('renders recurring status with infinity symbol', () => {

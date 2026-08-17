@@ -9,8 +9,8 @@ import type { ApprovalType, ApprovalStatus } from '@/types/notification';
 export const APPROVAL_TYPE_MAP: Record<ApprovalType, string> = {
   TASK_CHANGE: '任務變更',
   ALERT_OVERRIDE: '警示覆蓋',
-  SCHEDULE_CHANGE: '任務變更',
-  SHIFT_CHANGE: '任務變更',
+  SCHEDULE_CHANGE: '排班變更',
+  SHIFT_CHANGE: '班別變更',
 };
 
 /** 異動核准狀態對應顯示文字與顏色 */

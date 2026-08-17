@@ -254,79 +254,115 @@ describe('SchedulePage', () => {
     });
   });
 
-  describe('工具列篩選 (Toolbar Filters) - Requirement 8.2', () => {
-    it('renders customer branch, employee and area filter selects', () => {
+  describe('工具列篩選與維度切換 (Toolbar Filters & Dimensions) - Requirement 8.2', () => {
+    it('renders view mode, dimension switch, and period picker on the first row', () => {
       renderPage();
-      expect(screen.getByRole('combobox', { name: '搜尋集團 / 分店' })).toBeInTheDocument();
-      expect(screen.getByRole('combobox', { name: '員工篩選' })).toBeInTheDocument();
-      expect(screen.getByRole('combobox', { name: '區域篩選' })).toBeInTheDocument();
+      expect(screen.getByLabelText('檢視切換')).toBeInTheDocument();
+      expect(screen.getByLabelText('維度切換')).toBeInTheDocument();
+      expect(screen.getAllByLabelText('期間選擇')).toHaveLength(2);
     });
 
-    it('passes selected customer branch filter through to ScheduleCalendar filters prop', async () => {
+    it('renders customer group and branch filters when in customer dimension', () => {
+      renderPage();
+      expect(screen.getByRole('combobox', { name: '集團篩選' })).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: '分店篩選' })).toBeInTheDocument();
+    });
+
+    it('passes selected customer group and branch filter through to ScheduleCalendar filters prop', async () => {
       renderPage();
 
       const user = userEvent.setup();
-      const customerBranchSelect = screen.getByRole('combobox', { name: '搜尋集團 / 分店' });
-      await user.click(customerBranchSelect);
-      await user.click(await screen.findByTitle('集團A 分店A'));
+      const groupSelect = screen.getByRole('combobox', { name: '集團篩選' });
+      await user.click(groupSelect);
+      await user.click(await screen.findByTitle('集團A'));
 
       await waitFor(() => {
         expect((lastScheduleCalendarProps?.filters as { groupId?: string })?.groupId).toBe('g1');
+      });
+
+      const branchSelect = screen.getByRole('combobox', { name: '分店篩選' });
+      await user.click(branchSelect);
+      await user.click(await screen.findByTitle('分店A'));
+
+      await waitFor(() => {
         expect((lastScheduleCalendarProps?.filters as { branchId?: string })?.branchId).toBe('b1');
       });
     });
 
-    it('clears group and branch filters when customer branch filter is cleared', async () => {
+    it('defaults branch selection to all and passes undefined branchId to filters', async () => {
       renderPage();
 
       const user = userEvent.setup();
-      const customerBranchSelect = screen.getByRole('combobox', { name: '搜尋集團 / 分店' });
-      await user.click(customerBranchSelect);
-      await user.click(await screen.findByTitle('集團A 分店A'));
+      const groupSelect = screen.getByRole('combobox', { name: '集團篩選' });
+      await user.click(groupSelect);
+      await user.click(await screen.findByTitle('集團A'));
 
       await waitFor(() => {
-        expect((lastScheduleCalendarProps?.filters as { branchId?: string })?.branchId).toBe('b1');
-      });
-
-      const clearButton = document.querySelector('.ant-select-clear');
-      expect(clearButton).toBeInTheDocument();
-      await user.click(clearButton!);
-
-      await waitFor(() => {
-        expect(
-          (lastScheduleCalendarProps?.filters as { groupId?: string })?.groupId,
-        ).toBeUndefined();
+        expect((lastScheduleCalendarProps?.filters as { groupId?: string })?.groupId).toBe('g1');
         expect(
           (lastScheduleCalendarProps?.filters as { branchId?: string })?.branchId,
         ).toBeUndefined();
       });
     });
 
-    it('passes selected employee filter through to ScheduleCalendar filters prop', async () => {
+    it('switches to employee dimension and renders group and employee selects with date nav', async () => {
       renderPage();
 
       const user = userEvent.setup();
-      const employeeSelect = screen.getByRole('combobox', { name: '員工篩選' });
-      await user.click(employeeSelect);
-      await user.click(await screen.findByTitle('員工A'));
+      await user.click(screen.getByText('員工'));
 
       await waitFor(() => {
-        expect((lastScheduleCalendarProps?.filters as { employeeId?: string })?.employeeId).toBe(
-          'e1',
-        );
+        expect(screen.getByRole('combobox', { name: '地區篩選' })).toBeInTheDocument();
+        expect(screen.getByRole('combobox', { name: '員工篩選' })).toBeInTheDocument();
+        expect(screen.getByLabelText('前一日')).toBeInTheDocument();
+        expect(screen.getByLabelText('後一日')).toBeInTheDocument();
       });
     });
 
-    it('passes selected area filter through to ScheduleCalendar filters prop', async () => {
+    it('navigates to previous day and next day when clicking arrow buttons in employee dimension', async () => {
+      useScheduleStore.setState({
+        currentView: 'day',
+        dimension: 'employee',
+        dateRange: { start: '2025-03-10', end: '2025-03-10' },
+      });
+
       renderPage();
 
       const user = userEvent.setup();
-      const areaSelect = screen.getByRole('combobox', { name: '區域篩選' });
+      const prevBtn = screen.getByLabelText('前一日');
+      const nextBtn = screen.getByLabelText('後一日');
+
+      await user.click(prevBtn);
+      await waitFor(() => {
+        expect(useScheduleStore.getState().dateRange).toEqual({
+          start: '2025-03-09',
+          end: '2025-03-09',
+        });
+      });
+
+      await user.click(nextBtn);
+      await waitFor(() => {
+        expect(useScheduleStore.getState().dateRange).toEqual({
+          start: '2025-03-10',
+          end: '2025-03-10',
+        });
+      });
+    });
+
+    it('filters employees when area is selected in employee dimension', async () => {
+      useScheduleStore.setState({
+        dimension: 'employee',
+      });
+
+      renderPage();
+
+      const user = userEvent.setup();
+      const areaSelect = screen.getByRole('combobox', { name: '地區篩選' });
       await user.click(areaSelect);
-      await user.click(await screen.findByTitle('北區'));
+      await user.click(await screen.findByTitle('台北'));
 
       await waitFor(() => {
-        expect((lastScheduleCalendarProps?.filters as { areaId?: string })?.areaId).toBe('area1');
+        expect((lastScheduleCalendarProps?.filters as { area?: string })?.area).toBe('台北');
       });
     });
   });
@@ -379,6 +415,35 @@ describe('SchedulePage', () => {
       await waitFor(() => {
         expect(screen.queryByText('集團: 集團A')).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe('三大維度 Tabs 與進階篩選 (Three Dimension Tabs & Enhanced Filters)', () => {
+    it('renders three tabs: 總覽, 集團, and 員工', () => {
+      renderPage();
+      expect(screen.getByRole('tab', { name: /總覽/ })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /集團/ })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /員工/ })).toBeInTheDocument();
+    });
+
+    it('switches to 總覽 tab with clean view and no extra search bar', async () => {
+      renderPage();
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole('tab', { name: /總覽/ }));
+
+      await waitFor(() => {
+        expect(useScheduleStore.getState().dimension).toBe('overview');
+      });
+    });
+
+    it('renders separate area and shift selects in employee tab', async () => {
+      useScheduleStore.setState({ dimension: 'employee' });
+      renderPage();
+
+      expect(screen.getByRole('combobox', { name: '地區篩選' })).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: '班別篩選' })).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: '員工篩選' })).toBeInTheDocument();
     });
   });
 });

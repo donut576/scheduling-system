@@ -61,6 +61,9 @@ export interface TaskAssignee {
   employeeId: string;
   employeeName: string;
   licenses: LicenseType[];
+  area?: string;
+  groupId?: string;
+  groupColor?: string;
 }
 
 /** 任務列表查詢參數 */

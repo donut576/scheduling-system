@@ -9,7 +9,8 @@ import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import fc from 'fast-check';
 import dayjs from 'dayjs';
-import ScheduleCalendar, { toEventInputs } from './index';
+import ScheduleCalendar from './index';
+import { toEventInputs } from './adapters';
 import type { ScheduleEvent, ScheduleData } from '@/types/schedule';
 
 // Mock matchMedia and ResizeObserver for Ant Design / FullCalendar.
@@ -196,14 +197,18 @@ describe('ScheduleCalendar', () => {
     });
   });
 
-  it('renders customer dimension resource header', () => {
+  it('renders customer dimension 2-line resource header with 集團 and 分店', () => {
     renderWithProviders(<ScheduleCalendar {...defaultProps} dimension="customer" />);
-    expect(screen.getByText('集團 / 分店')).toBeInTheDocument();
+    expect(screen.getByTestId('resource-header-customer')).toBeInTheDocument();
+    expect(screen.getByText('集團')).toBeInTheDocument();
+    expect(screen.getByText('分店')).toBeInTheDocument();
   });
 
-  it('renders employee dimension resource header', () => {
+  it('renders employee dimension 2-line resource header with 員工 and 分組', () => {
     renderWithProviders(<ScheduleCalendar {...defaultProps} dimension="employee" />);
-    expect(screen.getByText('員工_區域')).toBeInTheDocument();
+    expect(screen.getByTestId('resource-header-employee')).toBeInTheDocument();
+    expect(screen.getByText('員工')).toBeInTheDocument();
+    expect(screen.getByText('分組')).toBeInTheDocument();
   });
 });
 
@@ -239,14 +244,14 @@ describe('ScheduleCalendar - 響應式個人/每日檢視模式（< 768px）', (
     renderWithProviders(<ScheduleCalendar {...defaultProps} dimension="customer" />);
 
     expect(screen.getByText('個人')).toBeInTheDocument();
-    expect(screen.queryByText('集團 / 分店')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('resource-header-customer')).not.toBeInTheDocument();
   });
 
   it('keeps the dimension label (not "個人") when viewport is desktop-sized', () => {
     setMockIsMobile(false);
     renderWithProviders(<ScheduleCalendar {...defaultProps} dimension="customer" />);
 
-    expect(screen.getByText('集團 / 分店')).toBeInTheDocument();
+    expect(screen.getByTestId('resource-header-customer')).toBeInTheDocument();
     expect(screen.queryByText('個人')).not.toBeInTheDocument();
   });
 
@@ -257,9 +262,10 @@ describe('ScheduleCalendar - 響應式個人/每日檢視模式（< 768px）', (
     // Flattened leaf resources should be present as resource rows
     expect(screen.getByText('集團A 分店A')).toBeInTheDocument();
     expect(screen.getByText('集團A 分店B')).toBeInTheDocument();
-    // The group-level parent node title itself should not appear as its own row
-    // (it was flattened away, leaving only its children)
-    expect(screen.queryByText('集團A')).not.toBeInTheDocument();
+    // 2-line resource header shows group name on top and branch name below
+    expect(screen.getAllByText('集團A').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('分店A').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('分店B').length).toBeGreaterThanOrEqual(1);
   });
 
   it('still renders event blocks with full info under 每日 (day) mobile view', async () => {
@@ -429,8 +435,7 @@ describe('ScheduleCalendar - Property 19: 行事曆事件方塊資訊完整性',
       }),
       { numRuns: 20 },
     );
-  }, // and waits (up to 5000ms each) for its async render, which is expensive // Each of the 20 property runs mounts/unmounts a full FullCalendar instance
-  // under jsdom, especially under full-suite parallel load. Raise this
+  }, // under jsdom, especially under full-suite parallel load. Raise this // and waits (up to 5000ms each) for its async render, which is expensive // Each of the 20 property runs mounts/unmounts a full FullCalendar instance
   // test's own timeout above the suite-wide default (see vitest.config.ts)
   // to give the 20 cumulative runs enough headroom rather than reducing
   // numRuns or weakening the property.
@@ -525,5 +530,38 @@ describe('ScheduleCalendar - Property 20: 跨日事件時間跨度', () => {
       }),
       { numRuns: 100 },
     );
+  });
+
+  describe('任務總覽與區域色彩邏輯 (Overview Dimension & Area Color Logic)', () => {
+    it('renders in overview dimension without crashing', () => {
+      renderWithProviders(<ScheduleCalendar {...defaultProps} dimension="overview" />);
+      expect(screen.getByTestId('schedule-calendar')).toBeInTheDocument();
+    });
+
+    it('assigns event color according to assigned employee area', () => {
+      const eventWithTaipeiAssignee: ScheduleEvent = {
+        ...normalEvent,
+        id: 'evt-taipei',
+        extendedProps: {
+          ...normalEvent.extendedProps,
+          assignees: [{ employeeId: 'e1', employeeName: '張台北', licenses: [], area: '台北' }],
+        },
+      };
+
+      const eventWithTainanAssignee: ScheduleEvent = {
+        ...normalEvent,
+        id: 'evt-tainan',
+        extendedProps: {
+          ...normalEvent.extendedProps,
+          assignees: [{ employeeId: 'e2', employeeName: '李台南', licenses: [], area: '台南' }],
+        },
+      };
+
+      const inputs = toEventInputs([eventWithTaipeiAssignee, eventWithTainanAssignee]);
+      expect(inputs[0]?.backgroundColor).toBeDefined();
+      expect(inputs[1]?.backgroundColor).toBeDefined();
+      // Colors are distinct based on getGroupColor for different areas
+      expect(inputs[0]?.backgroundColor).not.toEqual(inputs[1]?.backgroundColor);
+    });
   });
 });

@@ -1,24 +1,24 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FullCalendar from '@fullcalendar/react';
-import type { DateSelectArg, EventContentArg, EventInput } from '@fullcalendar/core';
-import type { ResourceInput, ResourceLabelContentArg } from '@fullcalendar/resource';
+import type { DatesSetArg, DateSelectArg, EventContentArg } from '@fullcalendar/core';
+import type { ResourceLabelContentArg } from '@fullcalendar/resource';
 import resourceTimelinePlugin from '@fullcalendar/resource-timeline';
+import timeGridPlugin from '@fullcalendar/timegrid';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Popover } from 'antd';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import type { ScheduleEvent, ScheduleFilters, ScheduleResource } from '@/types/schedule';
+import type { ScheduleDimension, ScheduleEvent, ScheduleFilters } from '@/types/schedule';
 import { useScheduleData } from '@/queries/useScheduleQueries';
 import { isHoliday } from '@/utils/date';
 import AlertBadge from '@/components/business/AlertBadge';
 import { useIsMobile } from '@/hooks/useMediaQuery';
-
-const ECOLAB_BLUE = '#0067a0';
+import { toResourceInputs, toEventInputs } from './adapters';
 
 export interface ScheduleCalendarProps {
   viewMode: 'day' | 'week' | 'month';
-  dimension: 'customer' | 'employee';
+  dimension: ScheduleDimension;
   dateRange: { start: string; end: string };
   filters: ScheduleFilters;
   onEventClick: (event: ScheduleEvent) => void;
@@ -29,108 +29,11 @@ export interface ScheduleCalendarProps {
   renderEventDetail?: (event: ScheduleEvent) => React.ReactNode;
   onEventDetailClose?: () => void;
   onZoomToDay?: (dateTime: string) => void;
+  onZoomViewChange?: (viewMode: 'day' | 'week' | 'month') => void;
 }
 
 /**
- * 檢視模式對應 FullCalendar resourceTimeline 視圖名稱
- */
-const VIEW_MODE_MAP: Record<ScheduleCalendarProps['viewMode'], string> = {
-  day: 'resourceTimelineDay',
-  week: 'resourceTimelineWeek',
-  month: 'resourceTimelineMonth',
-};
-
-const flattenResourcesWithParentTitle = (resources: ScheduleResource[]): ScheduleResource[] => {
-  const result: ScheduleResource[] = [];
-
-  const visit = (nodes: ScheduleResource[], parentTitle?: string) => {
-    nodes.forEach((node) => {
-      if (node.children && node.children.length > 0) {
-        visit(node.children, node.title);
-        return;
-      }
-
-      result.push({
-        id: node.id,
-        title: parentTitle ? `${parentTitle} ${node.title}` : node.title,
-        groupColor: node.groupColor,
-      });
-    });
-  };
-
-  visit(resources);
-  return result;
-};
-
-/**
- * 將 ScheduleResource 轉換為 FullCalendar 所需之單層 ResourceInput 陣列。
- * 左側資源列直接顯示「集團 分店」，避免父子節點拆成兩列造成辨識困難。
- */
-const toResourceInputs = (resources: ScheduleResource[]): ResourceInput[] => {
-  return flattenResourcesWithParentTitle(resources).map((resource) => ({
-    id: resource.id,
-    title: resource.title,
-    eventColor: resource.groupColor,
-  }));
-};
-
-/**
- * 將 ScheduleEvent 轉換為 FullCalendar 所需之 EventInput
- * 跨日事件（isOvernight）自動延伸 end 至隔日，以確保方塊延伸至隔日顯示
- *
- * Exported for direct unit/property testing of the conversion logic.
- */
-export const toEventInputs = (events: ScheduleEvent[]): EventInput[] => {
-  return events.map((event) => {
-    let end = event.end;
-
-    if (event.isOvernight) {
-      const startDay = dayjs(event.start);
-      const endDay = dayjs(event.end);
-      // 若結束時間未落在隔日（後端未展開），則手動延伸至隔日同一時刻，
-      // 確保 FullCalendar 將事件方塊跨日渲染
-      if (!endDay.isAfter(startDay, 'day')) {
-        end = dayjs(event.end).add(1, 'day').toISOString();
-      }
-    }
-
-    const backgroundColor = ECOLAB_BLUE;
-    const borderColor = ECOLAB_BLUE;
-
-    return {
-      id: event.id,
-      resourceId: event.resourceId,
-      title: event.title,
-      start: event.start,
-      end,
-      backgroundColor,
-      borderColor,
-      extendedProps: {
-        scheduleEvent: {
-          ...event,
-          backgroundColor,
-          borderColor,
-        },
-      },
-    };
-  });
-};
-
-/**
- * ScheduleCalendar - 排班行事曆元件，基於 FullCalendar v6 resourceTimeline
- *
- * - 支援日/週/月三種檢視模式
- * - 支援 customer（集團_分店）與 employee（員工_區域）兩種資源維度
- * - 事件方塊顯示集團、分店、時間區間
- * - 跨日事件自動延伸至隔日顯示
- * - 整合 AlertBadge：overridden 事件顯示警示色彩、recurring 事件顯示 ∞ 符號
- * - 國定假日以紅色標示
- * - 響應式（< 768px）：切換為「個人/每日檢視模式」——
- *   「每日」指強制以日檢視（resourceTimelineDay）呈現，忽略傳入之週/月 viewMode；
- *   「個人」指將資源維度（集團_分店 / 員工_區域）之巢狀群組結構壓平為單層列表，
- *   使小螢幕使用者可逐一檢視個別員工或分店之當日排班，無需展開巢狀節點
- *
- * Validates: Requirements 8.1, 8.3, 8.4, 8.5, 8.6, 8.7, 5.3, 7.8, 16.2
+ * ScheduleCalendar 元件：負責 FullCalendar 容器渲染、事件方塊展示、資源列表與縮放互動
  */
 const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   viewMode,
@@ -145,35 +48,165 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   renderEventDetail,
   onEventDetailClose,
   onZoomToDay,
+  onZoomViewChange,
 }) => {
   const { t } = useTranslation();
   const calendarRef = useRef<FullCalendar>(null);
-
-  // 響應式：< 768px 時切換為「個人/每日檢視模式」（Requirement 16.2）
-  // - 每日：強制以日檢視呈現，忽略 viewMode 傳入之週/月設定，避免小螢幕上
-  //   resourceTimeline 因時間軸過寬而難以操作
-  // - 個人：將資源樹狀結構（集團_分店 / 員工_區域）壓平為單層列表，
-  //   讓使用者可直接逐一檢視每位員工／每個分店當日排班，無需展開巢狀群組
+  const containerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
-  const { data, isLoading } = useScheduleData({
-    dimension,
-    startDate: dateRange.start,
-    endDate: dateRange.end,
-    groupId: filters.groupId,
-    branchId: filters.branchId,
-    employeeId: filters.employeeId,
-    areaId: filters.areaId,
-  });
+  // 縮放時間顆粒度：日檢視中支援 15m, 30m, 1h
+  const slotDurations = useMemo(() => ['00:15:00', '00:30:00', '01:00:00'], []);
+  const [daySlotDurationIndex, setDaySlotDurationIndex] = useState<number>(2); // 預設 1h
 
-  const resources = useMemo<ResourceInput[]>(() => {
-    const raw = data?.resources ?? [];
-    return toResourceInputs(raw);
-  }, [data?.resources]);
+  // 查詢排班資料（由 TanStack Query 管理快取）
+  const queryParams = useMemo(
+    () => ({
+      dimension,
+      startDate: dateRange.start,
+      endDate: dateRange.end,
+      groupId: filters.groupId,
+      branchId: filters.branchId,
+      employeeId: filters.employeeId,
+      areaId: filters.areaId,
+      area: filters.area,
+      shift: filters.shift,
+    }),
+    [dateRange.end, dateRange.start, dimension, filters],
+  );
 
-  const effectiveView = isMobile ? VIEW_MODE_MAP.day : VIEW_MODE_MAP[viewMode];
+  const { data: scheduleData, isLoading } = useScheduleData(queryParams);
 
-  const events = useMemo<EventInput[]>(() => toEventInputs(data?.events ?? []), [data?.events]);
+  const events = useMemo(() => toEventInputs(scheduleData?.events ?? []), [scheduleData?.events]);
+
+  const resources = useMemo(
+    () =>
+      dimension === 'overview' ? [] : toResourceInputs(scheduleData?.resources ?? [], dimension),
+    [dimension, scheduleData?.resources],
+  );
+
+  // 依據維度與 viewMode 決定 FullCalendar 視圖
+  const effectiveView = useMemo(() => {
+    if (dimension === 'overview') {
+      if (viewMode === 'day') return 'timeGridDay';
+      if (viewMode === 'week') return 'timeGridWeek';
+      return 'dayGridMonth';
+    }
+
+    if (viewMode === 'day') return 'resourceTimelineDay';
+    if (viewMode === 'week') return 'resourceTimelineWeek';
+    return 'resourceTimelineMonth';
+  }, [dimension, viewMode]);
+
+  // 縮放處理函式：放大（Zoom In）與縮小（Zoom Out）
+  const handleZoom = useCallback(
+    (direction: 'in' | 'out') => {
+      if (direction === 'in') {
+        if (viewMode === 'month') {
+          onZoomViewChange?.('week');
+        } else if (viewMode === 'week') {
+          onZoomViewChange?.('day');
+        } else if (viewMode === 'day') {
+          setDaySlotDurationIndex((prev) => Math.max(0, prev - 1));
+        }
+      } else {
+        if (viewMode === 'day') {
+          if (daySlotDurationIndex < slotDurations.length - 1) {
+            setDaySlotDurationIndex((prev) => prev + 1);
+          } else {
+            onZoomViewChange?.('week');
+          }
+        } else if (viewMode === 'week') {
+          onZoomViewChange?.('month');
+        }
+      }
+    },
+    [daySlotDurationIndex, onZoomViewChange, slotDurations.length, viewMode],
+  );
+
+  // 滑鼠滾輪與觸控板 Pinch-to-zoom 監聽
+  const lastWheelTimeRef = useRef<number>(0);
+  const touchStartDistRef = useRef<number | null>(null);
+
+  const handleWheel = useCallback(
+    (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) return;
+      e.preventDefault();
+
+      const now = Date.now();
+      if (now - lastWheelTimeRef.current < 250) return;
+      lastWheelTimeRef.current = now;
+
+      if (e.deltaY < 0) {
+        handleZoom('in');
+      } else if (e.deltaY > 0) {
+        handleZoom('out');
+      }
+    },
+    [handleZoom],
+  );
+
+  const handleTouchStart = useCallback((e: TouchEvent) => {
+    if (e.touches.length === 2 && e.touches[0] && e.touches[1]) {
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      touchStartDistRef.current = Math.hypot(
+        touch1.pageX - touch2.pageX,
+        touch1.pageY - touch2.pageY,
+      );
+    }
+  }, []);
+
+  const handleTouchMove = useCallback(
+    (e: TouchEvent) => {
+      if (
+        e.touches.length === 2 &&
+        e.touches[0] &&
+        e.touches[1] &&
+        touchStartDistRef.current !== null
+      ) {
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const currentDist = Math.hypot(touch1.pageX - touch2.pageX, touch1.pageY - touch2.pageY);
+        const distRatio = currentDist / touchStartDistRef.current;
+
+        const now = Date.now();
+        if (now - lastWheelTimeRef.current > 300) {
+          if (distRatio > 1.35) {
+            lastWheelTimeRef.current = now;
+            handleZoom('in');
+            touchStartDistRef.current = currentDist;
+          } else if (distRatio < 0.75) {
+            lastWheelTimeRef.current = now;
+            handleZoom('out');
+            touchStartDistRef.current = currentDist;
+          }
+        }
+      }
+    },
+    [handleZoom],
+  );
+
+  const handleTouchEnd = useCallback(() => {
+    touchStartDistRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: true });
+    el.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [handleTouchEnd, handleTouchMove, handleTouchStart, handleWheel]);
 
   // 事件點擊：回傳原始 ScheduleEvent 資料
   const handleEventClick = useCallback(
@@ -186,8 +219,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
     [onEventClick],
   );
 
-  // FullCalendar 的 initialView 僅套用於首次渲染，viewMode 或行動裝置斷點變化時
-  // 需透過 API 呼叫 changeView 切換目前檢視（含強制切換至日檢視之「每日」模式）
+  // FullCalendar viewMode 變化時切換視圖
   useEffect(() => {
     const api = calendarRef.current?.getApi();
     if (!api) return;
@@ -197,11 +229,19 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
       return;
     }
 
-    const currentStart = dayjs(api.view.currentStart).format('YYYY-MM-DD');
-    if (currentStart !== dateRange.start) {
-      api.gotoDate(dateRange.start);
+    if (viewMode === 'month') {
+      const currentMonth = dayjs(api.view.currentStart).format('YYYY-MM');
+      const targetMonth = dayjs(dateRange.start).format('YYYY-MM');
+      if (currentMonth !== targetMonth) {
+        api.gotoDate(dateRange.start);
+      }
+    } else {
+      const currentStart = dayjs(api.view.currentStart).format('YYYY-MM-DD');
+      if (currentStart !== dateRange.start) {
+        api.gotoDate(dateRange.start);
+      }
     }
-  }, [dateRange.start, effectiveView]);
+  }, [dateRange.start, effectiveView, viewMode]);
 
   useEffect(() => {
     if (!scrollTime) return;
@@ -210,13 +250,30 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
 
   // 檢視範圍變更（日期切換、上一頁/下一頁）
   const handleDatesSet = useCallback(
-    (arg: { startStr: string; endStr: string }) => {
+    (arg: DatesSetArg) => {
+      const currentStart = arg.view?.currentStart
+        ? dayjs(arg.view.currentStart)
+        : dayjs(arg.startStr);
+      let s = currentStart.format('YYYY-MM-DD');
+      let e = s;
+
+      if (viewMode === 'day') {
+        s = currentStart.format('YYYY-MM-DD');
+        e = s;
+      } else if (viewMode === 'week') {
+        s = currentStart.startOf('week').format('YYYY-MM-DD');
+        e = currentStart.endOf('week').format('YYYY-MM-DD');
+      } else if (viewMode === 'month') {
+        s = currentStart.startOf('month').format('YYYY-MM-DD');
+        e = currentStart.endOf('month').format('YYYY-MM-DD');
+      }
+
       onDateChange({
-        start: dayjs(arg.startStr).format('YYYY-MM-DD'),
-        end: dayjs(arg.endStr).format('YYYY-MM-DD'),
+        start: s,
+        end: e,
       });
     },
-    [onDateChange],
+    [onDateChange, viewMode],
   );
 
   const handleDateSelect = useCallback(
@@ -229,7 +286,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
     [onZoomToDay, viewMode],
   );
 
-  // 事件方塊自訂渲染：顯示集團、分店、日期時間 + 週期角標
+  // 事件方塊自訂渲染：小卡形式顯示集團、分店、時間、指派人員與週期標籤
   const renderEventContent = useCallback(
     (arg: EventContentArg) => {
       const scheduleEvent = arg.event.extendedProps.scheduleEvent as ScheduleEvent | undefined;
@@ -243,6 +300,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
       ).format('HH:mm')}${isOvernight ? '+1' : ''}`;
 
       const showOverridden = scheduleEvent.alertStatus === 'OVERRIDDEN';
+      const eventColor = scheduleEvent.backgroundColor || '#1890ff';
 
       const eventCard = (
         <div
@@ -255,6 +313,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             overflow: 'hidden',
             width: '100%',
             minHeight: 46,
+            color: '#ffffff',
           }}
         >
           {scheduleEvent.isRecurring && (
@@ -313,7 +372,16 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
       return (
         <Popover
           trigger="click"
-          placement="rightTop"
+          placement="bottomLeft"
+          autoAdjustOverflow
+          destroyTooltipOnHide
+          color={eventColor}
+          overlayInnerStyle={{
+            padding: 0,
+            backgroundColor: eventColor,
+            borderRadius: 8,
+            overflow: 'hidden',
+          }}
           open={openEventId === scheduleEvent.id}
           content={renderEventDetail(scheduleEvent)}
           onOpenChange={(open) => {
@@ -331,14 +399,59 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
     [onEventClick, onEventDetailClose, openEventId, renderEventDetail, t],
   );
 
-  // 資源標籤渲染（客戶維度：集團_分店；員工維度：員工_區域）
+  // 資源標籤渲染（兩行設計：上面黑粗體主標題，下面灰色次標題）
   const renderResourceLabelContent = useCallback((arg: ResourceLabelContentArg) => {
-    return <span>{arg.resource.title}</span>;
+    const ext = arg.resource.extendedProps as { mainTitle?: string; subTitle?: string } | undefined;
+    const mainTitle = ext?.mainTitle || arg.resource.title;
+    const subTitle = ext?.subTitle;
+
+    return (
+      <div
+        aria-label={arg.resource.title}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          padding: '4px 6px',
+          lineHeight: 1.3,
+          overflow: 'hidden',
+        }}
+      >
+        <span style={{ display: 'none' }}>{arg.resource.title}</span>
+        <span
+          style={{
+            fontWeight: 700,
+            color: '#1f1f1f',
+            fontSize: '13px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {mainTitle}
+        </span>
+        {subTitle && (
+          <span
+            style={{
+              color: '#8c8c8c',
+              fontSize: '12px',
+              marginTop: '2px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {subTitle}
+          </span>
+        )}
+      </div>
+    );
   }, []);
 
   // 日期格線：國定假日以紅色標示
   const dayHeaderClassNames = useCallback(
-    (arg: { date: Date }) => {
+    (arg: { date?: Date }) => {
+      if (!arg.date) return [];
       const dateStr = dayjs(arg.date).format('YYYY-MM-DD');
       return isHoliday(dateStr, holidays) ? ['schedule-calendar-holiday'] : [];
     },
@@ -356,6 +469,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
 
   return (
     <div
+      ref={containerRef}
       data-testid="schedule-calendar"
       className="schedule-calendar-container"
       style={{ height: '100%' }}
@@ -364,10 +478,49 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         .schedule-calendar-holiday {
           color: #F5222D !important;
         }
+        .fc-timegrid-event-harness {
+          margin-right: 2px !important;
+        }
+        .fc-timegrid-event {
+          border-radius: 6px !important;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12) !important;
+          overflow: hidden !important;
+          color: #ffffff !important;
+          cursor: pointer;
+        }
+        .fc-timegrid-event .fc-event-main {
+          padding: 0 !important;
+        }
+        .fc-timegrid-col-events {
+          margin: 0 1px !important;
+        }
+        .fc-timeGridDay-view .fc-timegrid {
+          max-width: 480px;
+          margin: 0 auto !important;
+        }
+        .fc-timeGridDay-view .fc-col-header {
+          max-width: 480px;
+          margin: 0 auto !important;
+        }
+        .fc-timeGridDay-view .fc-scrollgrid {
+          max-width: 480px;
+          margin: 0 auto !important;
+          border-radius: 8px;
+          overflow: hidden;
+          background: #ffffff;
+        }
+        .fc-timeGridDay-view .fc-timegrid-col-events {
+          max-width: 400px;
+          margin: 0 auto !important;
+        }
+        .fc-timeGridDay-view .fc-timegrid-col-bg {
+          max-width: 400px;
+          margin: 0 auto !important;
+        }
       `}</style>
       <FullCalendar
         ref={calendarRef}
-        plugins={[resourceTimelinePlugin, dayGridPlugin, interactionPlugin]}
+        plugins={[resourceTimelinePlugin, timeGridPlugin, dayGridPlugin, interactionPlugin]}
         initialView={effectiveView}
         headerToolbar={false}
         initialDate={dateRange.start}
@@ -383,17 +536,99 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         selectMinDistance={8}
         select={handleDateSelect}
         datesSet={handleDatesSet}
+        slotEventOverlap={false}
+        allDaySlot={false}
+        eventMinHeight={38}
         resourceAreaWidth={isMobile ? '180px' : '300px'}
         resourceAreaHeaderContent={
           isMobile
             ? t('schedule.individual')
             : dimension === 'customer'
-              ? t('schedule.branchResource')
-              : t('schedule.employeeResource')
+              ? () => (
+                  <div
+                    data-testid="resource-header-customer"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      lineHeight: 1.3,
+                      padding: '2px 0',
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, color: '#1f1f1f', fontSize: '13px' }}>
+                      {t('schedule.customerDimension')}
+                    </span>
+                    <span style={{ color: '#8c8c8c', fontSize: '12px', marginTop: '2px' }}>
+                      {t('schedule.branchHeader')}
+                    </span>
+                  </div>
+                )
+              : dimension === 'employee'
+                ? () => (
+                    <div
+                      data-testid="resource-header-employee"
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        lineHeight: 1.3,
+                        padding: '2px 0',
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, color: '#1f1f1f', fontSize: '13px' }}>
+                        {t('schedule.employeeDimension')}
+                      </span>
+                      <span style={{ color: '#8c8c8c', fontSize: '12px', marginTop: '2px' }}>
+                        {t('schedule.groupHeader')}
+                      </span>
+                    </div>
+                  )
+                : t('schedule.overviewResource')
         }
         height="100%"
         nowIndicator
-        // 效能優化：延遲載入 lazyFetching，避免不必要的重複請求
+        views={{
+          timeGridDay: {
+            type: 'timeGrid',
+            duration: { days: 1 },
+            slotDuration: slotDurations[daySlotDurationIndex] || '01:00',
+            slotLabelFormat: [{ hour: '2-digit', minute: '2-digit', hour12: false }],
+          },
+          timeGridWeek: {
+            type: 'timeGrid',
+            duration: { weeks: 1 },
+            slotDuration: '01:00',
+            slotLabelFormat: [{ hour: '2-digit', minute: '2-digit', hour12: false }],
+            dayHeaderFormat: {
+              weekday: 'short',
+              month: 'numeric',
+              day: 'numeric',
+              omitCommas: true,
+            },
+          },
+          dayGridMonth: {
+            type: 'dayGridMonth',
+            dayHeaderFormat: { weekday: 'short' },
+          },
+          resourceTimelineDay: {
+            type: 'resourceTimeline',
+            duration: { days: 1 },
+            slotDuration: slotDurations[daySlotDurationIndex] || '01:00',
+            slotLabelFormat: [{ hour: '2-digit', minute: '2-digit', hour12: false }],
+          },
+          resourceTimelineWeek: {
+            type: 'resourceTimeline',
+            duration: { weeks: 1 },
+            slotDuration: { days: 1 },
+            slotLabelFormat: [
+              { weekday: 'short', month: 'numeric', day: 'numeric', omitCommas: true },
+            ],
+          },
+          resourceTimelineMonth: {
+            type: 'resourceTimeline',
+            duration: { months: 1 },
+            slotDuration: { days: 1 },
+            slotLabelFormat: [{ month: 'numeric', day: 'numeric' }],
+          },
+        }}
         lazyFetching
         loading={() => isLoading}
         eventDidMount={(arg) => {

@@ -26,6 +26,8 @@ export interface ScheduleEvent {
     shift: ShiftType;
     assignees: TaskAssignee[];
     contents: TaskContent[];
+    violationReason?: string;
+    overrideReason?: string;
   };
 }
 
@@ -45,13 +47,15 @@ export interface ScheduleResource {
 
 /** 排班查詢參數 */
 export interface ScheduleParams {
-  dimension: 'customer' | 'employee';
+  dimension: 'overview' | 'customer' | 'employee';
   startDate: string;
   endDate: string;
   groupId?: string;
   branchId?: string;
   employeeId?: string;
   areaId?: string;
+  area?: string;
+  shift?: string;
 }
 
 /** 排班篩選條件 */
@@ -60,6 +64,8 @@ export interface ScheduleFilters {
   branchId?: string;
   employeeId?: string;
   areaId?: string;
+  area?: string;
+  shift?: string;
 }
 
 /** 單筆排班變更記錄（新增／更新／移除），供變更緩衝區與復原機制使用 */
@@ -73,5 +79,5 @@ export interface ScheduleChange {
 
 /** 排班檢視模式：日／週／月 */
 export type ScheduleViewMode = 'day' | 'week' | 'month';
-/** 排班檢視維度：依客戶或依員工 */
-export type ScheduleDimension = 'customer' | 'employee';
+/** 排班檢視維度：總覽、依客戶或依員工 */
+export type ScheduleDimension = 'overview' | 'customer' | 'employee';

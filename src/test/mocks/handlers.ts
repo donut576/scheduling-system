@@ -7,7 +7,7 @@ import type { PendingCustomerFormData, ConvertToTaskData } from '@/api/pending-c
 import type { Notification, NotificationTemplate, Approval } from '@/types/notification';
 import type { UserProfile, LoginResponse } from '@/types/auth';
 import type { AlertValidationResult, LicenseType } from '@/types/alert';
-import type { ScheduleData, ScheduleEvent } from '@/types/schedule';
+import type { ScheduleData, ScheduleEvent, ScheduleResource } from '@/types/schedule';
 import { PERMISSIONS, ROLE_PERMISSIONS } from '@/constants/permissions';
 import { getGroupColor } from '@/utils/groupColor';
 
@@ -1835,23 +1835,29 @@ const mockAlertValidationResult: AlertValidationResult = {
 };
 
 const mockScheduleEvents: ScheduleEvent[] = [
+  // --- 2026-08-16 (昨日) ---
   {
     id: 'event-001',
     taskId: 'task-001',
     resourceId: 'branch-001',
-    title: '測試集團 - 測試分店',
-    start: '2026-08-10T09:00:00+08:00',
-    end: '2026-08-10T17:00:00+08:00',
-    groupName: '測試集團',
-    branchName: '測試分店',
+    title: '星耀科技 - 內湖三期辦公室',
+    start: '2026-08-16T09:00:00+08:00',
+    end: '2026-08-16T12:30:00+08:00',
+    groupName: '星耀科技股份有限公司',
+    branchName: '內湖三期辦公室',
     alertStatus: 'CLEAN',
-    isRecurring: false,
+    isRecurring: true,
     isOvernight: false,
     extendedProps: {
       taskType: 'CONTRACT',
       shift: '早班',
       assignees: [
-        { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+        {
+          employeeId: 'emp-001',
+          employeeName: '測試使用者',
+          licenses: ['PROFESSIONAL'],
+          area: '台北',
+        },
       ],
       contents: ['P', 'R'],
     },
@@ -1859,12 +1865,12 @@ const mockScheduleEvents: ScheduleEvent[] = [
   {
     id: 'event-002',
     taskId: 'task-demo-002',
-    resourceId: 'branch-002-1',
-    title: '星耀科技 - 內湖三期辦公室',
-    start: '2026-08-11T13:30:00+08:00',
-    end: '2026-08-11T17:30:00+08:00',
-    groupName: '星耀科技股份有限公司',
-    branchName: '內湖三期辦公室',
+    resourceId: 'branch-003-1',
+    title: '陽光餐飲 - 台中西屯門市',
+    start: '2026-08-16T14:00:00+08:00',
+    end: '2026-08-16T18:00:00+08:00',
+    groupName: '陽光連鎖餐飲集團',
+    branchName: '台中西屯門市',
     alertStatus: 'CLEAN',
     isRecurring: false,
     isOvernight: false,
@@ -1872,7 +1878,12 @@ const mockScheduleEvents: ScheduleEvent[] = [
       taskType: 'ONETIME',
       shift: '午班',
       assignees: [
-        { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
+        {
+          employeeId: 'emp-008',
+          employeeName: '王文欽',
+          licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
+          area: '台中',
+        },
       ],
       contents: ['S', 'TERMITE'],
     },
@@ -1880,31 +1891,10 @@ const mockScheduleEvents: ScheduleEvent[] = [
   {
     id: 'event-003',
     taskId: 'task-demo-003',
-    resourceId: 'branch-003-1',
-    title: '陽光餐飲 - 台中西屯門市',
-    start: '2026-08-12T08:30:00+08:00',
-    end: '2026-08-12T12:00:00+08:00',
-    groupName: '陽光連鎖餐飲集團',
-    branchName: '台中西屯門市',
-    alertStatus: 'VIOLATED',
-    isRecurring: false,
-    isOvernight: false,
-    extendedProps: {
-      taskType: 'ESR',
-      shift: '早班',
-      assignees: [
-        { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
-      ],
-      contents: ['P', 'OTHER'],
-    },
-  },
-  {
-    id: 'event-004',
-    taskId: 'task-demo-004',
     resourceId: 'branch-004-1',
     title: '綠地物業 - 板橋大樓管理處',
-    start: '2026-08-13T22:00:00+08:00',
-    end: '2026-08-14T04:00:00+08:00',
+    start: '2026-08-16T22:00:00+08:00',
+    end: '2026-08-17T04:30:00+08:00',
     groupName: '綠地物業管理顧問',
     branchName: '板橋大樓管理處',
     alertStatus: 'CLEAN',
@@ -1914,20 +1904,79 @@ const mockScheduleEvents: ScheduleEvent[] = [
       taskType: 'CONTRACT',
       shift: '大夜班',
       assignees: [
-        { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
+        {
+          employeeId: 'emp-004',
+          employeeName: '吳建宏',
+          licenses: ['SAFETY_MANAGER_B'],
+          area: '台北',
+        },
       ],
       contents: ['R'],
     },
   },
+
+  // --- 2026-08-17 (今日 / Demo 主力) ---
   {
-    id: 'event-005',
-    taskId: 'task-demo-005',
-    resourceId: 'branch-002-2',
-    title: '星耀科技 - 新竹科學園區廠',
-    start: '2026-08-14T09:00:00+08:00',
-    end: '2026-08-14T16:30:00+08:00',
+    id: 'event-010',
+    taskId: 'task-002',
+    resourceId: 'branch-002-1',
+    title: '星耀科技 - 內湖三期辦公室',
+    start: '2026-08-17T08:30:00+08:00',
+    end: '2026-08-17T12:00:00+08:00',
     groupName: '星耀科技股份有限公司',
-    branchName: '新竹科學園區廠',
+    branchName: '內湖三期辦公室',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '早班',
+      assignees: [
+        {
+          employeeId: 'emp-001',
+          employeeName: '測試使用者',
+          licenses: ['PROFESSIONAL'],
+          area: '台北',
+        },
+      ],
+      contents: ['P', 'R'],
+    },
+  },
+  {
+    id: 'event-011',
+    taskId: 'task-003',
+    resourceId: 'branch-010-1',
+    title: '鼎泰美食王國 - 台北101旗艦店',
+    start: '2026-08-17T13:30:00+08:00',
+    end: '2026-08-17T17:30:00+08:00',
+    groupName: '鼎泰美食王國',
+    branchName: '台北101旗艦店',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '午班',
+      assignees: [
+        {
+          employeeId: 'emp-002',
+          employeeName: '林志豪',
+          licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
+          area: '台北',
+        },
+      ],
+      contents: ['P', 'S'],
+    },
+  },
+  {
+    id: 'event-012',
+    taskId: 'task-004',
+    resourceId: 'branch-006-1',
+    title: '晶圓精密工業 - 竹科總部一廠',
+    start: '2026-08-17T09:00:00+08:00',
+    end: '2026-08-17T17:00:00+08:00',
+    groupName: '晶圓精密工業',
+    branchName: '竹科總部一廠',
     alertStatus: 'OVERRIDDEN',
     isRecurring: true,
     isOvernight: false,
@@ -1939,9 +1988,378 @@ const mockScheduleEvents: ScheduleEvent[] = [
           employeeId: 'emp-005',
           employeeName: '陳雅婷',
           licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
+          area: '新竹',
+        },
+      ],
+      contents: ['P', 'FIRE_ANT'],
+    },
+  },
+  {
+    id: 'event-013',
+    taskId: 'task-005',
+    resourceId: 'branch-003-1',
+    title: '陽光連鎖餐飲集團 - 台中西屯門市',
+    start: '2026-08-17T10:00:00+08:00',
+    end: '2026-08-17T15:30:00+08:00',
+    groupName: '陽光連鎖餐飲集團',
+    branchName: '台中西屯門市',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'ESR',
+      shift: '早班',
+      assignees: [
+        { employeeId: 'emp-008', employeeName: '王文欽', licenses: ['PEST_CONTROL'], area: '台中' },
+      ],
+      contents: ['P', 'TERMITE'],
+    },
+  },
+  {
+    id: 'event-014',
+    taskId: 'task-006',
+    resourceId: 'branch-008-1',
+    title: '遠東生技園區 - 台南南科生醫館',
+    start: '2026-08-17T14:00:00+08:00',
+    end: '2026-08-17T18:30:00+08:00',
+    groupName: '遠東生技園區',
+    branchName: '台南南科生醫館',
+    alertStatus: 'VIOLATED',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'ONETIME',
+      shift: '午班',
+      assignees: [
+        { employeeId: 'emp-010', employeeName: '劉美玲', licenses: ['PROFESSIONAL'], area: '台南' },
+      ],
+      contents: ['S', 'OTHER'],
+    },
+  },
+  {
+    id: 'event-015',
+    taskId: 'task-007',
+    resourceId: 'branch-004-1',
+    title: '綠地物業 - 板橋大樓管理處',
+    start: '2026-08-17T22:00:00+08:00',
+    end: '2026-08-18T05:00:00+08:00',
+    groupName: '綠地物業管理顧問',
+    branchName: '板橋大樓管理處',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: true,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '大夜班',
+      assignees: [
+        {
+          employeeId: 'emp-004',
+          employeeName: '吳建宏',
+          licenses: ['SAFETY_MANAGER_B'],
+          area: '台北',
+        },
+      ],
+      contents: ['R'],
+    },
+  },
+
+  // --- 2026-08-18 (明日) ---
+  {
+    id: 'event-020',
+    taskId: 'task-008',
+    resourceId: 'branch-002-2',
+    title: '星耀科技 - 新竹科學園區廠',
+    start: '2026-08-18T08:30:00+08:00',
+    end: '2026-08-18T12:00:00+08:00',
+    groupName: '星耀科技股份有限公司',
+    branchName: '新竹科學園區廠',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '早班',
+      assignees: [
+        { employeeId: 'emp-006', employeeName: '張家豪', licenses: ['PROFESSIONAL'], area: '新竹' },
+      ],
+      contents: ['P', 'R'],
+    },
+  },
+  {
+    id: 'event-021',
+    taskId: 'task-009',
+    resourceId: 'branch-010-2',
+    title: '鼎泰美食王國 - 新竹巨城店',
+    start: '2026-08-18T13:00:00+08:00',
+    end: '2026-08-18T17:30:00+08:00',
+    groupName: '鼎泰美食王國',
+    branchName: '新竹巨城店',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'ONETIME',
+      shift: '晚班',
+      assignees: [
+        { employeeId: 'emp-007', employeeName: '李佩珊', licenses: ['SAFETY_6HR'], area: '新竹' },
+      ],
+      contents: ['P', 'BED_BUG'],
+    },
+  },
+  {
+    id: 'event-022',
+    taskId: 'task-010',
+    resourceId: 'branch-003-2',
+    title: '陽光連鎖餐飲集團 - 台北信義旗艦店',
+    start: '2026-08-18T09:00:00+08:00',
+    end: '2026-08-18T16:00:00+08:00',
+    groupName: '陽光連鎖餐飲集團',
+    branchName: '台北信義旗艦店',
+    alertStatus: 'CLEAN',
+    isRecurring: true,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '早班',
+      assignees: [
+        {
+          employeeId: 'emp-001',
+          employeeName: '測試使用者',
+          licenses: ['PROFESSIONAL'],
+          area: '台北',
         },
       ],
       contents: ['P', 'S'],
+    },
+  },
+  {
+    id: 'event-023',
+    taskId: 'task-011',
+    resourceId: 'branch-006-2',
+    title: '晶圓精密工業 - 中科研發大樓',
+    start: '2026-08-18T14:00:00+08:00',
+    end: '2026-08-18T18:30:00+08:00',
+    groupName: '晶圓精密工業',
+    branchName: '中科研發大樓',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'ESR',
+      shift: '晚班',
+      assignees: [
+        { employeeId: 'emp-009', employeeName: '周冠宇', licenses: ['FIRE_ANT'], area: '台中' },
+      ],
+      contents: ['P', 'FIRE_ANT'],
+    },
+  },
+
+  // --- 2026-08-19 (週三) ---
+  {
+    id: 'event-030',
+    taskId: 'task-012',
+    resourceId: 'branch-002-3',
+    title: '星耀科技 - 台南南科二廠',
+    start: '2026-08-19T09:00:00+08:00',
+    end: '2026-08-19T13:00:00+08:00',
+    groupName: '星耀科技股份有限公司',
+    branchName: '台南南科二廠',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '早班',
+      assignees: [
+        { employeeId: 'emp-010', employeeName: '劉美玲', licenses: ['PROFESSIONAL'], area: '台南' },
+      ],
+      contents: ['P', 'R'],
+    },
+  },
+  {
+    id: 'event-031',
+    taskId: 'task-013',
+    resourceId: 'branch-003-3',
+    title: '陽光連鎖餐飲集團 - 高雄巨蛋店',
+    start: '2026-08-19T14:00:00+08:00',
+    end: '2026-08-19T18:00:00+08:00',
+    groupName: '陽光連鎖餐飲集團',
+    branchName: '高雄巨蛋店',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'ONETIME',
+      shift: '午班',
+      assignees: [
+        { employeeId: 'emp-011', employeeName: '許維倫', licenses: ['PEST_CONTROL'], area: '台南' },
+      ],
+      contents: ['S', 'TERMITE'],
+    },
+  },
+  {
+    id: 'event-032',
+    taskId: 'task-014',
+    resourceId: 'branch-010-1',
+    title: '鼎泰美食王國 - 台北101旗艦店',
+    start: '2026-08-19T08:30:00+08:00',
+    end: '2026-08-19T12:30:00+08:00',
+    groupName: '鼎泰美食王國',
+    branchName: '台北101旗艦店',
+    alertStatus: 'OVERRIDDEN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '早班',
+      assignees: [
+        { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL'], area: '台北' },
+      ],
+      contents: ['P'],
+    },
+  },
+
+  // --- 2026-08-20 (週四) ---
+  {
+    id: 'event-040',
+    taskId: 'task-015',
+    resourceId: 'branch-004-1',
+    title: '綠地物業 - 板橋大樓管理處',
+    start: '2026-08-20T09:00:00+08:00',
+    end: '2026-08-20T17:00:00+08:00',
+    groupName: '綠地物業管理顧問',
+    branchName: '板橋大樓管理處',
+    alertStatus: 'CLEAN',
+    isRecurring: true,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '早班',
+      assignees: [
+        {
+          employeeId: 'emp-001',
+          employeeName: '測試使用者',
+          licenses: ['PROFESSIONAL'],
+          area: '台北',
+        },
+      ],
+      contents: ['R', 'VEHICLE_MAINTENANCE'],
+    },
+  },
+  {
+    id: 'event-041',
+    taskId: 'task-016',
+    resourceId: 'branch-002-1',
+    title: '星耀科技 - 內湖三期辦公室',
+    start: '2026-08-20T13:30:00+08:00',
+    end: '2026-08-20T18:00:00+08:00',
+    groupName: '星耀科技股份有限公司',
+    branchName: '內湖三期辦公室',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'ESR',
+      shift: '午班',
+      assignees: [
+        { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL'], area: '台北' },
+      ],
+      contents: ['P', 'TERMITE'],
+    },
+  },
+
+  // --- 2026-08-21 (週五) ---
+  {
+    id: 'event-050',
+    taskId: 'task-017',
+    resourceId: 'branch-006-1',
+    title: '晶圓精密工業 - 竹科總部一廠',
+    start: '2026-08-21T08:30:00+08:00',
+    end: '2026-08-21T16:30:00+08:00',
+    groupName: '晶圓精密工業',
+    branchName: '竹科總部一廠',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '早班',
+      assignees: [
+        { employeeId: 'emp-006', employeeName: '張家豪', licenses: ['PROFESSIONAL'], area: '新竹' },
+      ],
+      contents: ['P', 'S'],
+    },
+  },
+  {
+    id: 'event-051',
+    taskId: 'task-018',
+    resourceId: 'branch-010-2',
+    title: '鼎泰美食王國 - 新竹巨城店',
+    start: '2026-08-21T14:00:00+08:00',
+    end: '2026-08-21T19:00:00+08:00',
+    groupName: '鼎泰美食王國',
+    branchName: '新竹巨城店',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'ONETIME',
+      shift: '晚班',
+      assignees: [
+        { employeeId: 'emp-007', employeeName: '李佩珊', licenses: ['SAFETY_6HR'], area: '新竹' },
+      ],
+      contents: ['P', 'BED_BUG'],
+    },
+  },
+
+  // --- 2026-08-22 (週六) ---
+  {
+    id: 'event-060',
+    taskId: 'task-019',
+    resourceId: 'branch-003-2',
+    title: '陽光連鎖餐飲集團 - 台北信義旗艦店',
+    start: '2026-08-22T10:00:00+08:00',
+    end: '2026-08-22T16:00:00+08:00',
+    groupName: '陽光連鎖餐飲集團',
+    branchName: '台北信義旗艦店',
+    alertStatus: 'CLEAN',
+    isRecurring: true,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '午班',
+      assignees: [
+        { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL'], area: '台北' },
+      ],
+      contents: ['P', 'S'],
+    },
+  },
+
+  // --- 2026-08-23 (週日) ---
+  {
+    id: 'event-070',
+    taskId: 'task-020',
+    resourceId: 'branch-010-1',
+    title: '鼎泰美食王國 - 台北101旗艦店',
+    start: '2026-08-23T11:00:00+08:00',
+    end: '2026-08-23T17:00:00+08:00',
+    groupName: '鼎泰美食王國',
+    branchName: '台北101旗艦店',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '早班',
+      assignees: [
+        {
+          employeeId: 'emp-001',
+          employeeName: '測試使用者',
+          licenses: ['PROFESSIONAL'],
+          area: '台北',
+        },
+      ],
+      contents: ['P', 'R'],
     },
   },
 ];
@@ -1962,19 +2380,48 @@ const mockScheduleData: ScheduleData = {
       children: [
         { id: 'branch-002-1', title: '內湖三期辦公室', groupColor: '#0067a0' },
         { id: 'branch-002-2', title: '新竹科學園區廠', groupColor: '#0067a0' },
+        { id: 'branch-002-3', title: '台南南科二廠', groupColor: '#0067a0' },
       ],
     },
     {
       id: 'group-003',
       title: '陽光連鎖餐飲集團',
       groupColor: '#fa8c16',
-      children: [{ id: 'branch-003-1', title: '台中西屯門市', groupColor: '#fa8c16' }],
+      children: [
+        { id: 'branch-003-1', title: '台中西屯門市', groupColor: '#fa8c16' },
+        { id: 'branch-003-2', title: '台北信義旗艦店', groupColor: '#fa8c16' },
+        { id: 'branch-003-3', title: '高雄巨蛋店', groupColor: '#fa8c16' },
+      ],
     },
     {
       id: 'group-004',
       title: '綠地物業管理顧問',
       groupColor: '#722ed1',
       children: [{ id: 'branch-004-1', title: '板橋大樓管理處', groupColor: '#722ed1' }],
+    },
+    {
+      id: 'group-006',
+      title: '晶圓精密工業',
+      groupColor: '#52c41a',
+      children: [
+        { id: 'branch-006-1', title: '竹科總部一廠', groupColor: '#52c41a' },
+        { id: 'branch-006-2', title: '中科研發大樓', groupColor: '#52c41a' },
+      ],
+    },
+    {
+      id: 'group-008',
+      title: '遠東生技園區',
+      groupColor: '#faad14',
+      children: [{ id: 'branch-008-1', title: '台南南科生醫館', groupColor: '#faad14' }],
+    },
+    {
+      id: 'group-010',
+      title: '鼎泰美食王國',
+      groupColor: '#eb2f96',
+      children: [
+        { id: 'branch-010-1', title: '台北101旗艦店', groupColor: '#eb2f96' },
+        { id: 'branch-010-2', title: '新竹巨城店', groupColor: '#eb2f96' },
+      ],
     },
   ],
 };
@@ -2171,7 +2618,64 @@ export const handlers = [
   http.post('*/api/v1/tasks/:id/override-warning', () => HttpResponse.json(ok(null))),
 
   // schedule.ts
-  http.get('*/api/v1/schedule', () => HttpResponse.json(ok<ScheduleData>(mockScheduleData))),
+  http.get('*/api/v1/schedule', ({ request }) => {
+    const url = new URL(request.url);
+    const dim = url.searchParams.get('dimension') || 'customer';
+    const groupId = url.searchParams.get('groupId');
+    const branchId = url.searchParams.get('branchId');
+    const employeeId = url.searchParams.get('employeeId');
+    const area = url.searchParams.get('area');
+    const shift = url.searchParams.get('shift');
+
+    let events = mockScheduleEvents.map((e) => {
+      if (dim === 'employee') {
+        const empId = e.extendedProps.assignees[0]?.employeeId;
+        return { ...e, resourceId: empId || e.resourceId };
+      }
+      return e;
+    });
+
+    if (groupId) {
+      events = events.filter(
+        (e) => e.groupName.includes(groupId) || e.resourceId.includes(groupId),
+      );
+    }
+    if (branchId) {
+      events = events.filter((e) => e.resourceId === branchId);
+    }
+    if (employeeId) {
+      events = events.filter((e) =>
+        e.extendedProps.assignees.some((a) => a.employeeId === employeeId),
+      );
+    }
+    if (area) {
+      events = events.filter((e) => e.extendedProps.assignees.some((a) => a.area === area));
+    }
+    if (shift) {
+      events = events.filter((e) => e.extendedProps.shift === shift);
+    }
+
+    let resources: ScheduleResource[] = [];
+    if (dim === 'customer') {
+      resources = mockScheduleData.resources;
+    } else if (dim === 'employee') {
+      let emps = mockEmployees;
+      if (area) emps = emps.filter((e) => e.area === area || e.groupName?.includes(area));
+      if (shift) emps = emps.filter((e) => e.shift === shift || e.groupName?.includes(shift));
+      resources = emps.map((e) => ({
+        id: e.id,
+        title: `${e.name} (${e.area || '台北'} ${e.shift || '早班'})`,
+        groupColor: e.groupColor || getGroupColor(e.area || '台北'),
+      }));
+    }
+
+    return HttpResponse.json(
+      ok<ScheduleData>({
+        events,
+        resources,
+      }),
+    );
+  }),
   http.patch('*/api/v1/schedule', () => HttpResponse.json(ok(null))),
 
   // customer.ts

@@ -129,10 +129,17 @@ describe('ApprovalPage integration - 排班變更審批流程', () => {
 
     expect(await screen.findByText('排班變更')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '核准' }));
+    const viewDiffBtn = await screen.findByRole('button', { name: /檢視變更/ });
+    await user.click(viewDiffBtn);
+    const approveInModal = await screen.findByRole('button', { name: /核准/ });
+    await user.click(approveInModal);
+
+    const modals = await screen.findAllByRole('dialog');
+    const confirmModal = modals[modals.length - 1]!;
+    await user.click(within(confirmModal).getByRole('button', { name: /確定/ }));
 
     // 狀態更新：審批操作成功訊息
-    expect((await screen.findAllByText('審批已核准')).length).toBeGreaterThanOrEqual(1);
+    expect((await screen.findAllByText(/已核准/)).length).toBeGreaterThanOrEqual(1);
 
     // 通知：SCHEDULE_CHANGE 單一審批完成後自動重新通知客戶，主旨帶「【已核准】」前綴
     await waitFor(() => {
@@ -155,11 +162,18 @@ describe('ApprovalPage integration - 排班變更審批流程', () => {
 
     expect(await screen.findByText('班別變更')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '核准' }));
+    const viewDiffBtn = await screen.findByRole('button', { name: /檢視變更/ });
+    await user.click(viewDiffBtn);
+    const approveInModal = await screen.findByRole('button', { name: /核准/ });
+    await user.click(approveInModal);
+
+    const modals = await screen.findAllByRole('dialog');
+    const confirmModal = modals[modals.length - 1]!;
+    await user.click(within(confirmModal).getByRole('button', { name: /確定/ }));
 
     // 審批操作本身成功（經理核准動作已送出）。antd 的 message 提示為全域 portal，
     // 前一個測試殘留之提示可能尚未消失，故以 findAllByText 容忍多筆相同文字存在。
-    expect((await screen.findAllByText('審批已核准')).length).toBeGreaterThanOrEqual(1);
+    expect((await screen.findAllByText(/已核准/)).length).toBeGreaterThanOrEqual(1);
 
     // 所有審批類型皆為單一審批人核准即完成，故應觸發客戶重新通知。
     await waitFor(() => {
@@ -190,23 +204,27 @@ describe('ApprovalPage integration - 排班變更審批流程', () => {
 
     expect(await screen.findByText('排班變更')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '駁回' }));
+    const viewDiffBtn = await screen.findByRole('button', { name: /檢視變更/ });
+    await user.click(viewDiffBtn);
+    const rejectInModal = await screen.findByRole('button', { name: /駁回/ });
+    await user.click(rejectInModal);
 
-    const modal = await screen.findByRole('dialog');
-    expect(within(modal).getByText('駁回審批')).toBeInTheDocument();
+    const modals = await screen.findAllByRole('dialog');
+    const confirmModal = modals[modals.length - 1]!;
+    expect(within(confirmModal).getByText('駁回確認')).toBeInTheDocument();
 
     // 未填寫備註時點擊確定，不應送出駁回請求（表單驗證阻擋）
-    await user.click(within(modal).getByText('OK'));
+    await user.click(within(confirmModal).getByRole('button', { name: /確定/ }));
     expect(capturedRejectBody).toBeUndefined();
 
     // 填寫備註後再次確認，應成功送出駁回請求並更新狀態
     const textarea = screen.getByLabelText('駁回原因');
     await user.type(textarea, '人力調度不合理');
-    await user.click(within(modal).getByText('OK'));
+    await user.click(within(confirmModal).getByRole('button', { name: /確定/ }));
 
     await waitFor(() => {
       expect(capturedRejectBody).toEqual({ comment: '人力調度不合理' });
     });
-    expect(await screen.findByText('審批已駁回')).toBeInTheDocument();
+    expect(await screen.findByText('異動申請已駁回')).toBeInTheDocument();
   });
 });

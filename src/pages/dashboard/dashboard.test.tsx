@@ -201,7 +201,7 @@ describe('DashboardPage', () => {
       const card = screen.getByTestId('pending-approval-card');
       expect(card).toBeInTheDocument();
       expect(screen.getByText('待審核件數')).toBeInTheDocument();
-      expect(screen.getByText('任務變更')).toBeInTheDocument();
+      expect(screen.getByText('排班變更')).toBeInTheDocument();
       expect(screen.getByText('王組長')).toBeInTheDocument();
     });
 
