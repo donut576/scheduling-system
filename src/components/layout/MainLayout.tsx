@@ -72,7 +72,7 @@ const MainLayout: React.FC = () => {
         </Content>
       </Layout>
 
-      {/* 全域地圖浮動按鈕，依權限與目前路徑決定是否顯示 */}
+      {/* 全域地圖浮動按鈕（右下角） */}
       <MapFloatingButton />
     </Layout>
   );

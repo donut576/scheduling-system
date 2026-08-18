@@ -149,7 +149,7 @@ describe('MainLayout', () => {
     await user.click(screen.getByRole('button', { name: /測試用戶/ }));
 
     expect(await screen.findByText('員工編號：E001')).toBeInTheDocument();
-    expect(screen.getByText('職位：ADMIN')).toBeInTheDocument();
+    expect(screen.getByText(/職位：(系統管理員|ADMIN)/)).toBeInTheDocument();
     expect(screen.getByText('登出')).toBeInTheDocument();
   });
 

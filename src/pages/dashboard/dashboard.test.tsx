@@ -182,7 +182,7 @@ describe('DashboardPage', () => {
     } as unknown as ReturnType<typeof useNotificationList>);
   });
 
-  describe('今日排班概要', () => {
+  describe('今日排班概要與警示通知彈窗', () => {
     it('renders today schedule summary with total count and alert breakdown', () => {
       render(<DashboardPage />);
 
@@ -192,8 +192,19 @@ describe('DashboardPage', () => {
       // 2 total events: 1 CLEAN + 1 VIOLATED
       expect(screen.getByText('2')).toBeInTheDocument();
       expect(screen.getByText('正常 1')).toBeInTheDocument();
-      expect(screen.getByText('警示 1')).toBeInTheDocument();
-      expect(screen.getByText('已覆蓋 0')).toBeInTheDocument();
+      expect(screen.getByText(/警示 1/)).toBeInTheDocument();
+      expect(screen.getByText(/已覆蓋 0/)).toBeInTheDocument();
+    });
+
+    it('opens violation alert notification modal when clicking warning tag with violations', async () => {
+      const user = userEvent.setup();
+      render(<DashboardPage />);
+
+      const warningTag = screen.getByTestId('warning-tag');
+      await user.click(warningTag);
+
+      expect(screen.getByText(/今日排班違規警示通知/)).toBeInTheDocument();
+      expect(screen.getByText(/集團B - 分店B/)).toBeInTheDocument();
     });
 
     it('navigates to /schedule when 查看排班總覽 link is clicked', async () => {
@@ -225,30 +236,12 @@ describe('DashboardPage', () => {
     });
   });
 
-  describe('近期警示', () => {
-    it('renders recent tasks with VIOLATED or OVERRIDDEN alert status', () => {
-      render(<DashboardPage />);
-
-      const card = screen.getByTestId('recent-alerts-card');
-      expect(card).toBeInTheDocument();
-      expect(screen.getByText(/集團C 分店C/)).toBeInTheDocument();
-      expect(screen.getByText(/集團D 分店D/)).toBeInTheDocument();
-    });
-
-    it('navigates to /task when 查看任務列表 link is clicked', async () => {
-      const user = userEvent.setup();
-      render(<DashboardPage />);
-
-      await user.click(screen.getByText('查看任務列表'));
-      expect(mockNavigate).toHaveBeenCalledWith('/task');
-    });
-  });
-
-  describe('快捷入口', () => {
-    it('does not render quick entry section', () => {
+  describe('快捷入口與近期警示卡片已移除', () => {
+    it('does not render quick entry section or standalone recent alerts card', () => {
       render(<DashboardPage />);
       expect(screen.queryByTestId('quick-entry-card')).not.toBeInTheDocument();
-      expect(screen.queryByText('快捷入口')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('recent-alerts-card')).not.toBeInTheDocument();
+      expect(screen.queryByText('近期警示')).not.toBeInTheDocument();
     });
   });
 
@@ -263,18 +256,6 @@ describe('DashboardPage', () => {
 
       render(<DashboardPage />);
       expect(screen.getByText('目前無待審核項目')).toBeInTheDocument();
-    });
-
-    it('shows empty state when there are no recent alerts', () => {
-      vi.mocked(useTaskList).mockReturnValue({
-        data: mockTaskListData([]),
-        isLoading: false,
-        isError: false,
-        error: null,
-      } as unknown as ReturnType<typeof useTaskList>);
-
-      render(<DashboardPage />);
-      expect(screen.getByText('近期無警示項目')).toBeInTheDocument();
     });
   });
 });

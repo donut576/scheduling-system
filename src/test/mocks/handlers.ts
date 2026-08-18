@@ -8,7 +8,7 @@ import type { Notification, NotificationTemplate, Approval } from '@/types/notif
 import type { UserProfile, LoginResponse } from '@/types/auth';
 import type { AlertValidationResult, LicenseType } from '@/types/alert';
 import type { ScheduleData, ScheduleEvent, ScheduleResource } from '@/types/schedule';
-import { PERMISSIONS, ROLE_PERMISSIONS } from '@/constants/permissions';
+import { ROLE_PERMISSIONS } from '@/constants/permissions';
 import { getGroupColor } from '@/utils/groupColor';
 
 /**
@@ -49,21 +49,51 @@ const mockUser: UserProfile = {
   groupId: 'group-001',
 };
 
-// Demo admin account for local frontend development (login: admin / admin123)
+// Demo admin account (login: admin / admin123)
 const mockAdminUser: UserProfile = {
   id: 'emp-admin',
-  name: 'Demo 管理員',
+  name: 'Demo 系統管理員',
   employeeNo: 'ADMIN01',
   role: 'ADMIN',
-  permissions: Object.values(PERMISSIONS),
+  permissions: ROLE_PERMISSIONS.ADMIN!,
   groupId: 'group-001',
 };
 
-// Demo staff account for local frontend development (login: staff / staff123)
+// Demo admin_staff account (login: admin_staff / admin123)
+const mockAdminStaffUser: UserProfile = {
+  id: 'emp-admin-staff',
+  name: 'Demo 行政專員',
+  employeeNo: 'ASTAFF01',
+  role: 'ADMIN_STAFF',
+  permissions: ROLE_PERMISSIONS.ADMIN_STAFF!,
+  groupId: 'group-001',
+};
+
+// Demo manager account (login: manager / manager123)
+const mockManagerUser: UserProfile = {
+  id: 'emp-manager',
+  name: 'Demo 經理',
+  employeeNo: 'MGR01',
+  role: 'MANAGER',
+  permissions: ROLE_PERMISSIONS.MANAGER!,
+  groupId: 'group-001',
+};
+
+// Demo leader account (login: leader / leader123)
+const mockLeaderUser: UserProfile = {
+  id: 'emp-leader',
+  name: 'Demo 組長',
+  employeeNo: 'LDR01',
+  role: 'LEADER',
+  permissions: ROLE_PERMISSIONS.LEADER!,
+  groupId: 'group-001',
+};
+
+// Demo staff account (login: staff / staff123)
 const mockStaffUser: UserProfile = {
   id: 'emp-staff',
-  name: 'Demo 員工',
-  employeeNo: 'staff',
+  name: 'Demo 服務專員',
+  employeeNo: 'STAFF01',
   role: 'STAFF',
   permissions: ROLE_PERMISSIONS.STAFF!,
   groupId: 'taipei-morning',
@@ -1810,7 +1840,7 @@ let mockApprovals: Approval[] = [
     requestedByName: '林志豪',
     changeSummary: '調整施作項目與服務時段（改為臭蟲緊急熱處理）',
     diff: [
-      { field: 'contents', label: '工作內容', before: 'P、R', after: 'BED_BUG' },
+      { field: 'contents', label: '工作內容', before: '病媒、鼠害', after: '臭蟲' },
       { field: 'time', label: '時段', before: '09:00 ~ 13:00', after: '14:00 ~ 18:00' },
     ],
     approvers: [
@@ -2552,6 +2582,45 @@ export const handlers = [
       );
     }
 
+    if (
+      (body.account === 'admin_staff' || body.account === 'adminstaff') &&
+      (body.password === 'admin123' || body.password === 'staff123')
+    ) {
+      return HttpResponse.json(
+        ok<LoginResponse>({
+          accessToken: 'mock-admin-staff-token',
+          expiresIn: 3600,
+          user: mockAdminStaffUser,
+        }),
+      );
+    }
+
+    if (
+      body.account === 'manager' &&
+      (body.password === 'manager123' || body.password === 'admin123')
+    ) {
+      return HttpResponse.json(
+        ok<LoginResponse>({
+          accessToken: 'mock-manager-token',
+          expiresIn: 3600,
+          user: mockManagerUser,
+        }),
+      );
+    }
+
+    if (
+      body.account === 'leader' &&
+      (body.password === 'leader123' || body.password === 'staff123')
+    ) {
+      return HttpResponse.json(
+        ok<LoginResponse>({
+          accessToken: 'mock-leader-token',
+          expiresIn: 3600,
+          user: mockLeaderUser,
+        }),
+      );
+    }
+
     if (body.account === 'staff' && body.password === 'staff123') {
       return HttpResponse.json(
         ok<LoginResponse>({
@@ -2732,6 +2801,8 @@ export const handlers = [
     const employeeId = url.searchParams.get('employeeId');
     const area = url.searchParams.get('area');
     const shift = url.searchParams.get('shift');
+    const startDate = url.searchParams.get('startDate');
+    const endDate = url.searchParams.get('endDate');
 
     let events = mockScheduleEvents.map((e) => {
       if (dim === 'employee') {
@@ -2740,6 +2811,13 @@ export const handlers = [
       }
       return e;
     });
+
+    if (startDate) {
+      events = events.filter((e) => (e.start.split('T')[0] ?? '') >= startDate);
+    }
+    if (endDate) {
+      events = events.filter((e) => (e.start.split('T')[0] ?? '') <= endDate);
+    }
 
     if (groupId) {
       const targetGroup = mockCustomerGroups.find((g) => g.id === groupId);

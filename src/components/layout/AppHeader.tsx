@@ -14,11 +14,21 @@ import { useUserStore } from '@/stores/useUserStore';
 const { Header } = Layout;
 const { Text } = Typography;
 
+const ROLE_LABEL_MAP: Record<string, string> = {
+  ADMIN: '系統管理員',
+  ADMIN_STAFF: '行政人員',
+  MANAGER: '經理',
+  LEADER: '組長',
+  STAFF: '服務專員 (一般員工)',
+};
+
 // 頂部導覽列：包含側邊選單開關、品牌 Logo 與使用者選單
 const AppHeader: React.FC = () => {
   const { t } = useTranslation();
   const { toggleSidebar } = useAppStore();
   const { user, logout } = useUserStore();
+
+  const roleDisplay = user?.role ? (ROLE_LABEL_MAP[user.role] ?? user.role) : '-';
 
   return (
     <Header
@@ -56,7 +66,7 @@ const AppHeader: React.FC = () => {
                   <Space direction="vertical" size={2} style={{ minWidth: 180 }}>
                     <Text strong>{user?.name ?? '-'}</Text>
                     <Text type="secondary">{`${t('employee.employeeNo')}：${user?.employeeNo ?? '-'}`}</Text>
-                    <Text type="secondary">{`${t('employee.position')}：${user?.role ?? '-'}`}</Text>
+                    <Text type="secondary">{`${t('employee.position')}：${roleDisplay}`}</Text>
                   </Space>
                 ),
               },

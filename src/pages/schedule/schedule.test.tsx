@@ -8,6 +8,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SchedulePage from './index';
 import { useScheduleStore } from '@/stores/useScheduleStore';
+import { usePermissionStore } from '@/stores/usePermissionStore';
+import { ROLE_PERMISSIONS } from '@/constants/permissions';
 import type { ScheduleEvent } from '@/types/schedule';
 import type { CustomerGroup } from '@/types/customer';
 import type { Employee } from '@/types/employee';
@@ -171,6 +173,8 @@ describe('SchedulePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     lastScheduleCalendarProps = undefined;
+
+    usePermissionStore.getState().buildPermissions(ROLE_PERMISSIONS.ADMIN, 'ADMIN');
 
     useScheduleStore.setState({
       currentView: 'week',

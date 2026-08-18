@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import ScheduleCalendar from '@/components/business/ScheduleCalendar';
 import TaskForm from '@/components/business/TaskForm';
 import { useScheduleStore } from '@/stores/useScheduleStore';
+import { usePermissionStore } from '@/stores/usePermissionStore';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useEmployeeList } from '@/queries/useEmployeeQueries';
 import { useTaskDetail, useUpdateTask } from '@/queries/useTaskQueries';
@@ -47,6 +48,7 @@ const SchedulePage: FC = () => {
   const setView = useScheduleStore((state) => state.setView);
   const setDimension = useScheduleStore((state) => state.setDimension);
   const setDateRange = useScheduleStore((state) => state.setDateRange);
+  const hasScheduleEdit = usePermissionStore((state) => state.hasPermission('schedule:edit'));
 
   // 篩選器狀態（全部支援清除）
   const [groupId, setGroupId] = useState<string | undefined>(undefined);
@@ -491,41 +493,43 @@ const SchedulePage: FC = () => {
               )}
             </div>
           )}
-          <Space
-            className="schedule-event-detail-actions"
-            style={{ marginTop: 12, width: '100%', justifyContent: 'flex-end' }}
-          >
-            <Button
-              size="small"
-              onClick={handleEditClick}
-              aria-label={t('schedule.editTask')}
-              style={{
-                background: '#ffffff',
-                color: '#262626',
-                border: 'none',
-                fontWeight: 600,
-              }}
+          {hasScheduleEdit && (
+            <Space
+              className="schedule-event-detail-actions"
+              style={{ marginTop: 12, width: '100%', justifyContent: 'flex-end' }}
             >
-              {t('common.edit')}
-            </Button>
-            <Button
-              size="small"
-              danger
-              onClick={handleCancelTask}
-              aria-label={t('schedule.cancelTask')}
-              style={{
-                background: '#ffffff',
-                borderColor: '#ff4d4f',
-                fontWeight: 600,
-              }}
-            >
-              {t('common.cancel')}
-            </Button>
-          </Space>
+              <Button
+                size="small"
+                onClick={handleEditClick}
+                aria-label={t('schedule.editTask')}
+                style={{
+                  background: '#ffffff',
+                  color: '#262626',
+                  border: 'none',
+                  fontWeight: 600,
+                }}
+              >
+                {t('common.edit')}
+              </Button>
+              <Button
+                size="small"
+                danger
+                onClick={handleCancelTask}
+                aria-label={t('schedule.cancelTask')}
+                style={{
+                  background: '#ffffff',
+                  borderColor: '#ff4d4f',
+                  fontWeight: 600,
+                }}
+              >
+                {t('common.cancel')}
+              </Button>
+            </Space>
+          )}
         </div>
       );
     },
-    [detailRows, handleCancelTask, handleEditClick, selectedEvent?.id, t],
+    [detailRows, handleCancelTask, handleEditClick, hasScheduleEdit, selectedEvent?.id, t],
   );
 
   // 三大 Tab 定義（「總覽」、「集團」、「員工」）

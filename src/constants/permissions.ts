@@ -57,13 +57,15 @@ export const PERMISSIONS = {
 /** 角色預設權限對照表（角色代碼 -> 該角色預設擁有之權限代碼清單） */
 // Role-based permission mapping
 export const ROLE_PERMISSIONS: Record<string, string[]> = {
-  // Admin：全部的功能
+  // 1. 系統管理員 (ADMIN)：全部功能
   ADMIN: Object.values(PERMISSIONS),
 
-  // 行政：任務建立、客戶資料、通知、異動追蹤
+  // 2. 行政 (ADMIN_STAFF)：任務建立、查看編輯客戶資料、通知管理、異動追蹤
   ADMIN_STAFF: [
     PERMISSIONS.TASK_VIEW,
     PERMISSIONS.TASK_CREATE,
+    PERMISSIONS.TASK_EDIT,
+    PERMISSIONS.TASK_EXPORT,
     PERMISSIONS.CUSTOMER_VIEW,
     PERMISSIONS.CUSTOMER_CREATE,
     PERMISSIONS.CUSTOMER_EDIT,
@@ -78,7 +80,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     PERMISSIONS.SYSTEM_AUDIT,
   ],
 
-  // 經理：檢視/編輯/核准班表、跨組管理
+  // 3. 經理 (MANAGER)：檢視、編輯、核准班表、跨組管理、審核申請
   MANAGER: [
     PERMISSIONS.SCHEDULE_VIEW,
     PERMISSIONS.SCHEDULE_EDIT,
@@ -86,6 +88,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     PERMISSIONS.TASK_VIEW,
     PERMISSIONS.TASK_CREATE,
     PERMISSIONS.TASK_EDIT,
+    PERMISSIONS.TASK_EXPORT,
     PERMISSIONS.TASK_OVERRIDE_ALERT,
     PERMISSIONS.EMPLOYEE_VIEW,
     PERMISSIONS.EMPLOYEE_EDIT,
@@ -97,17 +100,21 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     PERMISSIONS.MAP_VIEW,
   ],
 
-  // 組長：建立任務、排班、編輯、可鍵入指定排休功能
+  // 4. 組長 (LEADER)：建立任務、排班、編輯、指定排休
   LEADER: [
     PERMISSIONS.TASK_VIEW,
     PERMISSIONS.TASK_CREATE,
     PERMISSIONS.TASK_EDIT,
+    PERMISSIONS.TASK_EXPORT,
     PERMISSIONS.SCHEDULE_VIEW,
     PERMISSIONS.SCHEDULE_EDIT,
     PERMISSIONS.EMPLOYEE_VIEW,
     PERMISSIONS.EMPLOYEE_DESIGNATE_LEAVE,
+    PERMISSIONS.CUSTOMER_VIEW,
+    PERMISSIONS.NOTIFICATION_VIEW,
+    PERMISSIONS.MAP_VIEW,
   ],
 
-  // 一般員工：檢視本人與同班別班表、接收通知
+  // 5. 一般員工 (STAFF)：檢視本人與同班別班表、接收通知
   STAFF: [PERMISSIONS.SCHEDULE_VIEW, PERMISSIONS.NOTIFICATION_VIEW],
 };

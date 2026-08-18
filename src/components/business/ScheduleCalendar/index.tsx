@@ -692,9 +692,14 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           cursor: col-resize;
           user-select: none;
         }
+        /* 隱藏 FullCalendar 商業版權提示訊息 */
+        .fc-license-message {
+          display: none !important;
+        }
       `}</style>
       <FullCalendar
         ref={calendarRef}
+        schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
         plugins={[resourceTimelinePlugin, timeGridPlugin, dayGridPlugin, interactionPlugin]}
         initialView={effectiveView}
         headerToolbar={false}

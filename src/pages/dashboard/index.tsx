@@ -1,40 +1,55 @@
-import { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Row, Col, Card, Statistic, List, Button, Space, Tag, Typography, Empty } from 'antd';
-import { CalendarOutlined, AuditOutlined, AlertOutlined, BellOutlined } from '@ant-design/icons';
+import {
+  Row,
+  Col,
+  Card,
+  Statistic,
+  List,
+  Button,
+  Space,
+  Tag,
+  Typography,
+  Empty,
+  Modal,
+  message,
+} from 'antd';
+import {
+  CalendarOutlined,
+  AuditOutlined,
+  BellOutlined,
+  WarningOutlined,
+  SafetyCertificateOutlined,
+} from '@ant-design/icons';
 import { useScheduleData } from '@/queries/useScheduleQueries';
 import { useApprovalList } from '@/queries/useApprovalQueries';
-import { useTaskList } from '@/queries/useTaskQueries';
 import { useNotificationList } from '@/queries/useNotificationQueries';
-import AlertBadge from '@/components/business/AlertBadge';
 import { APPROVAL_TYPE_MAP } from '@/constants/approvalTypes';
-import {
-  NOTIFICATION_TYPE_KEYS,
-  NOTIFICATION_STATUS_KEYS,
-  NOTIFICATION_STATUS_MAP,
-} from '@/constants/notificationTypes';
-import { getToday, dayjs, formatDateTime } from '@/utils/date';
-import type { Task } from '@/types/task';
+import { NOTIFICATION_TYPE_MAP, NOTIFICATION_STATUS_MAP } from '@/constants/notificationTypes';
+import { getToday, formatDateTime } from '@/utils/date';
 import type { Notification } from '@/types/notification';
+import type { ScheduleEvent } from '@/types/schedule';
 
 const { Text, Title } = Typography;
 
 /**
  * Dashboard 首頁
  *
- * 作為登入後之預設首頁，提供四項概要資訊：
- * - 今日排班概要
- * - 待審核項目
- * - 近期警示
- * - 近期發送通知紀錄
+ * 提供今日排班概要、待審核項目與近期發送通知紀錄：
+ * - 今日排班概要：統計今日任務數，點擊警示/已覆蓋標籤可直接開啟彈窗通知查看詳細違規與特許原因
+ * - 待審核項目：即時顯示待主管審批之變更與特許申請
+ * - 近期發送通知紀錄：呈現今日發送給客戶與員工之郵件通知日誌
  */
 const DashboardPage: FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const today = getToday();
-  const recentStart = dayjs(today).subtract(7, 'day').format('YYYY-MM-DD');
+
+  // 警示 / 已覆蓋彈窗狀態
+  const [alertModalOpen, setAlertModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<'violated' | 'overridden'>('violated');
 
   // 今日排班概要
   const { data: scheduleData, isLoading: scheduleLoading } = useScheduleData({
@@ -44,12 +59,22 @@ const DashboardPage: FC = () => {
   });
 
   const todayEvents = useMemo(() => scheduleData?.events ?? [], [scheduleData]);
+
+  const violatedEvents = useMemo(
+    () => todayEvents.filter((e) => e.alertStatus === 'VIOLATED'),
+    [todayEvents],
+  );
+  const overriddenEvents = useMemo(
+    () => todayEvents.filter((e) => e.alertStatus === 'OVERRIDDEN'),
+    [todayEvents],
+  );
+
   const todaySummary = useMemo(() => {
     const total = todayEvents.length;
-    const violated = todayEvents.filter((e) => e.alertStatus === 'VIOLATED').length;
-    const overridden = todayEvents.filter((e) => e.alertStatus === 'OVERRIDDEN').length;
+    const violated = violatedEvents.length;
+    const overridden = overriddenEvents.length;
     return { total, violated, overridden, clean: total - violated - overridden };
-  }, [todayEvents]);
+  }, [todayEvents, violatedEvents.length, overriddenEvents.length]);
 
   // 待審核項目
   const { data: approvalData, isLoading: approvalLoading } = useApprovalList({
@@ -58,21 +83,6 @@ const DashboardPage: FC = () => {
     status: 'PENDING',
   });
   const pendingApprovals = approvalData?.list ?? [];
-
-  // 近期警示：近 7 日內 alertStatus 為 VIOLATED 或 OVERRIDDEN 之任務
-  const { data: recentTaskData, isLoading: taskLoading } = useTaskList({
-    page: 1,
-    pageSize: 100,
-    startDate: recentStart,
-    endDate: today,
-  });
-  const recentAlerts = useMemo<Task[]>(() => {
-    const list = recentTaskData?.list ?? [];
-    return list
-      .filter((t) => t.alertStatus === 'VIOLATED' || t.alertStatus === 'OVERRIDDEN')
-      .sort((a, b) => (a.date < b.date ? 1 : -1))
-      .slice(0, 5);
-  }, [recentTaskData]);
 
   // 近期發送通知紀錄
   const { data: notificationData, isLoading: notificationLoading } = useNotificationList({
@@ -84,6 +94,28 @@ const DashboardPage: FC = () => {
     [notificationData],
   );
 
+  // 點擊警示 Tag 處理
+  const handleWarningTagClick = () => {
+    if (violatedEvents.length === 0) {
+      message.info('今日目前無違規警示項目');
+      return;
+    }
+    setModalType('violated');
+    setAlertModalOpen(true);
+  };
+
+  // 點擊已覆蓋 Tag 處理
+  const handleOverriddenTagClick = () => {
+    if (overriddenEvents.length === 0) {
+      message.info('今日目前無特許覆蓋項目');
+      return;
+    }
+    setModalType('overridden');
+    setAlertModalOpen(true);
+  };
+
+  const currentModalEvents = modalType === 'violated' ? violatedEvents : overriddenEvents;
+
   return (
     <div className="dashboard-page" data-testid="dashboard-page">
       <Title level={4} style={{ marginBottom: 16 }}>
@@ -92,7 +124,7 @@ const DashboardPage: FC = () => {
 
       <Row gutter={[16, 16]}>
         {/* 今日排班概要 */}
-        <Col xs={24} md={12} lg={8}>
+        <Col xs={24} md={12}>
           <Card
             title={
               <Space>
@@ -109,22 +141,32 @@ const DashboardPage: FC = () => {
             }
           >
             <Statistic title={t('dashboard.todayTaskCount')} value={todaySummary.total} />
-            <Space style={{ marginTop: 12 }} wrap>
+            <Space style={{ marginTop: 12 }} wrap size={8}>
               <Tag color="success">
                 {t('dashboard.clean')} {todaySummary.clean}
               </Tag>
-              <Tag color="error">
-                {t('dashboard.warning')} {todaySummary.violated}
+              <Tag
+                color="error"
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+                onClick={handleWarningTagClick}
+                data-testid="warning-tag"
+              >
+                {t('dashboard.warning')} {todaySummary.violated} 🔔
               </Tag>
-              <Tag color="warning">
-                {t('dashboard.overridden')} {todaySummary.overridden}
+              <Tag
+                color="warning"
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+                onClick={handleOverriddenTagClick}
+                data-testid="overridden-tag"
+              >
+                {t('dashboard.overridden')} {todaySummary.overridden} 🔔
               </Tag>
             </Space>
           </Card>
         </Col>
 
         {/* 待審核項目 */}
-        <Col xs={24} md={12} lg={8}>
+        <Col xs={24} md={12}>
           <Card
             title={
               <Space>
@@ -176,46 +218,6 @@ const DashboardPage: FC = () => {
             )}
           </Card>
         </Col>
-
-        {/* 近期警示 */}
-        <Col xs={24} md={24} lg={8}>
-          <Card
-            title={
-              <Space>
-                <AlertOutlined />
-                {t('dashboard.recentAlerts')}
-              </Space>
-            }
-            loading={taskLoading}
-            data-testid="recent-alerts-card"
-            extra={
-              <Button type="link" onClick={() => navigate('/task')}>
-                {t('dashboard.viewTasks')}
-              </Button>
-            }
-          >
-            {recentAlerts.length === 0 ? (
-              <Empty description={t('dashboard.noRecentAlerts')} />
-            ) : (
-              <List
-                size="small"
-                dataSource={recentAlerts}
-                renderItem={(task) => (
-                  <List.Item key={task.id}>
-                    <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
-                      <span>
-                        {task.groupName} {task.branchName}（{task.date}）
-                      </span>
-                      <AlertBadge
-                        status={task.alertStatus === 'OVERRIDDEN' ? 'overridden' : 'warning'}
-                      />
-                    </Space>
-                  </List.Item>
-                )}
-              />
-            )}
-          </Card>
-        </Col>
       </Row>
 
       {/* 近期發送通知紀錄 */}
@@ -246,14 +248,12 @@ const DashboardPage: FC = () => {
                 <List.Item key={item.id}>
                   <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
                     <Space size={12}>
-                      <Tag color="blue">{t(NOTIFICATION_TYPE_KEYS[item.type]) || item.type}</Tag>
+                      <Tag color="blue">{NOTIFICATION_TYPE_MAP[item.type] || item.type}</Tag>
                       <Text strong>{item.subject}</Text>
                       <Text type="secondary">收件人：{item.recipientName}</Text>
                     </Space>
                     <Space size={12}>
-                      <Tag color={statusConfig?.color}>
-                        {t(NOTIFICATION_STATUS_KEYS[item.status]) || item.status}
-                      </Tag>
+                      <Tag color={statusConfig?.color}>{statusConfig?.label || item.status}</Tag>
                       <Text type="secondary" style={{ fontSize: 12 }}>
                         {formatDateTime(item.createdAt, 'YYYY-MM-DD HH:mm')}
                       </Text>
@@ -265,6 +265,92 @@ const DashboardPage: FC = () => {
           />
         )}
       </Card>
+
+      {/* 警示 / 已覆蓋詳細通知彈窗 */}
+      <Modal
+        title={
+          <Space>
+            {modalType === 'violated' ? (
+              <>
+                <WarningOutlined style={{ color: '#ff4d4f' }} />
+                <span>今日排班違規警示通知（共 {violatedEvents.length} 筆）</span>
+              </>
+            ) : (
+              <>
+                <SafetyCertificateOutlined style={{ color: '#faad14' }} />
+                <span>今日排班特許覆蓋通知（共 {overriddenEvents.length} 筆）</span>
+              </>
+            )}
+          </Space>
+        }
+        open={alertModalOpen}
+        onCancel={() => setAlertModalOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setAlertModalOpen(false)}>
+            關閉
+          </Button>,
+          <Button
+            key="viewSchedule"
+            type="primary"
+            onClick={() => {
+              setAlertModalOpen(false);
+              navigate('/schedule');
+            }}
+          >
+            前往班表總覽處理
+          </Button>,
+        ]}
+        width={650}
+      >
+        <List
+          dataSource={currentModalEvents}
+          renderItem={(event: ScheduleEvent) => {
+            const assigneesText =
+              event.extendedProps?.assignees?.map((a) => a.employeeName).join('、') || '未指派';
+            const reasonText =
+              modalType === 'violated'
+                ? event.extendedProps?.violationReason ||
+                  '排班規則檢核異常（如日工時超限或連續排班）'
+                : event.extendedProps?.overrideReason || '主管特許覆蓋指派';
+
+            return (
+              <List.Item key={event.id} style={{ padding: '12px 0' }}>
+                <div style={{ width: '100%' }}>
+                  <div
+                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}
+                  >
+                    <Text strong style={{ fontSize: 14 }}>
+                      {event.groupName} - {event.branchName}
+                    </Text>
+                    <Tag color={modalType === 'violated' ? 'error' : 'warning'}>
+                      {modalType === 'violated' ? '違規警示' : '已特許覆蓋'}
+                    </Tag>
+                  </div>
+                  <div style={{ color: '#595959', fontSize: 13, marginBottom: 4 }}>
+                    負責員工：<Text style={{ color: '#1677ff' }}>{assigneesText}</Text>
+                    {' ｜ '}
+                    排班時間：{event.start.split('T')[1]?.slice(0, 5)} ~{' '}
+                    {event.end.split('T')[1]?.slice(0, 5)}
+                  </div>
+                  <div
+                    style={{
+                      background: modalType === 'violated' ? '#fff2f0' : '#fffbe6',
+                      border: `1px solid ${modalType === 'violated' ? '#ffccc7' : '#ffe58f'}`,
+                      borderRadius: 6,
+                      padding: '6px 10px',
+                      fontSize: 12,
+                      color: modalType === 'violated' ? '#cf1322' : '#d48806',
+                    }}
+                  >
+                    {modalType === 'violated' ? '⚠️ 警示原因：' : '🛡️ 覆蓋備註：'}
+                    {reasonText}
+                  </div>
+                </div>
+              </List.Item>
+            );
+          }}
+        />
+      </Modal>
     </div>
   );
 };

@@ -43,8 +43,7 @@ export const FULL_MENU: MenuItem[] = [
     permission: 'pending_customer:view',
     hideFromMenu: true,
   },
-  // 地圖檢視改以全域浮動按鈕（MapFloatingButton）呈現，不再列於側邊選單，
-  // 但仍保留於 FULL_MENU 供路由標題與權限判斷使用。
+  // 地圖檢視改以全域浮動按鈕（右下角）呈現，不再列於側邊選單
   { key: '/map', label: '地圖檢視', permission: 'map:view', hideFromMenu: true },
 ];
 

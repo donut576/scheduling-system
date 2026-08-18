@@ -56,6 +56,21 @@ const APPROVAL_STATUS_OPTIONS = [
 
 const DEFAULT_PARAMS: ApprovalListParams = { page: 1, pageSize: 20 };
 
+/** 格式化變更差異數值，將英文代碼（如 BED_BUG、TERMITE）轉為中文名稱 */
+const formatDiffValue = (val: string | number | null | undefined): string => {
+  if (val == null || val === '') return '(無)';
+  const str = String(val);
+  return str
+    .replace(/BED_BUG/g, '臭蟲')
+    .replace(/TERMITE/g, '白蟻')
+    .replace(/FIRE_ANT/g, '火蟻')
+    .replace(/VEHICLE_MAINTENANCE/g, '車輛保養')
+    .replace(/TRAINING_MEETING/g, '培訓')
+    .replace(/TRAINING/g, '培訓')
+    .replace(/CONTRACT/g, '合約')
+    .replace(/ONETIME/g, '單次');
+};
+
 /** 欄位標題內嵌篩選下拉選單通用元件 */
 interface ColumnFilterTitleProps {
   label: string;
@@ -526,7 +541,7 @@ const ApprovalPage: FC = () => {
                         key: 'before',
                         render: (val) => (
                           <Text type="secondary" delete={Boolean(val)}>
-                            {String(val ?? '(無)')}
+                            {formatDiffValue(val)}
                           </Text>
                         ),
                       },
@@ -536,7 +551,7 @@ const ApprovalPage: FC = () => {
                         key: 'after',
                         render: (val) => (
                           <Tag color="green" style={{ fontSize: 13 }}>
-                            {String(val ?? '(無)')}
+                            {formatDiffValue(val)}
                           </Tag>
                         ),
                       },

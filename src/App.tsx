@@ -7,7 +7,6 @@ import { useEffect } from 'react';
 import { ConfigProvider } from 'antd';
 import zhTW from 'antd/locale/zh_TW';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { RouterProvider } from 'react-router-dom';
 import { queryClient } from '@/queries/queryClient';
 import { router } from '@/routes';
@@ -19,7 +18,6 @@ import i18n from '@/i18n';
  * - 提供 React Query 的 QueryClientProvider，供全站共用資料快取。
  * - 鎖定繁體中文（zh-TW）介面。
  * - 透過 RouterProvider 掛載路由設定（router）。
- * - 開發模式（DEV）下額外顯示 React Query Devtools 方便除錯。
  */
 function App() {
   useEffect(() => {
@@ -33,10 +31,6 @@ function App() {
       <ConfigProvider locale={zhTW} theme={antdTheme}>
         <RouterProvider router={router} />
       </ConfigProvider>
-      {/* 僅在開發環境顯示 React Query Devtools，方便觀察查詢/快取狀態 */}
-      {import.meta.env.DEV && (
-        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
-      )}
     </QueryClientProvider>
   );
 }

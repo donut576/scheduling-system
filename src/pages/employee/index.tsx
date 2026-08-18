@@ -629,6 +629,26 @@ const EmployeePage: FC = () => {
         onCancel={handleModalCancel}
         width={600}
       >
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="系統登入帳號說明"
+          description={
+            <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+              <div>
+                • <strong>預設登入帳號</strong>：即為下方所填寫之「員工編號」（例如：E001、STAFF01）
+              </div>
+              <div>
+                • <strong>預設初始密碼</strong>：<code>Ecolab1234</code>
+                （新進員工首次登入時可自訂專屬密碼）
+              </div>
+              <div>
+                • <strong>系統權限</strong>：將依所選「職位」自動指派系統操作權限
+              </div>
+            </div>
+          }
+        />
         <Form form={form} layout="vertical">
           <Form.Item
             name="name"
@@ -648,8 +668,10 @@ const EmployeePage: FC = () => {
             name="employeeNo"
             label={t('employee.employeeNo')}
             rules={[{ required: true, message: t('employee.employeeNoRequired') }]}
+            tooltip="此員工編號即為系統登入帳號"
+            extra="此編號將作為該員工登入排班系統之唯一帳號"
           >
-            <Input placeholder={t('employee.employeeNoPlaceholder')} />
+            <Input placeholder="例如：E001、STAFF01" />
           </Form.Item>
           <Form.Item
             name="position"
