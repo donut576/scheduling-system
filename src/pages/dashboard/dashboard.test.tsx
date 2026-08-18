@@ -79,7 +79,7 @@ const scheduleData: ScheduleData = {
       end: '2024-01-10T17:00:00+08:00',
       groupName: '集團B',
       branchName: '分店B',
-      alertStatus: 'VIOLATED',
+      alertStatus: 'OVERRIDDEN',
       isRecurring: false,
       isOvernight: false,
       extendedProps: {
@@ -87,6 +87,7 @@ const scheduleData: ScheduleData = {
         shift: 'DAY',
         assignees: [],
         contents: ['P'],
+        overrideReason: '主管王經理已核准特許覆蓋',
       },
     },
   ],
@@ -182,29 +183,38 @@ describe('DashboardPage', () => {
     } as unknown as ReturnType<typeof useNotificationList>);
   });
 
-  describe('今日排班概要與警示通知彈窗', () => {
-    it('renders today schedule summary with total count and alert breakdown', () => {
+  describe('三大卡片並排與今日排班概要', () => {
+    it('renders 3 side-by-side cards: schedule summary, pending approvals, and recent notifications', () => {
+      render(<DashboardPage />);
+
+      expect(screen.getByTestId('today-schedule-card')).toBeInTheDocument();
+      expect(screen.getByTestId('pending-approval-card')).toBeInTheDocument();
+      expect(screen.getByTestId('recent-notifications-card')).toBeInTheDocument();
+    });
+
+    it('renders today schedule summary with total count and clean/overridden breakdown without warning tag', () => {
       render(<DashboardPage />);
 
       const card = screen.getByTestId('today-schedule-card');
       expect(card).toBeInTheDocument();
       expect(screen.getByText('今日任務數')).toBeInTheDocument();
-      // 2 total events: 1 CLEAN + 1 VIOLATED
+      // 2 total events: 1 CLEAN + 1 OVERRIDDEN
       expect(screen.getByText('2')).toBeInTheDocument();
       expect(screen.getByText('正常 1')).toBeInTheDocument();
-      expect(screen.getByText(/警示 1/)).toBeInTheDocument();
-      expect(screen.getByText(/已覆蓋 0/)).toBeInTheDocument();
+      expect(screen.getByText(/已覆蓋 1/)).toBeInTheDocument();
+      expect(screen.queryByText(/警示/)).not.toBeInTheDocument();
     });
 
-    it('opens violation alert notification modal when clicking warning tag with violations', async () => {
+    it('opens overridden alert notification modal when clicking overridden tag', async () => {
       const user = userEvent.setup();
       render(<DashboardPage />);
 
-      const warningTag = screen.getByTestId('warning-tag');
-      await user.click(warningTag);
+      const overriddenTag = screen.getByTestId('overridden-tag');
+      await user.click(overriddenTag);
 
-      expect(screen.getByText(/今日排班違規警示通知/)).toBeInTheDocument();
+      expect(screen.getByText(/今日排班特許覆蓋通知/)).toBeInTheDocument();
       expect(screen.getByText(/集團B - 分店B/)).toBeInTheDocument();
+      expect(screen.getByText(/主管王經理已核准特許覆蓋/)).toBeInTheDocument();
     });
 
     it('navigates to /schedule when 查看排班總覽 link is clicked', async () => {
@@ -236,12 +246,40 @@ describe('DashboardPage', () => {
     });
   });
 
-  describe('快捷入口與近期警示卡片已移除', () => {
-    it('does not render quick entry section or standalone recent alerts card', () => {
+  describe('近期通知發送紀錄', () => {
+    const mockSampleNotif: Notification = {
+      id: 'notif-99',
+      type: 'CUSTOMER_NOTIFY',
+      recipientType: 'CUSTOMER',
+      recipientId: 'cust-99',
+      recipientName: '鼎泰豐 信義旗艦店',
+      subject: '服務排程確認通知 - 信義旗艦店',
+      content: '尊敬的客戶您好：您的排班已確認，服務時間為明日 09:00。',
+      status: 'NOTIFIED',
+      createdAt: '2026-08-18T10:00:00+08:00',
+    };
+
+    it('renders notification list and opens detail modal when item is clicked', async () => {
+      vi.mocked(useNotificationList).mockReturnValue({
+        data: { list: [mockSampleNotif], total: 1, page: 1, pageSize: 6 },
+        isLoading: false,
+        isError: false,
+        error: null,
+      } as unknown as ReturnType<typeof useNotificationList>);
+
+      const user = userEvent.setup();
       render(<DashboardPage />);
-      expect(screen.queryByTestId('quick-entry-card')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('recent-alerts-card')).not.toBeInTheDocument();
-      expect(screen.queryByText('近期警示')).not.toBeInTheDocument();
+
+      expect(screen.getByText('鼎泰豐 信義旗艦店')).toBeInTheDocument();
+      expect(screen.getByText('服務排程確認通知 - 信義旗艦店')).toBeInTheDocument();
+
+      // Click notification item to view details
+      await user.click(screen.getByText('鼎泰豐 信義旗艦店'));
+
+      expect(screen.getByText('郵件通知發送明細')).toBeInTheDocument();
+      expect(
+        screen.getByText('尊敬的客戶您好：您的排班已確認，服務時間為明日 09:00。'),
+      ).toBeInTheDocument();
     });
   });
 

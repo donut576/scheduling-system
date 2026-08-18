@@ -1785,17 +1785,105 @@ let mockPendingCustomers: PendingCustomer[] = [
   },
 ];
 
-const mockNotification: Notification = {
-  id: 'notif-001',
-  type: 'CUSTOMER_NOTIFY',
-  recipientType: 'CUSTOMER',
-  recipientId: 'cust-001',
-  recipientName: '測試分店',
-  subject: '排班通知',
-  content: '您的排班已確認',
-  status: 'NOTIFIED',
-  createdAt: '2026-01-01T09:00:00+08:00',
-};
+const mockNotifications: Notification[] = [
+  {
+    id: 'notif-001',
+    type: 'CUSTOMER_NOTIFY',
+    recipientType: 'CUSTOMER',
+    recipientId: 'branch-002-1',
+    recipientName: '星耀科技 - 內湖三期辦公室',
+    subject: '【Ecolab】服務排程確認通知 - 內湖三期辦公室',
+    content: `尊敬的客戶您好：
+
+我們已為您安排近期的專業服務，排班詳情如下：
+
+客戶名稱：星耀科技 - 內湖三期辦公室
+服務時間：2026-08-18 08:30 ~ 12:00
+服務地址：台北市內湖區行愛路168號
+施作項目：病媒防治（P）、鼠害防制（R）
+
+若有任何時間調整需求，請隨時與我們聯絡。`,
+    status: 'NOTIFIED',
+    createdAt: '2026-08-18T08:30:00+08:00',
+  },
+  {
+    id: 'notif-002',
+    type: 'EMPLOYEE_DISPATCH',
+    recipientType: 'EMPLOYEE',
+    recipientId: 'emp-001',
+    recipientName: '測試使用者 (專員)',
+    subject: '【Ecolab】新服務任務指派通知 - 鼎泰豐 101店',
+    content: `系統已指派您一項新的服務任務，請確認以下資訊：
+
+客戶名稱：鼎泰美食王國 - 台北101旗艦店
+服務時間：2026-08-18 13:30 ~ 17:30
+服務地址：台北市信義區市府路45號B1
+施作項目：定期病媒防治（P）
+
+請準時前往處理並於完成後更新任務狀態。`,
+    status: 'NOTIFIED',
+    createdAt: '2026-08-18T08:35:00+08:00',
+  },
+  {
+    id: 'notif-003',
+    type: 'CUSTOMER_NOTIFY',
+    recipientType: 'CUSTOMER',
+    recipientId: 'branch-003-1',
+    recipientName: '陽光連鎖餐飲 - 台中西屯門市',
+    subject: '【Ecolab】ESR 專案排程確認通知',
+    content: `尊敬的客戶您好：
+
+我們已為您安排近期的專業服務，排班詳情如下：
+
+客戶名稱：陽光連鎖餐飲 - 台中西屯門市
+服務時間：2026-08-17 10:00 ~ 15:30
+服務地址：台中市西屯區台灣大道三段99號
+施作項目：ESR 特約防制專案
+
+若有任何時間調整需求，請隨時與我們聯絡。`,
+    status: 'NOTIFIED',
+    createdAt: '2026-08-17T15:20:00+08:00',
+  },
+  {
+    id: 'notif-004',
+    type: 'EMPLOYEE_DISPATCH',
+    recipientType: 'EMPLOYEE',
+    recipientId: 'emp-010',
+    recipientName: '劉美玲 (專員)',
+    subject: '【Ecolab】特許覆蓋任務指派 - 台南南科生醫館',
+    content: `系統已指派您一項新的服務任務，請確認以下資訊：
+
+客戶名稱：遠東生技園區 - 台南南科生醫館
+服務時間：2026-08-17 14:00 ~ 18:30
+服務地址：台南市新市區南科三路22號
+施作項目：特約清消
+
+備註：主管已核准特許覆蓋支援。
+請準時前往處理並於完成後更新狀態。`,
+    status: 'NOTIFIED',
+    createdAt: '2026-08-17T11:00:00+08:00',
+  },
+  {
+    id: 'notif-005',
+    type: 'CUSTOMER_NOTIFY',
+    recipientType: 'CUSTOMER',
+    recipientId: 'branch-001',
+    recipientName: '晶圓精密工業 - 竹科總部一廠',
+    subject: '【Ecolab】服務排程確認通知 - 竹科總部一廠',
+    content: `尊敬的客戶您好：
+
+我們已為您安排近期的專業服務，排班詳情如下：
+
+客戶名稱：晶圓精密工業 - 竹科總部一廠
+服務時間：2026-08-16 09:00 ~ 17:00
+服務地址：新竹市東區研發二路1號
+施作項目：合約常態清消
+
+若有任何時間調整需求，請隨時與我們聯絡。`,
+    status: 'NOTIFIED',
+    createdAt: '2026-08-16T14:10:00+08:00',
+  },
+];
 
 const mockNotificationTemplates: NotificationTemplate[] = [
   {
@@ -2161,7 +2249,7 @@ const mockScheduleEvents: ScheduleEvent[] = [
     end: '2026-08-17T18:30:00+08:00',
     groupName: '遠東生技園區',
     branchName: '台南南科生醫館',
-    alertStatus: 'VIOLATED',
+    alertStatus: 'OVERRIDDEN',
     isRecurring: false,
     isOvernight: false,
     extendedProps: {
@@ -2171,6 +2259,8 @@ const mockScheduleEvents: ScheduleEvent[] = [
         { employeeId: 'emp-010', employeeName: '劉美玲', licenses: ['PROFESSIONAL'], area: '台南' },
       ],
       contents: ['S', 'OTHER'],
+      violationReason: '連續排班第 7 日',
+      overrideReason: '主管已簽核特許覆蓋（南科專案緊急支援）',
     },
   },
   {
@@ -3003,7 +3093,7 @@ export const handlers = [
 
   // notification.ts
   http.get('*/api/v1/notifications', () =>
-    HttpResponse.json(ok(paginated<Notification>([mockNotification]))),
+    HttpResponse.json(ok(paginated<Notification>(mockNotifications))),
   ),
   http.post('*/api/v1/notifications/send', () => HttpResponse.json(ok(null))),
   http.get('*/api/v1/notifications/templates', () =>

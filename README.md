@@ -92,9 +92,9 @@ src/
 │   ├── base/                # 基礎共用元件（BaseTable, BaseModal, BaseSearchForm, BaseUpload, PageErrorBoundary, RouteLoadingIndicator）
 │   ├── business/             # 業務元件（TaskForm, ScheduleCalendar, EmployeeSelect, TimeSelect, ConflictPanel, AlertBadge, RecurrenceEditor, NotificationCenter, MapView）
 │   └── layout/                # 版面元件（MainLayout, AppHeader, SideMenu, MapFloatingButton）
-├── constants/               # 常數定義（權限碼、任務狀態、證照類型、職位、通知類型、錯誤碼）
+├── constants/               # 常數定義（權限碼、角色對照、任務狀態、證照類型、職位、通知類型、錯誤碼）
 ├── hooks/                   # 共用 Hooks（如 useMediaQuery）
-├── i18n/                    # 國際化設定（zh-TW 預設、en-US 骨架）
+├── i18n/                    # 國際化設定（全站繁體中文 zh-TW 預設、en-US）
 ├── pages/                   # 頁面（login, dashboard, task, schedule, customer, employee, notification, approval, pending-customer, map, 403）
 ├── queries/                  # TanStack Query hooks（各業務領域的資料查詢/變更）
 ├── routes/                  # 路由設定與權限守衛（guards.tsx、modules/ 依業務切分路由）
@@ -109,16 +109,49 @@ src/
 
 ## 核心功能模組
 
-- **認證與權限**：登入、Token 管理、角色權限路由守衛（`src/routes`、`src/stores/useUserStore.ts`、`usePermissionStore.ts`）
-- **儀表板總覽**：彙整今日排班概要（正常/警示/已覆蓋）、待審核項目件數與近期警示（`src/pages/dashboard`）
-- **任務管理**：任務建立/編輯/搜尋/匯出、週期任務，採 4 大 Card 卡片架構，整合 24 小時 15 分鐘段時間選擇器（`TimeSelect`）、地區與班別分層員工指派（`EmployeeSelect`）、四大標準班次與路線（`src/pages/task`、`src/components/business/TaskForm`）
-- **警示引擎**：前端即時預檢排班規則（證照資格、連續工作日、日工時上限、時段重疊衝突、指定休假衝突、人數需求不符），詳見 `src/utils/alertRules.ts`
-- **排班總覽**：日/週/月檢視、客戶與員工雙維度切換，基於 FullCalendar（`src/pages/schedule`、`src/components/business/ScheduleCalendar`）
-- **待排客戶管理**：支援未確定時間或人員之待排客戶登錄，並可隨時一鍵排定為正式任務（`src/pages/pending-customer`）
-- **異動核准**：任務變更與警示覆蓋專案審批、變更前後項目對照、模糊搜尋與二次確認防呆機制（`src/pages/approval`）
-- **客戶與員工資料管理**：集團/分店資料維護、員工基本資料、證照管理與指定排休設定（`src/pages/customer`、`src/pages/employee`）
-- **通知中心**：排班提醒、客戶通知、員工派工通知、範本管理（`src/pages/notification`）
-- **地圖檢視**：客戶分店位置與人員分布（`src/pages/map`、`src/components/business/MapView`）。入口為畫面右下角全域浮動按鈕（`src/components/layout/MapFloatingButton.tsx`）
+### 1. 認證與五大權限角色體系
+
+- **企業內部帳號體系**：員工編號即為登入帳號，提供密碼登入、失敗防護驗證碼、忘記密碼申請、首次登入啟用與 IT Support 資訊。
+- **五大角色權限架構**：
+  - 👑 **系統管理員 (`admin`)**：全功能存取與系統設定權限。
+  - 📋 **行政人員 (`admin_staff`)**：任務建立、客戶資料維護、通知發送管理、異動審批追蹤。
+  - 👔 **經理 (`manager`)**：全區班表檢視、編輯、異動與特許覆蓋核准、指定排休維護。
+  - 🚩 **組長 (`leader`)**：任務建立、日常排班與指派編輯、指定排休維護。
+  - 👷 **服務專員 (`staff`)**：檢視本人與同班別班表、接收派工通知。
+
+### 2. 儀表板總覽（Dashboard）
+
+- **三大等寬卡片並排佈局**：
+  - **今日排班概要**：顯示今日任務總數，僅呈現「正常」與「已覆蓋」標籤（因排班上線前已完成違規排除或特許簽核）；點擊「已覆蓋 🔔」可展開今日特許任務與主管備註彈窗。
+  - **待審核項目**：即時掌握待審批之排班異動與特許覆蓋申請單。
+  - **近期通知發送紀錄（近 7 日）**：展示近期發送之郵件通知日誌，**點擊任一項目即可開啟「郵件通知發送明細彈窗」**查看完整發送內容。
+
+### 3. 任務管理與排班總覽
+
+- **任務管理**：
+  - 採 4 大 Card 區塊架構（基本資訊、時間與班別、指派人員、施作內容與備註）。
+  - 整合 24 小時 15 分鐘段自訂時間選擇器（`TimeSelect`）。
+  - 員工指派選單支援依營運地區（台北、新竹、台中、台南）與班別分層過濾。
+  - 支援四大標準班次（早班、午班、晚班、大夜班）與週期性任務規則。
+- **排班總覽**：
+  - 基於 FullCalendar 提供日/週/月檢視、客戶分店與員工雙維度切換。
+  - 依權限動態控制編輯按鈕（一般員工僅可檢視，經理/組長具備完整編輯與調度能力）。
+
+### 4. 警示引擎與異動核准
+
+- **前端即時預檢排班規則**：證照資格驗證、連續工作日上限、日工時上限、時段重疊衝突、指定休假衝突、人數需求檢核（`src/utils/alertRules.ts`）。
+- **異動核准追蹤**：支援任務變更與警示特許覆蓋審核，提供詳細變更前後項目對照（施作內容等全面繁體中文化）、模糊搜尋與核准/駁回防呆機制。
+
+### 5. 客戶與員工資料管理
+
+- **客戶管理**：集團與分店階層資料維護、營運狀態與聯絡資訊。
+- **待排客戶管理**：支援未確定時間或人員之待排客戶登錄，並可隨時一鍵排定為正式任務。
+- **員工管理**：基本資料維護、證照管理（包含「僅有施藥證」專用提醒與證照衝突防護）、指定排休編輯，並在新增員工時清晰備註登入帳號為員工編號。
+
+### 6. 通知中心與地圖檢視
+
+- **通知中心**：支援「客戶排程通知」與「員工派工通知」雙範本設定、動態變數插值、即時郵件預覽與發送日誌追蹤。
+- **地圖檢視**：畫面右下角全域浮球（`MapFloatingButton`）一鍵開啟全台客戶分店地理分布與即時人員派工位置。
 
 ## 測試
 
