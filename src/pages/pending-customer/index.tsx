@@ -777,7 +777,7 @@ const PendingCustomerPage: FC = () => {
       exportKey: (record) => record.remarks ?? '-',
     },
     {
-      title: t('task.actions'),
+      title: t('common.actions'),
       key: 'actions',
       width: 140,
       render: (_value: unknown, record: PendingCustomer) => (

@@ -3095,7 +3095,44 @@ export const handlers = [
   http.get('*/api/v1/notifications', () =>
     HttpResponse.json(ok(paginated<Notification>(mockNotifications))),
   ),
-  http.post('*/api/v1/notifications/send', () => HttpResponse.json(ok(null))),
+  http.post('*/api/v1/notifications/send', async ({ request }) => {
+    try {
+      const body = (await request.json()) as {
+        templateId?: string;
+        recipientType?: 'CUSTOMER' | 'EMPLOYEE';
+        recipientIds?: string[];
+        taskId?: string;
+        variables?: Record<string, string>;
+      };
+
+      const recipientType = body?.recipientType || 'CUSTOMER';
+      const isCust = recipientType === 'CUSTOMER';
+      const recipientName = isCust
+        ? body?.variables?.['{{客戶名稱}}'] || '新通知客戶'
+        : '指派服務專員';
+
+      const newNotif: Notification = {
+        id: `notif-${Date.now()}`,
+        type: isCust ? 'CUSTOMER_NOTIFY' : 'EMPLOYEE_DISPATCH',
+        templateId: body?.templateId || 'template-001',
+        recipientType,
+        recipientId: body?.recipientIds?.[0] || 'rec-new',
+        recipientName,
+        subject: isCust
+          ? `【Ecolab】服務排程確認通知 - ${recipientName}`
+          : `【Ecolab】新服務任務指派通知`,
+        content: `尊敬的${isCust ? '客戶' : '專員'}您好：\n\n我們已為您更新服務排程資訊。\n客戶名稱：${recipientName}\n服務時間：${body?.variables?.['{{服務時間}}'] || '即時指派時間'}\n服務地址：${body?.variables?.['{{服務地址}}'] || '台北市'}\n\n若有任何問題，請隨時與我們聯絡。`,
+        status: 'NOTIFIED',
+        taskId: body?.taskId,
+        createdAt: new Date().toISOString(),
+      };
+
+      mockNotifications.unshift(newNotif);
+    } catch {
+      // fallback
+    }
+    return HttpResponse.json(ok(null));
+  }),
   http.get('*/api/v1/notifications/templates', () =>
     HttpResponse.json(ok<NotificationTemplate[]>(mockNotificationTemplates)),
   ),

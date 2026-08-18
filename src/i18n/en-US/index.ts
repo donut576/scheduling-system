@@ -126,6 +126,7 @@ export default {
     content: 'Content',
     assignees: 'Assignees',
     remarks: 'Remarks',
+    actions: 'Actions',
     recurrence: 'Recurrence',
     status: 'Status',
     statusScheduled: 'Scheduled',

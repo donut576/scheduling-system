@@ -128,6 +128,7 @@ export default {
     content: '內容',
     assignees: '指派人員',
     remarks: '備註',
+    actions: '功能',
     recurrence: '循環頻率',
     status: '狀態',
     statusScheduled: '已排班',
