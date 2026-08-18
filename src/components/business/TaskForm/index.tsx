@@ -439,7 +439,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
             {/* 區塊 1: 基本任務資訊 */}
             <Card
               size="small"
-              title={`🏢 ${t('task.basicInfo')}`}
+              title={t('task.basicInfo')}
               style={{ marginBottom: 16, borderRadius: 8 }}
             >
               <Row gutter={12}>
@@ -492,11 +492,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
             </Card>
 
             {/* 區塊 2: 排程與循環頻率 */}
-            <Card
-              size="small"
-              title={`⏰ ${t('task.scheduleAndRecurrence')}`}
-              style={{ borderRadius: 8 }}
-            >
+            <Card size="small" title={t('task.scheduleAndRecurrence')} style={{ borderRadius: 8 }}>
               <Row gutter={12}>
                 <Col span={12}>
                   <Form.Item
@@ -595,7 +591,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
             {/* 區塊 3: 內容與指派人員 */}
             <Card
               size="small"
-              title={`🛠️ ${t('task.contentAndAssignees')}`}
+              title={t('task.contentAndAssignees')}
               style={{ marginBottom: 16, borderRadius: 8 }}
             >
               <Form.Item
@@ -640,7 +636,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
             </Card>
 
             {/* 區塊 4: 備註說明 */}
-            <Card size="small" title={`📝 ${t('task.remarksSection')}`} style={{ borderRadius: 8 }}>
+            <Card size="small" title={t('task.remarksSection')} style={{ borderRadius: 8 }}>
               <Form.Item name="remarks" style={{ marginBottom: 0 }}>
                 <TextArea
                   rows={3}

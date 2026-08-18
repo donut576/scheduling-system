@@ -419,12 +419,12 @@ const SchedulePage: FC = () => {
             <div style={{ display: 'flex', gap: 4 }}>
               {event.alertStatus === 'OVERRIDDEN' && (
                 <Tag color="warning" style={{ margin: 0, fontWeight: 600 }}>
-                  ⚠️ {t('alert.overriddenTooltip')}
+                  {t('alert.overriddenTooltip')}
                 </Tag>
               )}
               {event.alertStatus === 'VIOLATED' && (
                 <Tag color="error" style={{ margin: 0, fontWeight: 600 }}>
-                  🚨 {t('alert.warning')}
+                  {t('alert.warning')}
                 </Tag>
               )}
             </div>
@@ -441,7 +441,7 @@ const SchedulePage: FC = () => {
                 color: '#ffffff',
               }}
             >
-              ℹ️ {t('schedule.recurringHint')}
+              {t('schedule.recurringHint')}
             </div>
           )}
           <div
@@ -478,16 +478,12 @@ const SchedulePage: FC = () => {
               }}
             >
               <div>
-                <span style={{ opacity: 0.85 }}>
-                  ⚠️ {t('alert.violationReason') || '違規項目'}:{' '}
-                </span>
+                <span style={{ opacity: 0.85 }}>{t('alert.violationReason') || '違規項目'}: </span>
                 <strong>{event.extendedProps.violationReason || '排班規則特殊放行'}</strong>
               </div>
               {event.extendedProps.overrideReason && (
                 <div>
-                  <span style={{ opacity: 0.85 }}>
-                    📋 {t('alert.overrideReason') || '核准備註'}:{' '}
-                  </span>
+                  <span style={{ opacity: 0.85 }}>{t('alert.overrideReason') || '核准備註'}: </span>
                   <span>{event.extendedProps.overrideReason}</span>
                 </div>
               )}

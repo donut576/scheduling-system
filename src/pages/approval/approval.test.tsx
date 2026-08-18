@@ -168,7 +168,7 @@ describe('ApprovalPage', () => {
       await user.click(viewButtons[0]!);
 
       expect(screen.getByText('異動變更詳情')).toBeInTheDocument();
-      expect(screen.getByText('📋 項目對照')).toBeInTheDocument();
+      expect(screen.getByText('項目對照')).toBeInTheDocument();
       expect(screen.getByText('服務時段')).toBeInTheDocument();
       expect(screen.getByText('09:00 ~ 12:00')).toBeInTheDocument();
       expect(screen.getByText('14:00 ~ 18:00')).toBeInTheDocument();

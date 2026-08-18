@@ -59,16 +59,6 @@ const mockAdminUser: UserProfile = {
   groupId: 'group-001',
 };
 
-// Demo admin_staff account (login: admin_staff / admin123)
-const mockAdminStaffUser: UserProfile = {
-  id: 'emp-admin-staff',
-  name: 'Demo 行政專員',
-  employeeNo: 'ASTAFF01',
-  role: 'ADMIN_STAFF',
-  permissions: ROLE_PERMISSIONS.ADMIN_STAFF!,
-  groupId: 'group-001',
-};
-
 // Demo manager account (login: manager / manager123)
 const mockManagerUser: UserProfile = {
   id: 'emp-manager',
@@ -92,7 +82,7 @@ const mockLeaderUser: UserProfile = {
 // Demo staff account (login: staff / staff123)
 const mockStaffUser: UserProfile = {
   id: 'emp-staff',
-  name: 'Demo 服務專員',
+  name: 'Demo 員工',
   employeeNo: 'STAFF01',
   role: 'STAFF',
   permissions: ROLE_PERMISSIONS.STAFF!,
@@ -2668,19 +2658,6 @@ export const handlers = [
           accessToken: 'mock-admin-token',
           expiresIn: 3600,
           user: mockAdminUser,
-        }),
-      );
-    }
-
-    if (
-      (body.account === 'admin_staff' || body.account === 'adminstaff') &&
-      (body.password === 'admin123' || body.password === 'staff123')
-    ) {
-      return HttpResponse.json(
-        ok<LoginResponse>({
-          accessToken: 'mock-admin-staff-token',
-          expiresIn: 3600,
-          user: mockAdminStaffUser,
         }),
       );
     }

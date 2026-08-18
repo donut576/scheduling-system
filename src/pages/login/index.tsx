@@ -12,6 +12,8 @@ import {
   Space,
   Modal,
   Alert,
+  Row,
+  Col,
 } from 'antd';
 import {
   UserOutlined,
@@ -311,38 +313,44 @@ const LoginPage: FC = () => {
           >
             快速切換權限角色測試（Demo 帳號）
           </Text>
-          <Space wrap size={[6, 8]} style={{ width: '100%', justifyContent: 'center' }}>
-            <Button
-              size="small"
-              onClick={() => form.setFieldsValue({ account: 'admin', password: 'admin123' })}
-            >
-              👑 管理員
-            </Button>
-            <Button
-              size="small"
-              onClick={() => form.setFieldsValue({ account: 'admin_staff', password: 'admin123' })}
-            >
-              📋 行政
-            </Button>
-            <Button
-              size="small"
-              onClick={() => form.setFieldsValue({ account: 'manager', password: 'manager123' })}
-            >
-              👔 經理
-            </Button>
-            <Button
-              size="small"
-              onClick={() => form.setFieldsValue({ account: 'leader', password: 'leader123' })}
-            >
-              🚩 組長
-            </Button>
-            <Button
-              size="small"
-              onClick={() => form.setFieldsValue({ account: 'staff', password: 'staff123' })}
-            >
-              👷 員工
-            </Button>
-          </Space>
+          <Row gutter={[8, 8]} style={{ width: '100%' }}>
+            <Col span={12}>
+              <Button
+                block
+                size="small"
+                onClick={() => form.setFieldsValue({ account: 'admin', password: 'admin123' })}
+              >
+                管理員 (admin)
+              </Button>
+            </Col>
+            <Col span={12}>
+              <Button
+                block
+                size="small"
+                onClick={() => form.setFieldsValue({ account: 'manager', password: 'manager123' })}
+              >
+                經理 (manager)
+              </Button>
+            </Col>
+            <Col span={12}>
+              <Button
+                block
+                size="small"
+                onClick={() => form.setFieldsValue({ account: 'leader', password: 'leader123' })}
+              >
+                組長 (leader)
+              </Button>
+            </Col>
+            <Col span={12}>
+              <Button
+                block
+                size="small"
+                onClick={() => form.setFieldsValue({ account: 'staff', password: 'staff123' })}
+              >
+                員工 (staff)
+              </Button>
+            </Col>
+          </Row>
         </div>
 
         {/* IT Support 支援提示區塊 */}
@@ -362,12 +370,12 @@ const LoginPage: FC = () => {
             </Text>
             <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.6, marginTop: 2 }}>
               <div>
-                • 📞 <strong>IT 服務專線</strong>：內線 <code>#8888</code>（外線 02-2345-6789）
+                • <strong>IT 服務專線</strong>：內線 <code>#8888</code>（外線 02-2345-6789）
               </div>
               <div>
-                • ✉️ <strong>支援信箱</strong>：<code>it-support@ecolab.com</code>
+                • <strong>支援信箱</strong>：<code>it-support@ecolab.com</code>
               </div>
-              <div>• ℹ️ 若帳號遭鎖定、忘記員工編號或離職異動，請洽 IT 處協助。</div>
+              <div>• 若帳號遭鎖定、忘記員工編號或離職異動，請洽 IT 處協助。</div>
             </div>
           </Space>
         </div>

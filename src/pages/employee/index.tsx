@@ -283,7 +283,7 @@ function renderEmployeeCard(
             )}
             {isOnlyPest && (
               <Tag color="error" icon={<WarningOutlined />}>
-                ⚠️ {t('employee.onlyPestControlWarningTitle')}
+                {t('employee.onlyPestControlWarningTitle')}
               </Tag>
             )}
           </Space>
@@ -780,7 +780,7 @@ const EmployeePage: FC = () => {
                 return (
                   <Alert
                     type="warning"
-                    message={`⚠️ ${t('employee.onlyPestControlWarningTitle')}：${t('employee.onlyPestControlWarningContent')}`}
+                    message={`${t('employee.onlyPestControlWarningTitle')}：${t('employee.onlyPestControlWarningContent')}`}
                     showIcon
                     style={{ marginTop: 8 }}
                   />

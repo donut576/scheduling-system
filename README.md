@@ -109,20 +109,27 @@ src/
 
 ## 核心功能模組
 
-### 1. 認證與五大權限角色體系
+### 1. 認證與四大權限角色體系
 
 - **企業內部帳號體系**：員工編號即為登入帳號，提供密碼登入、失敗防護驗證碼、忘記密碼申請、首次登入啟用與 IT Support 資訊。
-- **五大角色權限架構**：
-  - 👑 **系統管理員 (`admin`)**：全功能存取與系統設定權限。
-  - 📋 **行政人員 (`admin_staff`)**：任務建立、客戶資料維護、通知發送管理、異動審批追蹤。
-  - 👔 **經理 (`manager`)**：全區班表檢視、編輯、異動與特許覆蓋核准、指定排休維護。
-  - 🚩 **組長 (`leader`)**：任務建立、日常排班與指派編輯、指定排休維護。
-  - 👷 **服務專員 (`staff`)**：檢視本人與同班別班表、接收派工通知。
+- **四大權限角色矩陣表**：
+
+| 功能模組 / 操作權限                    |   系統管理員 (`admin`)    |      經理 (`manager`)       |  組長 (`leader`)   |     員工 (`staff`)     |
+| :------------------------------------- | :-----------------------: | :-------------------------: | :----------------: | :--------------------: |
+| **儀表板 (`/dashboard`)**              |          全功能           |       全區概況與審核        |   組內概況與通知   |     個人概況與通知     |
+| **任務建立及一覽 (`/task`)**           | 建立 / 編輯 / 刪除 / 覆蓋 |     建立 / 編輯 / 覆蓋      | 建立 / 編輯 / 匯出 |     無選單（隱藏）     |
+| **班表總覽 (`/schedule`)**             |    檢視 / 編輯 / 取消     |   全區檢視 / 編輯 / 調度    | 檢視 / 編輯 / 調度 | **純檢視**（無編輯鍵） |
+| **客戶資料管理 (`/customer`)**         |    新增 / 編輯 / 刪除     |          檢視資料           |    新增 / 編輯     |     無選單（隱藏）     |
+| **待排客戶管理 (`/pending-customer`)** |     登錄 / 轉正式任務     |         檢視 / 轉換         | 登錄 / 轉正式任務  |     無權限（隱藏）     |
+| **員工資料管理 (`/employee`)**         |      CRUD + 指定排休      |       編輯 + 指定排休       |  **指定排休設定**  |     無選單（隱藏）     |
+| **通知管理 (`/notification`)**         |    範本編輯 / 手動發送    |        檢視發送紀錄         |  範本編輯 / 發送   |      檢視發送紀錄      |
+| **異動核准 (`/approval`)**             |    審核（核准 / 駁回）    | **核心審批（核准 / 駁回）** |      追蹤進度      |     無權限（隱藏）     |
+| **全域地圖檢視 (`/map`)**              |        右下角浮球         |         右下角浮球          |     右下角浮球     |        隱藏浮球        |
 
 ### 2. 儀表板總覽（Dashboard）
 
 - **三大等寬卡片並排佈局**：
-  - **今日排班概要**：顯示今日任務總數，僅呈現「正常」與「已覆蓋」標籤（因排班上線前已完成違規排除或特許簽核）；點擊「已覆蓋 🔔」可展開今日特許任務與主管備註彈窗。
+  - **今日排班概要**：顯示今日任務總數，僅呈現「正常」與「已覆蓋」標籤（因排班上線前已完成違規排除或特許簽核）；點擊「已覆蓋」可展開今日特許任務與主管備註彈窗。
   - **待審核項目**：即時掌握待審批之排班異動與特許覆蓋申請單。
   - **近期通知發送紀錄**：展示近期發送之郵件通知日誌，**點擊任一項目即可開啟「郵件通知發送明細彈窗」**查看完整發送內容。
 
@@ -172,3 +179,15 @@ npm run test:watch  # watch 模式
 ## 瀏覽器支援
 
 支援 Chrome、Edge、Safari、Firefox 最新兩個版本，並針對 < 768px 寬度提供響應式版面（表格轉卡片、行事曆切換個人/每日檢視、側邊欄摺疊為 Drawer）。
+
+## 帳號權限與資料流 Trace 指南
+
+1. **登入與驗證**：[`src/pages/login/index.tsx`](file:///Users/yunhsuan/scheduling-system/src/pages/login/index.tsx) 呼叫 `authApi.login()`。
+2. **Mock 處理**：[`src/test/mocks/handlers.ts`](file:///Users/yunhsuan/scheduling-system/src/test/mocks/handlers.ts) 攔截並回傳使用者角色與預設權限。
+3. **狀態保存**：[`src/stores/useUserStore.ts`](file:///Users/yunhsuan/scheduling-system/src/stores/useUserStore.ts) 保存 Token 與使用者資料。
+4. **選單與權限計算**：[`src/stores/usePermissionStore.ts`](file:///Users/yunhsuan/scheduling-system/src/stores/usePermissionStore.ts) 對照 [`src/constants/permissions.ts`](file:///Users/yunhsuan/scheduling-system/src/constants/permissions.ts) 計算可見選單樹。
+5. **路由防護**：[`src/routes/guards.tsx`](file:///Users/yunhsuan/scheduling-system/src/routes/guards.tsx) 執行登入檢查與未授權 403 攔截。
+
+## 授權條款 (License)
+
+本專案為 **企業內部專用專有軟體（Proprietary and Confidential）**。詳細條款請參閱根目錄下的 [`LICENSE`](file:///Users/yunhsuan/scheduling-system/LICENSE) 檔案。未經授權禁止複製、散布、修改或作任何外部公開用途。

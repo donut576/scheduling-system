@@ -136,7 +136,7 @@ const DashboardPage: FC = () => {
                 onClick={handleOverriddenTagClick}
                 data-testid="overridden-tag"
               >
-                {t('dashboard.overridden')} {todaySummary.overridden} 🔔
+                {t('dashboard.overridden')} {todaySummary.overridden}
               </Tag>
             </Space>
           </Card>
@@ -341,7 +341,7 @@ const DashboardPage: FC = () => {
 
             <div>
               <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 13 }}>
-                ✉️ 郵件主旨
+                郵件主旨
               </Text>
               <div
                 style={{
@@ -359,7 +359,7 @@ const DashboardPage: FC = () => {
 
             <div>
               <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 13 }}>
-                📄 郵件完整內文預覽
+                郵件完整內文預覽
               </Text>
               <div
                 style={{
@@ -444,7 +444,7 @@ const DashboardPage: FC = () => {
                       color: '#d48806',
                     }}
                   >
-                    🛡️ 覆蓋備註：{reasonText}
+                    覆蓋備註：{reasonText}
                   </div>
                 </div>
               </List.Item>

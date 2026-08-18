@@ -406,7 +406,6 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
             {scheduleEvent.isRecurring && <span style={{ fontSize: 12, lineHeight: 1 }}>∞</span>}
-            {showOverridden && <span style={{ fontSize: 10 }}>⚠️</span>}
           </div>
         </div>
       ) : (

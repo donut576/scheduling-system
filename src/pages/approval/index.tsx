@@ -519,7 +519,7 @@ const ApprovalPage: FC = () => {
             {selectedApproval.type !== 'ALERT_OVERRIDE' && (
               <div>
                 <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
-                  📋 項目對照
+                  項目對照
                 </Text>
                 {selectedApproval.diff && selectedApproval.diff.length > 0 ? (
                   <Table
@@ -567,7 +567,7 @@ const ApprovalPage: FC = () => {
             {selectedApproval.type === 'ALERT_OVERRIDE' && (
               <div>
                 <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
-                  ⚠️ 項目對照（警示與覆蓋）
+                  項目對照（警示與覆蓋）
                 </Text>
                 {selectedApproval.violatedRules && selectedApproval.violatedRules.length > 0 && (
                   <div style={{ marginBottom: 12 }}>

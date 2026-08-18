@@ -919,7 +919,7 @@ const PendingCustomerPage: FC = () => {
                 </Card>
 
                 {/* 區塊 2: 排程與週期（待排客戶：日期與起訖時間可留空） */}
-                <Card size="small" title="⏰ 排程與週期" style={{ borderRadius: 8 }}>
+                <Card size="small" title="排程與週期" style={{ borderRadius: 8 }}>
                   <Form.Item
                     name="date"
                     label={t('task.taskDate')}
@@ -1000,7 +1000,7 @@ const PendingCustomerPage: FC = () => {
                 {/* 區塊 3: 內容與指派人員 */}
                 <Card
                   size="small"
-                  title="🛠️ 內容與指派人員"
+                  title="內容與指派人員"
                   style={{ marginBottom: 16, borderRadius: 8 }}
                 >
                   <Row gutter={12}>
@@ -1073,7 +1073,7 @@ const PendingCustomerPage: FC = () => {
                 </Card>
 
                 {/* 區塊 4: 備註說明 */}
-                <Card size="small" title="📝 備註說明" style={{ borderRadius: 8 }}>
+                <Card size="small" title="備註說明" style={{ borderRadius: 8 }}>
                   <Form.Item name="remarks" style={{ marginBottom: 0 }}>
                     <TextArea
                       rows={3}
@@ -1190,7 +1190,7 @@ const PendingCustomerPage: FC = () => {
                 </Card>
 
                 {/* 區塊 2: 排程與週期（排定任務：日期與起訖時間改為必填） */}
-                <Card size="small" title="⏰ 排程與週期" style={{ borderRadius: 8 }}>
+                <Card size="small" title="排程與週期" style={{ borderRadius: 8 }}>
                   <Form.Item
                     name="date"
                     label={t('task.taskDate')}
@@ -1279,7 +1279,7 @@ const PendingCustomerPage: FC = () => {
                 {/* 區塊 3: 內容與指派人員（排定任務：班次、路次、內容、人數需求、指派人員皆為必填） */}
                 <Card
                   size="small"
-                  title="🛠️ 內容與指派人員"
+                  title="內容與指派人員"
                   style={{ marginBottom: 16, borderRadius: 8 }}
                 >
                   <Row gutter={12}>
@@ -1364,7 +1364,7 @@ const PendingCustomerPage: FC = () => {
                 </Card>
 
                 {/* 區塊 4: 備註說明 */}
-                <Card size="small" title="📝 備註說明" style={{ borderRadius: 8 }}>
+                <Card size="small" title="備註說明" style={{ borderRadius: 8 }}>
                   <Form.Item name="remarks" style={{ marginBottom: 0 }}>
                     <TextArea
                       rows={3}
