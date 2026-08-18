@@ -203,7 +203,7 @@ const DashboardPage: FC = () => {
             title={
               <Space>
                 <BellOutlined />
-                <span>近期通知發送紀錄（近 7 日）</span>
+                <span>近期通知發送紀錄</span>
               </Space>
             }
             loading={notificationLoading}
