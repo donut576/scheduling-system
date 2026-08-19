@@ -13,7 +13,7 @@ export const notificationRoutes: RouteObject[] = [
   {
     path: '/notification',
     element: (
-      <RouteGuard requiredPermissions={['notification:view']}>
+      <RouteGuard requiredPermissions={['notification:manage_template']}>
         <NotificationPage />
       </RouteGuard>
     ),

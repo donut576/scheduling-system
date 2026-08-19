@@ -26,12 +26,14 @@ Object.defineProperty(window, 'matchMedia', {
 const mockCreateMutateAsync = vi.fn().mockResolvedValue(undefined);
 const mockUpdateMutateAsync = vi.fn().mockResolvedValue(undefined);
 const mockConvertMutateAsync = vi.fn().mockResolvedValue(undefined);
+const mockDeleteMutateAsync = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@/queries/usePendingCustomerQueries', () => ({
   usePendingCustomerList: vi.fn(),
   useCreatePendingCustomer: vi.fn(),
   useUpdatePendingCustomer: vi.fn(),
   useConvertPendingCustomer: vi.fn(),
+  useDeletePendingCustomer: vi.fn(),
 }));
 
 vi.mock('@/queries/useCustomerQueries', () => ({
@@ -43,8 +45,11 @@ import {
   useCreatePendingCustomer,
   useUpdatePendingCustomer,
   useConvertPendingCustomer,
+  useDeletePendingCustomer,
 } from '@/queries/usePendingCustomerQueries';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
+import { usePermissionStore } from '@/stores/usePermissionStore';
+import { PERMISSIONS } from '@/constants/permissions';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -161,6 +166,8 @@ describe('PendingCustomerPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    usePermissionStore.getState().buildPermissions(Object.values(PERMISSIONS), 'ADMIN');
+
     vi.mocked(usePendingCustomerList).mockReturnValue({
       data: listResult,
       isLoading: false,
@@ -180,6 +187,10 @@ describe('PendingCustomerPage', () => {
     vi.mocked(useConvertPendingCustomer).mockReturnValue({
       mutateAsync: mockConvertMutateAsync,
     } as unknown as ReturnType<typeof useConvertPendingCustomer>);
+
+    vi.mocked(useDeletePendingCustomer).mockReturnValue({
+      mutateAsync: mockDeleteMutateAsync,
+    } as unknown as ReturnType<typeof useDeletePendingCustomer>);
 
     vi.mocked(useCustomerGroups).mockReturnValue({
       data: customerGroups,

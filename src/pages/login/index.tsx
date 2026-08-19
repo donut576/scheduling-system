@@ -19,7 +19,6 @@ import {
   UserOutlined,
   LockOutlined,
   SafetyCertificateOutlined,
-  CustomerServiceOutlined,
   KeyOutlined,
   MailOutlined,
 } from '@ant-design/icons';
@@ -193,12 +192,17 @@ const LoginPage: FC = () => {
         >
           <Form.Item
             name="account"
-            label="員工編號 / 登入帳號"
+            label="帳號"
+            extra={
+              <span style={{ fontSize: 12, color: '#8c8c8c' }}>
+                帳號為您的員工編號（例如：STAFF01、LEADER01）
+              </span>
+            }
             rules={[{ required: true, message: t('auth.accountRequired') }]}
           >
             <Input
               prefix={<UserOutlined style={{ color: '#005EB8' }} />}
-              placeholder="請輸入員工編號（例如：staff、admin、E001）"
+              placeholder="請輸入帳號"
               aria-label={t('auth.accountAriaLabel')}
             />
           </Form.Item>
@@ -351,33 +355,6 @@ const LoginPage: FC = () => {
               </Button>
             </Col>
           </Row>
-        </div>
-
-        {/* IT Support 支援提示區塊 */}
-        <div
-          style={{
-            marginTop: 16,
-            padding: '10px 14px',
-            background: '#f8fafc',
-            borderRadius: 8,
-            border: '1px solid #e2e8f0',
-          }}
-        >
-          <Space direction="vertical" size={2} style={{ width: '100%' }}>
-            <Text strong style={{ fontSize: 12, color: '#334155' }}>
-              <CustomerServiceOutlined style={{ marginRight: 6, color: '#005EB8' }} />
-              聯絡系統管理員（IT Support）
-            </Text>
-            <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.6, marginTop: 2 }}>
-              <div>
-                • <strong>IT 服務專線</strong>：內線 <code>#8888</code>（外線 02-2345-6789）
-              </div>
-              <div>
-                • <strong>支援信箱</strong>：<code>it-support@ecolab.com</code>
-              </div>
-              <div>• 若帳號遭鎖定、忘記員工編號或離職異動，請洽 IT 處協助。</div>
-            </div>
-          </Space>
         </div>
       </Card>
 

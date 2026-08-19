@@ -25,6 +25,7 @@ import {
   PlusOutlined,
   CalendarOutlined,
   EditOutlined,
+  CloseOutlined,
   DownloadOutlined,
   DownOutlined,
   ReloadOutlined,
@@ -41,9 +42,11 @@ import {
   useCreatePendingCustomer,
   useUpdatePendingCustomer,
   useConvertPendingCustomer,
+  useDeletePendingCustomer,
 } from '@/queries/usePendingCustomerQueries';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useDictStore } from '@/stores';
+import { usePermissionStore } from '@/stores/usePermissionStore';
 import { formatTaskContents } from '@/constants/taskStatus';
 import { HOLIDAYS_2026 } from '@/constants/holidays';
 import { isHoliday } from '@/utils/date';
@@ -190,19 +193,40 @@ function renderPendingCustomerCard(
   record: PendingCustomer,
   onConvertClick: (record: PendingCustomer) => void,
   onEditClick: (record: PendingCustomer) => void,
+  onDeleteClick: (record: PendingCustomer) => void,
   t: (key: string) => string,
+  canDelete = false,
 ) {
   return (
     <Card
       size="small"
-      style={{ marginBottom: 8 }}
+      style={{ marginBottom: 8, position: 'relative' }}
+      className="pending-customer-card"
       data-testid={`pending-customer-card-${record.id}`}
     >
       <Space direction="vertical" size={4} style={{ width: '100%' }}>
         <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
-          <strong>
-            {record.groupName} {record.branchName}
-          </strong>
+          <Space size={4}>
+            {canDelete && (
+              <Button
+                type="text"
+                danger
+                size="small"
+                className="pending-customer-row-delete-btn"
+                icon={<CloseOutlined style={{ fontSize: 13 }} />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteClick(record);
+                }}
+                aria-label={t('common.delete')}
+                title="刪除待排客戶"
+                style={{ padding: 0, width: 22, height: 22 }}
+              />
+            )}
+            <strong>
+              {record.groupName} {record.branchName}
+            </strong>
+          </Space>
           <span style={{ fontSize: 12, color: '#8c8c8c' }}>
             {dayjs(record.createdAt).format('YYYY-MM-DD HH:mm')}
           </span>
@@ -327,6 +351,28 @@ const PendingCustomerPage: FC = () => {
   const createMutation = useCreatePendingCustomer();
   const updateMutation = useUpdatePendingCustomer();
   const convertMutation = useConvertPendingCustomer();
+  const deleteMutation = useDeletePendingCustomer();
+
+  const hasPendingCustomerDelete = usePermissionStore((state) =>
+    state.hasPermission('pending_customer:delete'),
+  );
+
+  const handleDeleteClick = useCallback(
+    (record: PendingCustomer) => {
+      Modal.confirm({
+        title: '刪除待排客戶',
+        content: `確定要刪除「${record.groupName} - ${record.branchName}」這筆待排客戶資料嗎？`,
+        okText: t('common.delete'),
+        cancelText: t('common.cancel'),
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          await deleteMutation.mutateAsync(record.id);
+          message.success('待排客戶資料已刪除');
+        },
+      });
+    },
+    [deleteMutation, t],
+  );
 
   // 監控表單內集團欄位變化，用於連動更新分店選項
   const selectedGroupId = Form.useWatch('groupId', form);
@@ -610,6 +656,32 @@ const PendingCustomerPage: FC = () => {
 
   // 仿照任務列表之欄位結構，將狀態改為建立時間，未確認項目以「-」或「待排」呈現
   const columns: ColumnDef<PendingCustomer>[] = [
+    ...(hasPendingCustomerDelete
+      ? [
+          {
+            title: '',
+            key: 'rowDelete',
+            width: 44,
+            align: 'center' as const,
+            render: (_value: unknown, record: PendingCustomer) => (
+              <Button
+                type="text"
+                danger
+                size="small"
+                className="pending-customer-row-delete-btn"
+                icon={<CloseOutlined style={{ fontSize: 13 }} />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteClick(record);
+                }}
+                aria-label={t('common.delete')}
+                title="刪除待排客戶"
+                style={{ width: 26, height: 26, padding: 0 }}
+              />
+            ),
+          },
+        ]
+      : []),
     {
       title: t('approval.createdAt'),
       dataIndex: 'createdAt',
@@ -779,9 +851,17 @@ const PendingCustomerPage: FC = () => {
     {
       title: t('common.actions'),
       key: 'actions',
-      width: 140,
+      width: 160,
       render: (_value: unknown, record: PendingCustomer) => (
         <Space size="small" onClick={(e) => e.stopPropagation()}>
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEditClick(record)}
+            aria-label={t('pendingCustomer.edit')}
+          >
+            {t('pendingCustomer.edit')}
+          </Button>
           <Button
             size="small"
             type="primary"
@@ -790,12 +870,6 @@ const PendingCustomerPage: FC = () => {
           >
             {t('pendingCustomer.confirmTime')}
           </Button>
-          <Button
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEditClick(record)}
-            aria-label={t('pendingCustomer.edit')}
-          />
         </Space>
       ),
     },
@@ -807,6 +881,17 @@ const PendingCustomerPage: FC = () => {
 
   return (
     <div className="pending-customer-page">
+      <style>{`
+        .pending-customer-row-delete-btn {
+          opacity: 0;
+          transition: opacity 0.18s ease-in-out;
+        }
+        .ant-table-row:hover .pending-customer-row-delete-btn,
+        .pending-customer-card:hover .pending-customer-row-delete-btn,
+        .pending-customer-row-delete-btn:focus {
+          opacity: 1;
+        }
+      `}</style>
       {/* 頂部操作列 */}
       <div
         style={{
@@ -843,7 +928,14 @@ const PendingCustomerPage: FC = () => {
         queryHook={usePendingCustomerListQuery}
         onRowClick={handleEditClick}
         cardRender={(record) =>
-          renderPendingCustomerCard(record, handleConvertClick, handleEditClick, t)
+          renderPendingCustomerCard(
+            record,
+            handleConvertClick,
+            handleEditClick,
+            handleDeleteClick,
+            t,
+            hasPendingCustomerDelete,
+          )
         }
         rowKey="id"
       />

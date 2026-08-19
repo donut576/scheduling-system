@@ -12,6 +12,7 @@ import {
   useUpdateCustomer,
   useDeleteCustomer,
 } from '@/queries/useCustomerQueries';
+import { usePermissionStore } from '@/stores/usePermissionStore';
 import { LICENSE_TYPE_MAP } from '@/constants/licenseTypes';
 import { getGroupColor } from '@/utils/groupColor';
 import type { CustomerListParams, CustomerFormData } from '@/api/customer';
@@ -38,6 +39,7 @@ function renderCustomerCard(
   record: Customer,
   onDelete: (record: Customer) => void,
   t: (key: string) => string,
+  canDelete = true,
 ) {
   const hasPest = (record.requiredLicenses ?? []).includes('PEST_CONTROL');
   const hasProf = (record.requiredLicenses ?? []).includes('PROFESSIONAL');
@@ -64,16 +66,18 @@ function renderCustomerCard(
               </div>
             </div>
           </Space>
-          <Button
-            type="text"
-            danger
-            icon={<DeleteOutlined />}
-            aria-label={t('customer.deleteCustomer')}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(record);
-            }}
-          />
+          {canDelete && (
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+              aria-label={t('customer.deleteCustomer')}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(record);
+              }}
+            />
+          )}
         </Space>
         <div className="management-card-info management-card-address">{record.address}</div>
         <div className="management-card-info">
@@ -126,6 +130,10 @@ const CustomerPage: FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [form] = Form.useForm<CustomerFormData>();
+
+  const hasCustomerCreate = usePermissionStore((state) => state.hasPermission('customer:create'));
+  const hasCustomerEdit = usePermissionStore((state) => state.hasPermission('customer:edit'));
+  const hasCustomerDelete = usePermissionStore((state) => state.hasPermission('customer:delete'));
 
   // 取得全量客戶資料，供 AutoComplete 動態產生集團與分店模糊搜尋下拉選單
   const allCustomerQuery = useCustomerList({ page: 1, pageSize: 200 });
@@ -364,24 +372,28 @@ const CustomerPage: FC = () => {
       exportHeader: t('customer.remarks'),
       exportKey: 'remarks',
     },
-    {
-      title: t('common.actions'),
-      key: 'actions',
-      width: 90,
-      fixed: 'right',
-      render: (_value, record) => (
-        <Button
-          type="link"
-          danger
-          icon={<DeleteOutlined />}
-          aria-label={t('customer.deleteCustomer')}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDelete(record);
-          }}
-        />
-      ),
-    },
+    ...(hasCustomerDelete
+      ? [
+          {
+            title: t('common.actions'),
+            key: 'actions',
+            width: 90,
+            fixed: 'right' as const,
+            render: (_value: unknown, record: Customer) => (
+              <Button
+                type="link"
+                danger
+                icon={<DeleteOutlined />}
+                aria-label={t('customer.deleteCustomer')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(record);
+                }}
+              />
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -396,12 +408,14 @@ const CustomerPage: FC = () => {
         columns={columns}
         queryHook={useCustomerListQuery}
         toolbarExtra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick}>
-            {t('customer.createButton')}
-          </Button>
+          hasCustomerCreate ? (
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick}>
+              {t('customer.createButton')}
+            </Button>
+          ) : undefined
         }
-        onRowClick={handleEditClick}
-        cardRender={(record) => renderCustomerCard(record, handleDelete, t)}
+        onRowClick={hasCustomerEdit ? handleEditClick : undefined}
+        cardRender={(record) => renderCustomerCard(record, handleDelete, t, hasCustomerDelete)}
         cardLayout="always"
         rowKey="id"
       />

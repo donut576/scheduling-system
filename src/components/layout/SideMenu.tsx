@@ -9,6 +9,7 @@ import { Menu } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { usePermissionStore } from '@/stores/usePermissionStore';
+import { useUserStore } from '@/stores/useUserStore';
 import type { MenuItem } from '@/types/common';
 import type { MenuProps } from 'antd';
 
@@ -48,12 +49,22 @@ const SideMenu: React.FC<SideMenuProps> = ({ onNavigate }) => {
   const location = useLocation();
   const { t } = useTranslation();
   const { menuTree } = usePermissionStore();
+  const user = useUserStore((state) => state.user);
+  const isStaff = user?.role === 'STAFF';
 
   // 先將選單樹的 label 依 i18n 翻譯（找不到對應 key 時 fallback 為原始 label）
-  const translatedMenuTree = menuTree.map((item) => ({
-    ...item,
-    label: t(MENU_TRANSLATION_KEYS[item.key] ?? item.key, item.label),
-  }));
+  const translatedMenuTree = menuTree.map((item) => {
+    let labelKey = MENU_TRANSLATION_KEYS[item.key] ?? item.key;
+    if (isStaff) {
+      if (item.key === '/customer') labelKey = 'menu.customerStaff';
+      if (item.key === '/employee') labelKey = 'menu.employeeStaff';
+      if (item.key === '/notification') labelKey = 'menu.notificationStaff';
+    }
+    return {
+      ...item,
+      label: t(labelKey, item.label),
+    };
+  });
   const items = mapMenuItems(translatedMenuTree);
 
   // 點選選單項目時導航至對應路由，並通知外部（例如關閉 Drawer）

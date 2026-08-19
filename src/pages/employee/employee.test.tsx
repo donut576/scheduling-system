@@ -7,6 +7,7 @@ import { Modal } from 'antd';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import EmployeePage from './index';
 import { usePermissionStore } from '@/stores/usePermissionStore';
+import { useUserStore } from '@/stores/useUserStore';
 import type { Employee } from '@/types/employee';
 import type { PaginatedResponse } from '@/types/common';
 
@@ -416,6 +417,54 @@ describe('EmployeePage', () => {
           '此員工僅持有施藥證，缺乏其他安全衛生相關證照，指派任務前請留意資格是否足夠。',
         ),
       ).toBeInTheDocument();
+    });
+  });
+
+  describe('員工個人資料模式 (STAFF 角色)', () => {
+    it('renders personal profile form for STAFF with disabled designated leave note', async () => {
+      useUserStore.setState({
+        user: {
+          id: 'emp-staff-1',
+          name: '王大明',
+          employeeNo: 'STAFF01',
+          role: 'STAFF',
+          permissions: [],
+        },
+      });
+
+      vi.mocked(useEmployeeList).mockReturnValue({
+        data: {
+          list: [
+            {
+              id: 'emp-staff-1',
+              name: '王大明',
+              phone: '0988-123-456',
+              employeeNo: 'STAFF01',
+              position: 'SPECIALIST',
+              area: '台北',
+              shift: '早班',
+              groupName: '台北 早班',
+              groupId: '台北-早班',
+              leaveType: 'REGULAR_LEAVE',
+              designatedLeaves: ['2026-08-15'],
+              licenses: ['PEST_CONTROL'],
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 20,
+        },
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as unknown as ReturnType<typeof useEmployeeList>);
+
+      render(<EmployeePage />);
+
+      expect(screen.getByText('員工個人資料')).toBeInTheDocument();
+      expect(screen.getByText('此欄位僅限組長以上職位編輯')).toBeInTheDocument();
+      expect(screen.getByText('儲存個人資料')).toBeInTheDocument();
     });
   });
 });

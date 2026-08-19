@@ -64,4 +64,7 @@ export const pendingCustomerApi = {
   // 將指定 id 的待處理客戶轉換為正式任務
   convert: (id: string, data: ConvertToTaskData) =>
     apiInstance.post<ApiResponse<null>>(`/pending-customers/${id}/convert`, data),
+
+  // 刪除指定 id 的待處理客戶
+  delete: (id: string) => apiInstance.delete<ApiResponse<null>>(`/pending-customers/${id}`),
 };

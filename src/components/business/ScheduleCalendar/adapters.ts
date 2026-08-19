@@ -75,16 +75,48 @@ export const flattenResourcesWithParentTitle = (
 export const toResourceInputs = (
   resources: ScheduleResource[],
   dimension: ScheduleDimension,
+  currentUserId?: string,
+  currentUserName?: string,
 ): ResourceInput[] => {
-  return flattenResourcesWithParentTitle(resources, dimension).map((resource) => ({
-    id: resource.id,
-    title: resource.title,
-    eventColor: resource.groupColor,
-    extendedProps: {
-      mainTitle: resource.mainTitle,
-      subTitle: resource.subTitle,
-    },
-  }));
+  let list = flattenResourcesWithParentTitle(resources, dimension);
+
+  if (dimension === 'employee') {
+    list = [...list].sort((a, b) => {
+      const aSelf =
+        (currentUserId && a.id === currentUserId) ||
+        (currentUserName && a.mainTitle === currentUserName) ||
+        a.id === 'emp-staff' ||
+        a.mainTitle.includes('Demo 員工');
+      const bSelf =
+        (currentUserId && b.id === currentUserId) ||
+        (currentUserName && b.mainTitle === currentUserName) ||
+        b.id === 'emp-staff' ||
+        b.mainTitle.includes('Demo 員工');
+
+      if (aSelf && !bSelf) return -1;
+      if (!aSelf && bSelf) return 1;
+      return 0;
+    });
+  }
+
+  return list.map((resource) => {
+    const isSelf =
+      (currentUserId && resource.id === currentUserId) ||
+      (currentUserName && resource.mainTitle === currentUserName) ||
+      resource.id === 'emp-staff' ||
+      resource.mainTitle.includes('Demo 員工');
+
+    return {
+      id: resource.id,
+      title: resource.title,
+      eventColor: resource.groupColor,
+      extendedProps: {
+        mainTitle: resource.mainTitle,
+        subTitle: resource.subTitle,
+        isSelf,
+      },
+    };
+  });
 };
 
 export const toEventInputs = (

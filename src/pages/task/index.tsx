@@ -40,7 +40,7 @@ const getTaskStatusLabel = (status: TaskStatus, t: (key: string) => string): str
     case 'PENDING_APPROVAL':
       return t('task.statusPendingApproval');
     default:
-      return TASK_STATUS_MAP[status]?.label ?? status;
+      return (TASK_STATUS_MAP as Record<string, { label: string }>)[status]?.label ?? status;
   }
 };
 

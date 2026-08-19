@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import type { FC } from 'react';
 import {
   Alert,
@@ -28,6 +28,7 @@ import {
   useDeleteEmployee,
 } from '@/queries/useEmployeeQueries';
 import { usePermissionStore } from '@/stores/usePermissionStore';
+import { useUserStore } from '@/stores/useUserStore';
 import { LICENSE_TYPE_MAP } from '@/constants/licenseTypes';
 import { POSITION_MAP } from '@/constants/positions';
 import { PERMISSIONS } from '@/constants/permissions';
@@ -342,14 +343,86 @@ const EmployeePage: FC = () => {
     state.hasPermission(PERMISSIONS.EMPLOYEE_DESIGNATE_LEAVE),
   );
 
+  const user = useUserStore((state) => state.user);
+  const isStaff = user?.role === 'STAFF';
+
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee();
   const deleteMutation = useDeleteEmployee();
+
+  const [staffForm] = Form.useForm<EmployeeFormData>();
 
   // Wraps useEmployeeList to satisfy BaseTable's queryHook signature
   function useEmployeeListQuery(): QueryResult<PaginatedResponse<Employee>> {
     return useEmployeeList(filters) as QueryResult<PaginatedResponse<Employee>>;
   }
+
+  const { data: allEmployeesData } = useEmployeeList({ page: 1, pageSize: 100 });
+  const currentStaffEmployee = useMemo(() => {
+    if (!isStaff) return null;
+    return (
+      allEmployeesData?.list.find(
+        (e) =>
+          e.id === user?.id ||
+          (user?.employeeNo && e.employeeNo === user.employeeNo) ||
+          (user?.name && e.name === user.name),
+      ) ||
+      (user
+        ? ({
+            id: user.id || 'emp-staff',
+            name: user.name || '員工',
+            employeeNo: user.employeeNo || 'STAFF01',
+            phone: '0912-345-678',
+            position: 'SPECIALIST',
+            area: '台北',
+            shift: '早班',
+            groupName: '台北 早班',
+            groupId: '台北-早班',
+            leaveType: 'REGULAR_LEAVE',
+            designatedLeaves: [],
+            licenses: ['PEST_CONTROL'],
+          } as unknown as Employee)
+        : null)
+    );
+  }, [allEmployeesData?.list, isStaff, user]);
+
+  useEffect(() => {
+    if (isStaff && currentStaffEmployee) {
+      staffForm.setFieldsValue({
+        name: currentStaffEmployee.name,
+        phone: currentStaffEmployee.phone,
+        employeeNo: currentStaffEmployee.employeeNo,
+        position: currentStaffEmployee.position,
+        area: currentStaffEmployee.area || '台北',
+        shift: currentStaffEmployee.shift || '早班',
+        leaveType: currentStaffEmployee.leaveType || 'REGULAR_LEAVE',
+        designatedLeaves: currentStaffEmployee.designatedLeaves || [],
+        licenses:
+          (currentStaffEmployee.licenses ?? []).length > 0
+            ? currentStaffEmployee.licenses
+            : ['NONE'],
+      });
+    }
+  }, [currentStaffEmployee, isStaff, staffForm]);
+
+  const handleStaffSave = useCallback(async () => {
+    if (!currentStaffEmployee) return;
+    const values = await staffForm.validateFields();
+    const area = currentStaffEmployee.area || values.area || '台北';
+    const shift = currentStaffEmployee.shift || values.shift || '早班';
+    const payload = {
+      ...values,
+      area,
+      shift,
+      groupName: `${area} ${shift}`,
+      groupId: `${area}-${shift}`,
+      position: currentStaffEmployee.position,
+      employeeNo: currentStaffEmployee.employeeNo,
+      designatedLeaves: currentStaffEmployee.designatedLeaves || [],
+    };
+    await updateMutation.mutateAsync({ id: currentStaffEmployee.id, data: payload });
+    message.success(t('employee.updateSuccess'));
+  }, [currentStaffEmployee, staffForm, updateMutation, t]);
 
   // 依關鍵字（姓名/員工編號）搜尋，重設回第一頁
   const handleSearch = useCallback((values: Record<string, unknown>) => {
@@ -602,25 +675,148 @@ const EmployeePage: FC = () => {
 
   return (
     <div className="employee-page">
-      <BaseSearchForm
-        fields={localizedSearchFields}
-        onSearch={handleSearch}
-        onReset={handleReset}
-      />
+      {isStaff ? (
+        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+          <Card
+            title={
+              <Space>
+                <Avatar style={{ backgroundColor: '#1677ff' }}>{user?.name?.[0] || '員'}</Avatar>
+                <span style={{ fontSize: 16, fontWeight: 700 }}>員工個人資料</span>
+              </Space>
+            }
+            style={{ borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}
+          >
+            <Form form={staffForm} layout="vertical">
+              <Form.Item
+                name="name"
+                label={t('employee.name')}
+                rules={[{ required: true, message: t('employee.nameRequired') }]}
+              >
+                <Input placeholder={t('employee.namePlaceholder')} />
+              </Form.Item>
+              <Form.Item
+                name="phone"
+                label={t('employee.phone')}
+                rules={[{ required: true, message: t('employee.phoneRequired') }]}
+              >
+                <Input placeholder={t('employee.phonePlaceholder')} />
+              </Form.Item>
+              <Form.Item
+                name="employeeNo"
+                label={t('employee.employeeNo')}
+                tooltip="此員工編號即為系統登入帳號"
+                extra="此編號為系統登入帳號（不可修改）"
+              >
+                <Input disabled />
+              </Form.Item>
+              <Form.Item name="position" label={t('employee.position')}>
+                <Select disabled options={localizedPositionOptions} />
+              </Form.Item>
+              <Form.Item label={t('employee.group')} style={{ marginBottom: 16 }}>
+                <Space style={{ width: '100%', display: 'flex' }} size={8}>
+                  <Form.Item name="area" noStyle>
+                    <Select disabled options={localizedAreaOptions} style={{ width: '50%' }} />
+                  </Form.Item>
+                  <Form.Item name="shift" noStyle>
+                    <Select disabled options={localizedShiftOptions} style={{ width: '50%' }} />
+                  </Form.Item>
+                </Space>
+              </Form.Item>
 
-      <BaseTable<Employee>
-        columns={columns}
-        queryHook={useEmployeeListQuery}
-        toolbarExtra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick}>
-            {t('employee.createButton')}
-          </Button>
-        }
-        onRowClick={handleEditClick}
-        cardRender={(record) => renderEmployeeCard(record, handleDelete, t)}
-        cardLayout="always"
-        rowKey="id"
-      />
+              <Form.Item label={t('employee.designatedLeave')}>
+                <Alert
+                  type="info"
+                  showIcon
+                  message="此欄位僅限組長以上職位編輯"
+                  description="員工個人如需安排指定排休或特休，請向直屬組長提出申請由組長統一排定。"
+                  style={{ marginBottom: 12 }}
+                />
+                <Form.Item name="leaveType" noStyle initialValue="REGULAR_LEAVE">
+                  <Radio.Group disabled style={{ marginBottom: 8 }}>
+                    <Radio value="REGULAR_LEAVE">{t('employee.leaveTypes.regular')}</Radio>
+                    <Radio value="ANNUAL_LEAVE">{t('employee.leaveTypes.annual')}</Radio>
+                    <Radio value="OTHER_LEAVE">{t('employee.leaveTypes.other')}</Radio>
+                  </Radio.Group>
+                </Form.Item>
+                <Form.Item name="designatedLeaves" initialValue={[]}>
+                  <DesignatedLeavesEditor disabled={true} />
+                </Form.Item>
+              </Form.Item>
+
+              <Form.Item
+                name="licenses"
+                label={t('employee.licenses')}
+                initialValue={['NONE']}
+                rules={[
+                  {
+                    validator: (_rule, value: LicenseType[] = []) => {
+                      if (hasLicenseConflict(value)) {
+                        return Promise.reject(new Error(t('employee.licenseConflict')));
+                      }
+                      return Promise.resolve();
+                    },
+                  },
+                ]}
+              >
+                <Select
+                  mode="multiple"
+                  placeholder={t('employee.licensesPlaceholder')}
+                  options={localizedLicenseOptions}
+                  allowClear
+                  onChange={(selectedValues: LicenseType[]) => {
+                    let newValues = selectedValues;
+                    if (selectedValues.includes('NONE')) {
+                      if (selectedValues[selectedValues.length - 1] === 'NONE') {
+                        newValues = ['NONE'];
+                      } else {
+                        newValues = selectedValues.filter((v) => v !== 'NONE');
+                      }
+                    }
+                    if (newValues.length === 0) {
+                      newValues = ['NONE'];
+                    }
+                    staffForm.setFieldsValue({ licenses: newValues });
+                  }}
+                />
+              </Form.Item>
+
+              <div style={{ marginTop: 24, textAlign: 'right' }}>
+                <Button
+                  type="primary"
+                  size="large"
+                  loading={updateMutation.isPending}
+                  onClick={handleStaffSave}
+                  style={{ minWidth: 140 }}
+                >
+                  儲存個人資料
+                </Button>
+              </div>
+            </Form>
+          </Card>
+        </div>
+      ) : (
+        <>
+          <BaseSearchForm
+            fields={localizedSearchFields}
+            onSearch={handleSearch}
+            onReset={handleReset}
+          />
+
+          <BaseTable<Employee>
+            columns={columns}
+            queryHook={useEmployeeListQuery}
+            toolbarExtra={
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick}>
+                {t('employee.createButton')}
+              </Button>
+            }
+            onRowClick={handleEditClick}
+            cardRender={(record) => renderEmployeeCard(record, handleDelete, t)}
+            cardLayout="always"
+            rowKey="id"
+          />
+        </>
+      )}
 
       <BaseModal
         title={editingEmployee ? t('employee.edit') : t('employee.create')}

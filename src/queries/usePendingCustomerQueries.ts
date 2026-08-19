@@ -97,3 +97,21 @@ export function useConvertPendingCustomer() {
     },
   });
 }
+
+/**
+ * 刪除待處理客戶的變更（mutation）hook。
+ * 成功後會讓待處理客戶列表查詢的快取失效。
+ */
+export function useDeletePendingCustomer() {
+  const queryClient = useQueryClient();
+
+  return useMutation<null, Error, string>({
+    mutationFn: async (id) => {
+      const response = await pendingCustomerApi.delete(id);
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: pendingCustomerKeys.lists() });
+    },
+  });
+}

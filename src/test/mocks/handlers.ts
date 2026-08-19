@@ -425,6 +425,34 @@ const demoCustomerGroups: CustomerGroup[] = [
       },
     ],
   },
+  {
+    id: 'group-011',
+    name: '台灣麥當勞餐廳股份有限公司',
+    branches: [
+      {
+        id: 'branch-011-1',
+        groupId: 'group-011',
+        name: '台北民生店',
+        address: '台北市松山區民生東路三段135號',
+        latitude: 25.0583,
+        longitude: 121.5478,
+        contactName: '王經理',
+        contactPhone: '02-27138899',
+        requiredLicenses: ['PEST_CONTROL'],
+      },
+      {
+        id: 'branch-011-2',
+        groupId: 'group-011',
+        name: '台北桂林店',
+        address: '台北市萬華區桂林路1號',
+        latitude: 25.0381,
+        longitude: 121.5065,
+        contactName: '李副理',
+        contactPhone: '02-23886677',
+        requiredLicenses: ['PEST_CONTROL'],
+      },
+    ],
+  },
 ];
 
 // 合併基本測試用集團與額外的 demo 集團，供各端點共用
@@ -1794,6 +1822,9 @@ const mockNotifications: Notification[] = [
 
 若有任何時間調整需求，請隨時與我們聯絡。`,
     status: 'NOTIFIED',
+    sentBy: 'emp-leader',
+    senderName: 'Demo 組長',
+    senderRole: 'LEADER',
     createdAt: '2026-08-18T08:30:00+08:00',
   },
   {
@@ -1812,6 +1843,9 @@ const mockNotifications: Notification[] = [
 
 請準時前往處理並於完成後更新任務狀態。`,
     status: 'NOTIFIED',
+    sentBy: 'emp-leader',
+    senderName: 'Demo 組長',
+    senderRole: 'LEADER',
     createdAt: '2026-08-18T08:35:00+08:00',
   },
   {
@@ -1832,6 +1866,9 @@ const mockNotifications: Notification[] = [
 
 若有任何時間調整需求，請隨時與我們聯絡。`,
     status: 'NOTIFIED',
+    sentBy: 'emp-manager',
+    senderName: 'Demo 經理',
+    senderRole: 'MANAGER',
     createdAt: '2026-08-17T15:20:00+08:00',
   },
   {
@@ -1851,6 +1888,9 @@ const mockNotifications: Notification[] = [
 備註：主管已核准特許覆蓋支援。
 請準時前往處理並於完成後更新狀態。`,
     status: 'NOTIFIED',
+    sentBy: 'emp-manager',
+    senderName: 'Demo 經理',
+    senderRole: 'MANAGER',
     createdAt: '2026-08-17T11:00:00+08:00',
   },
   {
@@ -1871,7 +1911,38 @@ const mockNotifications: Notification[] = [
 
 若有任何時間調整需求，請隨時與我們聯絡。`,
     status: 'NOTIFIED',
+    sentBy: 'admin',
+    senderName: 'Demo 管理員',
+    senderRole: 'ADMIN',
     createdAt: '2026-08-16T14:10:00+08:00',
+  },
+  {
+    id: 'notif-demo-1',
+    type: 'EMPLOYEE_DISPATCH',
+    recipientType: 'EMPLOYEE',
+    recipientId: 'emp-staff',
+    recipientName: 'Demo 員工',
+    subject: '【Ecolab】新服務任務指派通知 - 鼎泰豐 信義店',
+    content: `Demo 員工 您好：\n\n系統已指派您一項新的服務任務，請確認以下資訊：\n\n客戶名稱：鼎泰美食王國 - 台北信義旗艦店\n服務時間：2026-08-18 09:00 ~ 12:00\n服務地址：台北市大安區信義路二段194號\n施作項目：定期病媒防治（P）\n\n請準時前往處理並於完成後更新任務狀態。`,
+    status: 'NOTIFIED',
+    sentBy: 'emp-leader',
+    senderName: 'Demo 組長',
+    senderRole: 'LEADER',
+    createdAt: '2026-08-18T08:00:00+08:00',
+  },
+  {
+    id: 'notif-demo-2',
+    type: 'SCHEDULE_REMINDER',
+    recipientType: 'EMPLOYEE',
+    recipientId: 'emp-staff',
+    recipientName: 'Demo 員工',
+    subject: '【Ecolab】今日排班行程提醒',
+    content: `Demo 員工 您好：\n\n提醒您今日（2026-08-18）有 1 項既定服務行程，首站為 09:00 鼎泰豐信義店，請攜帶安全護具準時前往。`,
+    status: 'NOTIFIED',
+    sentBy: 'emp-leader',
+    senderName: 'Demo 組長',
+    senderRole: 'LEADER',
+    createdAt: '2026-08-18T08:15:00+08:00',
   },
 ];
 
@@ -1914,8 +1985,8 @@ let mockApprovals: Approval[] = [
     taskId: 'task-005',
     type: 'TASK_CHANGE',
     status: 'PENDING',
-    requestedBy: 'emp-002',
-    requestedByName: '林志豪',
+    requestedBy: 'emp-leader',
+    requestedByName: '林志豪 (組長)',
     changeSummary: '調整施作項目與服務時段（改為臭蟲緊急熱處理）',
     diff: [
       { field: 'contents', label: '工作內容', before: '病媒、鼠害', after: '臭蟲' },
@@ -1937,8 +2008,8 @@ let mockApprovals: Approval[] = [
     taskId: 'task-009',
     type: 'TASK_CHANGE',
     status: 'PENDING',
-    requestedBy: 'emp-004',
-    requestedByName: '吳建宏',
+    requestedBy: 'emp-leader',
+    requestedByName: '吳建宏 (組長)',
     changeSummary: '商場打烊後深度清消時段微調',
     diff: [
       { field: 'time', label: '時段', before: '22:00 ~ 01:00', after: '23:00 ~ 02:00' },
@@ -1960,8 +2031,8 @@ let mockApprovals: Approval[] = [
     taskId: 'task-025',
     type: 'TASK_CHANGE',
     status: 'PENDING',
-    requestedBy: 'emp-001',
-    requestedByName: '測試使用者',
+    requestedBy: 'emp-leader',
+    requestedByName: 'Demo 組長',
     changeSummary: '客戶要求調整施作路線與指派人員',
     diff: [{ field: 'route', label: '路次', before: '第二路', after: '第四路' }],
     approvers: [
@@ -2327,11 +2398,37 @@ const mockScheduleEvents: ScheduleEvent[] = [
     id: 'event-022',
     taskId: 'task-010',
     resourceId: 'branch-003-2',
-    title: '陽光連鎖餐飲集團 - 台北信義旗艦店',
-    start: '2026-08-18T09:00:00+08:00',
-    end: '2026-08-18T16:00:00+08:00',
+    title: '陽光連鎖餐飲 - 台北信義旗艦店',
+    start: '2026-08-18T10:00:00+08:00',
+    end: '2026-08-18T13:30:00+08:00',
     groupName: '陽光連鎖餐飲集團',
     branchName: '台北信義旗艦店',
+    alertStatus: 'CLEAN',
+    isRecurring: true,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '早班',
+      assignees: [
+        {
+          employeeId: 'emp-staff',
+          employeeName: 'Demo 員工',
+          licenses: ['PEST_CONTROL'],
+          area: '台北',
+        },
+      ],
+      contents: ['P', 'S'],
+    },
+  },
+  {
+    id: 'event-024',
+    taskId: 'task-001',
+    resourceId: 'branch-001',
+    title: '星耀科技 - 內湖三期辦公室',
+    start: '2026-08-18T08:30:00+08:00',
+    end: '2026-08-18T11:30:00+08:00',
+    groupName: '星耀科技股份有限公司',
+    branchName: '內湖三期辦公室',
     alertStatus: 'CLEAN',
     isRecurring: true,
     isOvernight: false,
@@ -2346,7 +2443,164 @@ const mockScheduleEvents: ScheduleEvent[] = [
           area: '台北',
         },
       ],
+      contents: ['P', 'R'],
+    },
+  },
+  {
+    id: 'event-025',
+    taskId: 'task-003',
+    resourceId: 'branch-002-1',
+    title: '鼎泰美食王國 - 台北101旗艦店',
+    start: '2026-08-18T09:00:00+08:00',
+    end: '2026-08-18T14:00:00+08:00',
+    groupName: '鼎泰美食王國',
+    branchName: '台北101旗艦店',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'ONETIME',
+      shift: '早班',
+      assignees: [
+        {
+          employeeId: 'emp-003',
+          employeeName: '黃俊傑',
+          licenses: ['PEST_CONTROL', 'FIRE_ANT'],
+          area: '台北',
+        },
+      ],
+      contents: ['P', 'FIRE_ANT'],
+    },
+  },
+  {
+    id: 'event-026',
+    taskId: 'task-004',
+    resourceId: 'branch-004-1',
+    title: '綠地物業 - 板橋大樓管理處',
+    start: '2026-08-18T14:30:00+08:00',
+    end: '2026-08-18T18:00:00+08:00',
+    groupName: '綠地物業管理顧問',
+    branchName: '板橋大樓管理處',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '早班',
+      assignees: [
+        {
+          employeeId: 'emp-staff',
+          employeeName: 'Demo 員工',
+          licenses: ['PEST_CONTROL'],
+          area: '台北',
+        },
+      ],
+      contents: ['R'],
+    },
+  },
+  // --- 麥當勞 台北民生店 跨班次交接範例 (大夜 00-06 -> 早班 06-09:30 -> 午班 12-15:30 -> 晚班 16-21) ---
+  {
+    id: 'event-mcd-00',
+    taskId: 'task-mcd-00',
+    resourceId: 'branch-011-1',
+    title: '麥當勞 - 台北民生店',
+    start: '2026-08-18T00:00:00+08:00',
+    end: '2026-08-18T06:00:00+08:00',
+    groupName: '台灣麥當勞餐廳股份有限公司',
+    branchName: '台北民生店',
+    alertStatus: 'CLEAN',
+    isRecurring: false,
+    isOvernight: true,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '大夜班',
+      assignees: [
+        {
+          employeeId: 'emp-002',
+          employeeName: '林沛儒',
+          licenses: ['PROFESSIONAL'],
+          area: '台北',
+        },
+      ],
       contents: ['P', 'S'],
+    },
+  },
+  {
+    id: 'event-mcd-01',
+    taskId: 'task-mcd-01',
+    resourceId: 'branch-011-1',
+    title: '麥當勞 - 台北民生店',
+    start: '2026-08-18T06:00:00+08:00',
+    end: '2026-08-18T09:30:00+08:00',
+    groupName: '台灣麥當勞餐廳股份有限公司',
+    branchName: '台北民生店',
+    alertStatus: 'CLEAN',
+    isRecurring: true,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '早班',
+      assignees: [
+        {
+          employeeId: 'emp-staff',
+          employeeName: 'Demo 員工',
+          licenses: ['PEST_CONTROL'],
+          area: '台北',
+        },
+      ],
+      contents: ['P', 'R'],
+    },
+  },
+  {
+    id: 'event-mcd-02',
+    taskId: 'task-mcd-02',
+    resourceId: 'branch-011-1',
+    title: '麥當勞 - 台北民生店',
+    start: '2026-08-18T12:00:00+08:00',
+    end: '2026-08-18T15:30:00+08:00',
+    groupName: '台灣麥當勞餐廳股份有限公司',
+    branchName: '台北民生店',
+    alertStatus: 'CLEAN',
+    isRecurring: true,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '午班',
+      assignees: [
+        {
+          employeeId: 'emp-001',
+          employeeName: '測試使用者',
+          licenses: ['PROFESSIONAL'],
+          area: '台北',
+        },
+      ],
+      contents: ['P', 'S'],
+    },
+  },
+  {
+    id: 'event-mcd-03',
+    taskId: 'task-mcd-03',
+    resourceId: 'branch-011-1',
+    title: '麥當勞 - 台北民生店',
+    start: '2026-08-18T16:00:00+08:00',
+    end: '2026-08-18T21:00:00+08:00',
+    groupName: '台灣麥當勞餐廳股份有限公司',
+    branchName: '台北民生店',
+    alertStatus: 'CLEAN',
+    isRecurring: true,
+    isOvernight: false,
+    extendedProps: {
+      taskType: 'CONTRACT',
+      shift: '晚班',
+      assignees: [
+        {
+          employeeId: 'emp-003',
+          employeeName: '黃俊傑',
+          licenses: ['PEST_CONTROL'],
+          area: '台北',
+        },
+      ],
+      contents: ['P', 'BED_BUG'],
     },
   },
   {
@@ -2871,13 +3125,24 @@ export const handlers = [
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
 
-    let events = mockScheduleEvents.map((e) => {
-      if (dim === 'employee') {
-        const empId = e.extendedProps.assignees[0]?.employeeId;
-        return { ...e, resourceId: empId || e.resourceId };
-      }
-      return e;
-    });
+    let events: ScheduleEvent[] = [];
+    if (dim === 'employee') {
+      mockScheduleEvents.forEach((e) => {
+        if (e.extendedProps.assignees && e.extendedProps.assignees.length > 0) {
+          e.extendedProps.assignees.forEach((a) => {
+            events.push({
+              ...e,
+              id: `${e.id}-${a.employeeId}`,
+              resourceId: a.employeeId,
+            });
+          });
+        } else {
+          events.push(e);
+        }
+      });
+    } else {
+      events = [...mockScheduleEvents];
+    }
 
     if (startDate) {
       events = events.filter((e) => (e.start.split('T')[0] ?? '') >= startDate);
@@ -2886,7 +3151,7 @@ export const handlers = [
       events = events.filter((e) => (e.start.split('T')[0] ?? '') <= endDate);
     }
 
-    if (groupId) {
+    if (groupId && dim === 'customer') {
       const targetGroup = mockCustomerGroups.find((g) => g.id === groupId);
       const groupName = targetGroup?.name;
       events = events.filter(
@@ -2904,10 +3169,10 @@ export const handlers = [
         e.extendedProps.assignees.some((a) => a.employeeId === employeeId),
       );
     }
-    if (area) {
+    if (area && dim !== 'employee') {
       events = events.filter((e) => e.extendedProps.assignees.some((a) => a.area === area));
     }
-    if (shift) {
+    if (shift && dim !== 'employee') {
       events = events.filter((e) => e.extendedProps.shift === shift);
     }
 
@@ -2938,6 +3203,9 @@ export const handlers = [
         title: `${e.name} (${e.area || '台北'} ${e.shift || '早班'})`,
         groupColor: e.groupColor || getGroupColor(e.area || '台北'),
       }));
+
+      // 員工維度：篩選事件使其與畫面上顯示的員工名單（Resources）精準匹配
+      events = events.filter((e) => resources.some((r) => r.id === e.resourceId));
     }
 
     return HttpResponse.json(
@@ -3069,9 +3337,21 @@ export const handlers = [
   }),
 
   // notification.ts
-  http.get('*/api/v1/notifications', () =>
-    HttpResponse.json(ok(paginated<Notification>(mockNotifications))),
-  ),
+  http.get('*/api/v1/notifications', ({ request }) => {
+    const url = new URL(request.url);
+    const recipientId = url.searchParams.get('recipientId');
+    const recipientName = url.searchParams.get('recipientName');
+    let list = mockNotifications;
+    if (recipientId) {
+      list = list.filter((n) => n.recipientId === recipientId);
+    }
+    if (recipientName) {
+      list = list.filter(
+        (n) => n.recipientName.includes(recipientName) || n.content.includes(recipientName),
+      );
+    }
+    return HttpResponse.json(ok(paginated<Notification>(list)));
+  }),
   http.post('*/api/v1/notifications/send', async ({ request }) => {
     try {
       const body = (await request.json()) as {
@@ -3138,9 +3418,18 @@ export const handlers = [
     const status = url.searchParams.get('status');
     const type = url.searchParams.get('type');
     const keyword = url.searchParams.get('keyword');
+    const requestedBy = url.searchParams.get('requestedBy');
     const page = Number(url.searchParams.get('page') || 1);
     const pageSize = Number(url.searchParams.get('pageSize') || 20);
     let list = mockApprovals;
+    if (requestedBy) {
+      list = list.filter(
+        (a) =>
+          a.requestedBy === requestedBy ||
+          a.requestedByName === requestedBy ||
+          a.requestedByName.includes(requestedBy),
+      );
+    }
     if (status) {
       list = list.filter((a) => a.status === status);
     }
@@ -3186,6 +3475,18 @@ export const handlers = [
         ...s,
         status: 'REJECTED',
         comment: body.comment,
+        decidedAt: new Date().toISOString(),
+      }));
+    }
+    return HttpResponse.json(ok(null));
+  }),
+  http.post('*/api/v1/approvals/:id/withdraw', ({ params }) => {
+    const approval = mockApprovals.find((a) => a.id === params.id);
+    if (approval) {
+      approval.status = 'WITHDRAWN';
+      approval.approvers = approval.approvers.map((s) => ({
+        ...s,
+        status: 'WITHDRAWN',
         decidedAt: new Date().toISOString(),
       }));
     }
@@ -3292,6 +3593,14 @@ export const handlers = [
       };
       mockTasks = [newTask, ...mockTasks];
     }
+    return HttpResponse.json(ok(null));
+  }),
+  http.delete('*/api/v1/pending-customers/:id', ({ params }) => {
+    mockPendingCustomers = mockPendingCustomers.filter((p) => p.id !== params.id);
+    return HttpResponse.json(ok(null));
+  }),
+  http.delete('/api/pending-customers/:id', ({ params }) => {
+    mockPendingCustomers = mockPendingCustomers.filter((p) => p.id !== params.id);
     return HttpResponse.json(ok(null));
   }),
 ];

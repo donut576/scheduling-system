@@ -89,6 +89,9 @@ const shiftChangeApproval: Approval = {
   updatedAt: '2026-01-02T00:00:00+08:00',
 };
 
+import { usePermissionStore } from '@/stores/usePermissionStore';
+import { PERMISSIONS } from '@/constants/permissions';
+
 let capturedNotificationBody: SendNotificationData | undefined;
 
 /** Installs a handler capturing the request body sent to the notification-send endpoint. */
@@ -115,6 +118,7 @@ describe('ApprovalPage integration - 排班變更審批流程', () => {
   beforeEach(() => {
     capturedNotificationBody = undefined;
     captureNotificationSend();
+    usePermissionStore.getState().buildPermissions(Object.values(PERMISSIONS), 'ADMIN');
   });
 
   it('SCHEDULE_CHANGE：核准後單一審批即完成，觸發客戶重新通知 (Requirements 13.1, 13.3)', async () => {

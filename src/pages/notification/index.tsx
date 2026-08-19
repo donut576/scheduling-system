@@ -15,12 +15,23 @@ import {
   Col,
   Space,
   Typography,
+  Table,
+  Modal,
+  Tag,
   message,
 } from 'antd';
 import { SendOutlined, CheckOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { useNotificationTemplates, useUpdateTemplate } from '@/queries/useNotificationQueries';
-import type { NotificationTemplate } from '@/types/notification';
+import {
+  useNotificationTemplates,
+  useUpdateTemplate,
+  useNotificationList,
+} from '@/queries/useNotificationQueries';
+import { usePermissionStore } from '@/stores/usePermissionStore';
+import { useUserStore } from '@/stores/useUserStore';
+import { NOTIFICATION_TYPE_MAP } from '@/constants/notificationTypes';
+import { formatDateTime } from '@/utils/date';
+import type { Notification, NotificationTemplate } from '@/types/notification';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -293,6 +304,177 @@ const NotificationPage: React.FC = () => {
     if (activeTab === 'employee') setEmployeeContent(val);
     else setCustomerContent(val);
   };
+
+  const canManageTemplate = usePermissionStore((state) =>
+    state.hasPermission('notification:manage_template'),
+  );
+
+  const user = useUserStore((state) => state.user);
+
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
+
+  const { data: notifData, isLoading: notifLoading } = useNotificationList({
+    page: 1,
+    pageSize: 50,
+  });
+
+  const staffFilteredList = useMemo(() => {
+    const list = notifData?.list ?? [];
+    if (!user) return list;
+    return list.filter((n) => {
+      if (user.id && n.recipientId === user.id) return true;
+      if (user.name && n.recipientName?.toLowerCase().includes(user.name.toLowerCase()))
+        return true;
+      if (user.name && n.content?.toLowerCase().includes(user.name.toLowerCase())) return true;
+      // Also match if generic employee notification and recipientType is EMPLOYEE
+      if (n.recipientType === 'EMPLOYEE' && (!n.recipientId || n.recipientId === 'emp-staff'))
+        return true;
+      return false;
+    });
+  }, [notifData?.list, user]);
+
+  if (!canManageTemplate) {
+    return (
+      <div
+        className="notification-staff-page"
+        data-testid="notification-page"
+        style={{ maxWidth: 1000, margin: '0 auto', paddingBottom: 24 }}
+      >
+        <div style={{ marginBottom: 20 }}>
+          <Title level={4} style={{ fontWeight: 800, margin: 0, fontSize: 22, color: '#141414' }}>
+            收到的通知紀錄
+          </Title>
+          <Text type="secondary" style={{ fontSize: 13, color: '#8c8c8c' }}>
+            查閱系統派送給您的任務指派、排班異動與重要通知
+          </Text>
+        </div>
+
+        <Card style={{ borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+          <Table<Notification>
+            loading={notifLoading}
+            dataSource={staffFilteredList}
+            rowKey="id"
+            pagination={{ pageSize: 10, position: ['bottomCenter'] }}
+            columns={[
+              {
+                title: '通知類型',
+                dataIndex: 'type',
+                key: 'type',
+                width: 140,
+                render: (type: keyof typeof NOTIFICATION_TYPE_MAP) => (
+                  <Tag color="blue">{NOTIFICATION_TYPE_MAP[type] || type}</Tag>
+                ),
+              },
+              {
+                title: '郵件主旨',
+                dataIndex: 'subject',
+                key: 'subject',
+                render: (val: string, record) => (
+                  <a
+                    onClick={() => {
+                      setSelectedNotif(record);
+                      setDetailModalOpen(true);
+                    }}
+                    style={{ fontWeight: 600, color: '#1677ff' }}
+                  >
+                    {val}
+                  </a>
+                ),
+              },
+              {
+                title: '寄件人',
+                dataIndex: 'senderName',
+                key: 'senderName',
+                width: 130,
+                render: (val: string, record) => (
+                  <Tag color="cyan" style={{ margin: 0 }}>
+                    {val || record.sentBy || '系統發送'}
+                  </Tag>
+                ),
+              },
+              {
+                title: '發送時間',
+                dataIndex: 'createdAt',
+                key: 'createdAt',
+                width: 160,
+                render: (val: string) => formatDateTime(val, 'YYYY-MM-DD HH:mm'),
+              },
+              {
+                title: '功能',
+                key: 'actions',
+                width: 100,
+                render: (_, record) => (
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => {
+                      setSelectedNotif(record);
+                      setDetailModalOpen(true);
+                    }}
+                  >
+                    檢視內容
+                  </Button>
+                ),
+              },
+            ]}
+          />
+        </Card>
+
+        <Modal
+          title={selectedNotif?.subject || '通知詳情'}
+          open={detailModalOpen}
+          onCancel={() => {
+            setDetailModalOpen(false);
+            setSelectedNotif(null);
+          }}
+          footer={[
+            <Button key="close" type="primary" onClick={() => setDetailModalOpen(false)}>
+              關閉
+            </Button>,
+          ]}
+          width={600}
+        >
+          {selectedNotif && (
+            <div style={{ marginTop: 16 }}>
+              <div
+                style={{
+                  marginBottom: 12,
+                  display: 'flex',
+                  gap: 8,
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Tag color="blue">
+                  {NOTIFICATION_TYPE_MAP[selectedNotif.type] || selectedNotif.type}
+                </Tag>
+                <Tag color="cyan">
+                  寄件人：{selectedNotif.senderName || selectedNotif.sentBy || '系統發送'}
+                </Tag>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {formatDateTime(selectedNotif.createdAt, 'YYYY-MM-DD HH:mm')}
+                </Text>
+              </div>
+              <div
+                style={{
+                  background: '#f8f9fa',
+                  padding: '16px 20px',
+                  borderRadius: 8,
+                  border: '1px solid #e9ecef',
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: 1.7,
+                  fontSize: 14,
+                }}
+              >
+                {selectedNotif.content || '(無內文)'}
+              </div>
+            </div>
+          )}
+        </Modal>
+      </div>
+    );
+  }
 
   return (
     <div

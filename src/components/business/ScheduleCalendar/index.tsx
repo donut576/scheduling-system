@@ -11,6 +11,7 @@ import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { ScheduleDimension, ScheduleEvent, ScheduleFilters } from '@/types/schedule';
 import { useScheduleData } from '@/queries/useScheduleQueries';
+import { useUserStore } from '@/stores/useUserStore';
 import { isHoliday } from '@/utils/date';
 import AlertBadge from '@/components/business/AlertBadge';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -54,6 +55,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   const calendarRef = useRef<FullCalendar>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+  const user = useUserStore((state) => state.user);
 
   // 縮放時間顆粒度：日檢視中支援 15m, 30m, 1h
   const slotDurations = useMemo(() => ['00:15:00', '00:30:00', '01:00:00'], []);
@@ -89,8 +91,10 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
 
   const resources = useMemo(
     () =>
-      dimension === 'overview' ? [] : toResourceInputs(scheduleData?.resources ?? [], dimension),
-    [dimension, scheduleData?.resources],
+      dimension === 'overview'
+        ? []
+        : toResourceInputs(scheduleData?.resources ?? [], dimension, user?.id, user?.name),
+    [dimension, scheduleData?.resources, user?.id, user?.name],
   );
 
   // 依據維度與 viewMode 決定 FullCalendar 視圖
@@ -509,9 +513,11 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
 
   // 資源標籤渲染（兩行設計：上面黑粗體主標題，下面灰色次標題）
   const renderResourceLabelContent = useCallback((arg: ResourceLabelContentArg) => {
-    const ext = arg.resource.extendedProps as { mainTitle?: string; subTitle?: string } | undefined;
+    const ext = arg.resource.extendedProps as
+      { mainTitle?: string; subTitle?: string; isSelf?: boolean } | undefined;
     const mainTitle = ext?.mainTitle || arg.resource.title;
     const subTitle = ext?.subTitle;
+    const isSelf = ext?.isSelf || false;
 
     return (
       <div
@@ -523,30 +529,35 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           padding: '4px 6px',
           lineHeight: 1.3,
           overflow: 'hidden',
+          backgroundColor: isSelf ? '#f0f7ff' : 'transparent',
+          borderRadius: 4,
         }}
       >
         <span style={{ display: 'none' }}>{arg.resource.title}</span>
-        <span
-          style={{
-            fontWeight: 700,
-            color: '#1f1f1f',
-            fontSize: '13px',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {mainTitle}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+          <span
+            style={{
+              fontWeight: 700,
+              color: isSelf ? '#0958d9' : '#1f1f1f',
+              fontSize: '13px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {mainTitle}
+          </span>
+        </div>
         {subTitle && (
           <span
             style={{
-              color: '#8c8c8c',
+              color: isSelf ? '#1677ff' : '#8c8c8c',
               fontSize: '12px',
               marginTop: '2px',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
+              fontWeight: isSelf ? 500 : 400,
             }}
           >
             {subTitle}

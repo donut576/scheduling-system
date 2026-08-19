@@ -174,7 +174,7 @@ describe('SchedulePage', () => {
     vi.clearAllMocks();
     lastScheduleCalendarProps = undefined;
 
-    usePermissionStore.getState().buildPermissions(ROLE_PERMISSIONS.ADMIN, 'ADMIN');
+    usePermissionStore.getState().buildPermissions(ROLE_PERMISSIONS.ADMIN || [], 'ADMIN');
 
     useScheduleStore.setState({
       currentView: 'week',

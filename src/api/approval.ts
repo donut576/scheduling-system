@@ -11,6 +11,7 @@ export interface ApprovalListParams {
   status?: string; // 審核狀態篩選條件
   type?: string; // 審核類型篩選條件
   keyword?: string; // 搜尋關鍵字（申請單編號、申請人等模糊搜尋）
+  requestedBy?: string; // 申請人 ID 或姓名篩選條件（例如組長僅查閱本人提出之申請）
 }
 
 export const approvalApi = {
@@ -27,4 +28,7 @@ export const approvalApi = {
   // 拒絕指定 id 的審核項目，需附帶拒絕原因
   reject: (id: string, comment: string) =>
     apiInstance.post<ApiResponse<null>>(`/approvals/${id}/reject`, { comment }),
+
+  // 撤回指定 id 的審核項目
+  withdraw: (id: string) => apiInstance.post<ApiResponse<null>>(`/approvals/${id}/withdraw`),
 };

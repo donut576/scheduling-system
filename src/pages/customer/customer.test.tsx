@@ -47,6 +47,8 @@ import {
   useUpdateCustomer,
   useDeleteCustomer,
 } from '@/queries/useCustomerQueries';
+import { usePermissionStore } from '@/stores/usePermissionStore';
+import { PERMISSIONS } from '@/constants/permissions';
 
 const customers: Customer[] = [
   {
@@ -93,6 +95,7 @@ describe('CustomerPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsMobile = false;
+    usePermissionStore.getState().buildPermissions(Object.values(PERMISSIONS), 'ADMIN');
 
     vi.mocked(useCustomerList).mockReturnValue({
       data: listResult,

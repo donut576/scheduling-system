@@ -7,6 +7,7 @@
 import React from 'react';
 import { Layout, Button, Dropdown, Space, Typography } from 'antd';
 import { DownOutlined, LogoutOutlined, MenuOutlined, UserOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/stores/useAppStore';
 import { useUserStore } from '@/stores/useUserStore';
@@ -23,6 +24,7 @@ const ROLE_LABEL_MAP: Record<string, string> = {
 
 // 頂部導覽列：包含側邊選單開關、品牌 Logo 與使用者選單
 const AppHeader: React.FC = () => {
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const { toggleSidebar } = useAppStore();
   const { user, logout } = useUserStore();
@@ -49,9 +51,24 @@ const AppHeader: React.FC = () => {
         onClick={toggleSidebar}
         aria-label="Open sidebar"
       />
-      <Text strong style={{ color: '#005EB8', fontSize: 18, letterSpacing: 0 }}>
-        Ecolab
-      </Text>
+      <div
+        onClick={() => navigate('/dashboard')}
+        style={{
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          userSelect: 'none',
+        }}
+        title="前往儀表板"
+      >
+        <Text
+          strong
+          style={{ color: '#005EB8', fontSize: 20, letterSpacing: 0.5, fontWeight: 800 }}
+        >
+          Ecolab
+        </Text>
+      </div>
       <Space size={8} style={{ marginLeft: 'auto' }}>
         {/* 使用者資訊下拉選單：顯示姓名/員工編號/職位（不可點選），並提供登出按鈕 */}
         <Dropdown

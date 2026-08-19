@@ -77,3 +77,22 @@ export function useRejectRequest() {
     },
   });
 }
+
+/**
+ * 撤回審核請求的變更（mutation）hook。
+ * 成功後會讓審核列表查詢的快取失效。
+ */
+export function useWithdrawRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation<null, Error, { id: string }>({
+    mutationFn: async ({ id }) => {
+      const response = await approvalApi.withdraw(id);
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: approvalKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}

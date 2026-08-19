@@ -16,6 +16,7 @@ import ScheduleCalendar from '@/components/business/ScheduleCalendar';
 import TaskForm from '@/components/business/TaskForm';
 import { useScheduleStore } from '@/stores/useScheduleStore';
 import { usePermissionStore } from '@/stores/usePermissionStore';
+import { useUserStore } from '@/stores/useUserStore';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useEmployeeList } from '@/queries/useEmployeeQueries';
 import { useTaskDetail, useUpdateTask } from '@/queries/useTaskQueries';
@@ -49,6 +50,8 @@ const SchedulePage: FC = () => {
   const setDimension = useScheduleStore((state) => state.setDimension);
   const setDateRange = useScheduleStore((state) => state.setDateRange);
   const hasScheduleEdit = usePermissionStore((state) => state.hasPermission('schedule:edit'));
+  const user = useUserStore((state) => state.user);
+  const isStaff = user?.role === 'STAFF';
 
   // 篩選器狀態（全部支援清除）
   const [groupId, setGroupId] = useState<string | undefined>(undefined);
@@ -56,6 +59,11 @@ const SchedulePage: FC = () => {
   const [employeeId, setEmployeeId] = useState<string | undefined>(undefined);
   const [selectedArea, setSelectedArea] = useState<string | undefined>(undefined);
   const [selectedShift, setSelectedShift] = useState<string | undefined>(undefined);
+
+  // 員工模式下，鎖定為 'employee' 維度，並依員工所屬組別（例如：台北 早班）呈現同組同仁與集團之服務班表
+  const effectiveDimension: ScheduleDimension = isStaff ? 'employee' : dimension;
+  const effectiveArea = isStaff ? selectedArea || '台北' : selectedArea;
+  const effectiveShift = isStaff ? selectedShift || '早班' : selectedShift;
 
   // 彈出詳情小框與編輯狀態
   const [selectedEvent, setSelectedEvent] = useState<ScheduleEvent | null>(null);
@@ -261,6 +269,12 @@ const SchedulePage: FC = () => {
 
   // 組合傳入 ScheduleCalendar 之篩選條件（各維度/Tab 獨立篩選，總覽 Tab 永遠不受集團與員工 Tab 篩選影響）
   const filters: ScheduleFilters = useMemo(() => {
+    if (isStaff) {
+      return {
+        area: effectiveArea || '台北',
+      };
+    }
+
     if (dimension === 'overview') {
       return {};
     }
@@ -287,7 +301,18 @@ const SchedulePage: FC = () => {
       area: selectedArea || undefined,
       shift: selectedShift || undefined,
     };
-  }, [branchId, dimension, employeeId, employees, groupId, selectedArea, selectedShift]);
+  }, [
+    branchId,
+    dimension,
+    effectiveArea,
+    effectiveShift,
+    employeeId,
+    employees,
+    groupId,
+    isStaff,
+    selectedArea,
+    selectedShift,
+  ]);
 
   // 事件點擊處理
   const handleEventClick = useCallback((event: ScheduleEvent) => {
@@ -303,8 +328,11 @@ const SchedulePage: FC = () => {
   const handleCancelTask = useCallback(() => {
     if (!selectedEvent) return;
     Modal.confirm({
-      title: t('schedule.confirmCancel'),
-      content: t('schedule.cancelConfirm', { name: selectedEvent?.title ?? '' }),
+      title: '刪除任務',
+      content: `確定要刪除「${selectedEvent?.title ?? ''}」這筆任務嗎？`,
+      okText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      okButtonProps: { danger: true },
       onOk: () => {
         setDetailOpen(false);
         setSelectedEvent(null);
@@ -465,6 +493,7 @@ const SchedulePage: FC = () => {
             <div>{`${t('task.assignees')}: ${detailRows.assignees}`}</div>
             <div>{`${t('schedule.detailContent')}: ${detailRows.contents}`}</div>
           </div>
+
           {event.alertStatus === 'OVERRIDDEN' && (
             <div
               style={{
@@ -518,7 +547,7 @@ const SchedulePage: FC = () => {
                   fontWeight: 600,
                 }}
               >
-                {t('common.cancel')}
+                {t('common.delete')}
               </Button>
             </Space>
           )}
@@ -564,18 +593,20 @@ const SchedulePage: FC = () => {
 
   return (
     <div className="schedule-page" data-testid="schedule-page">
-      {/* 頂部維度切換 Tabs */}
-      <div style={{ marginBottom: 12 }}>
-        <Tabs
-          aria-label={t('schedule.dimension')}
-          activeKey={dimension}
-          onChange={(key) => handleDimensionChange(key as ScheduleDimension)}
-          items={tabItems}
-          type="card"
-          className="schedule-dimension-tabs"
-          tabBarStyle={{ marginBottom: 0 }}
-        />
-      </div>
+      {/* 頂部維度切換 Tabs（具排班編輯權限之管理員/經理/組長可切換維度；員工純檢視總覽班表） */}
+      {hasScheduleEdit && (
+        <div style={{ marginBottom: 12 }}>
+          <Tabs
+            aria-label={t('schedule.dimension')}
+            activeKey={dimension}
+            onChange={(key) => handleDimensionChange(key as ScheduleDimension)}
+            items={tabItems}
+            type="card"
+            className="schedule-dimension-tabs"
+            tabBarStyle={{ marginBottom: 0 }}
+          />
+        </div>
+      )}
 
       {/* 工具列 */}
       <div
@@ -640,7 +671,7 @@ const SchedulePage: FC = () => {
         </div>
 
         {/* 第二行：依 Tab 維度切換之篩選列（全部具備 allowClear 小叉叉；總覽 Tab 不需 search bar） */}
-        {dimension !== 'overview' && (
+        {dimension !== 'overview' && !isStaff && (
           <div className="schedule-toolbar-row schedule-toolbar-row2">
             {dimension === 'customer' && (
               <Space wrap size="middle" align="center" className="schedule-filter-group">
@@ -742,7 +773,7 @@ const SchedulePage: FC = () => {
       <div style={{ height: 'calc(100vh - 280px)', minHeight: 520 }}>
         <ScheduleCalendar
           viewMode={currentView}
-          dimension={dimension}
+          dimension={effectiveDimension}
           dateRange={dateRange}
           filters={filters}
           onEventClick={handleEventClick}

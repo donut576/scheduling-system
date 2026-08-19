@@ -24,9 +24,16 @@ const mockUpdateTemplateMutateAsync = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/queries/useNotificationQueries', () => ({
   useNotificationTemplates: vi.fn(),
   useUpdateTemplate: vi.fn(),
+  useNotificationList: vi.fn(),
 }));
 
-import { useNotificationTemplates, useUpdateTemplate } from '@/queries/useNotificationQueries';
+import {
+  useNotificationTemplates,
+  useUpdateTemplate,
+  useNotificationList,
+} from '@/queries/useNotificationQueries';
+import { usePermissionStore } from '@/stores/usePermissionStore';
+import { PERMISSIONS } from '@/constants/permissions';
 
 const templates: NotificationTemplate[] = [
   {
@@ -50,6 +57,15 @@ const templates: NotificationTemplate[] = [
 describe('NotificationPage - 通知管理設定', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    usePermissionStore.getState().buildPermissions(Object.values(PERMISSIONS), 'ADMIN');
+
+    vi.mocked(useNotificationList).mockReturnValue({
+      data: { list: [], total: 0, page: 1, pageSize: 20 },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useNotificationList>);
 
     vi.mocked(useNotificationTemplates).mockReturnValue({
       data: templates,

@@ -26,8 +26,15 @@ import {
 import { useTranslation } from 'react-i18next';
 import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/BaseTable';
 import BaseSearchForm, { type SearchFieldConfig } from '@/components/base/BaseSearchForm';
-import { useApprovalList, useApproveRequest, useRejectRequest } from '@/queries/useApprovalQueries';
+import {
+  useApprovalList,
+  useApproveRequest,
+  useRejectRequest,
+  useWithdrawRequest,
+} from '@/queries/useApprovalQueries';
 import { useSendNotification } from '@/queries/useNotificationQueries';
+import { usePermissionStore } from '@/stores/usePermissionStore';
+import { useUserStore } from '@/stores/useUserStore';
 import type { ApprovalListParams } from '@/api/approval';
 import { APPROVAL_STATUS_MAP, APPROVAL_TYPE_MAP } from '@/constants/approvalTypes';
 import { formatDateTime } from '@/utils/date';
@@ -41,6 +48,7 @@ const APPROVAL_STATUS_KEYS: Record<string, string> = {
   PENDING: 'approval.status.pending',
   APPROVED: 'approval.status.approved',
   REJECTED: 'approval.status.rejected',
+  WITHDRAWN: 'approval.status.withdrawn',
 };
 
 const APPROVAL_TYPE_OPTIONS = [
@@ -52,6 +60,7 @@ const APPROVAL_STATUS_OPTIONS = [
   { label: '待核准', value: 'PENDING' },
   { label: '已核准', value: 'APPROVED' },
   { label: '已駁回', value: 'REJECTED' },
+  { label: '已撤回', value: 'WITHDRAWN' },
 ];
 
 const DEFAULT_PARAMS: ApprovalListParams = { page: 1, pageSize: 20 };
@@ -116,7 +125,9 @@ function ColumnFilterTitle({ label, active, children }: ColumnFilterTitleProps) 
 function renderApprovalCard(
   record: Approval,
   onViewDiff: (record: Approval) => void,
+  onWithdraw: (record: Approval) => void,
   t: (key: string) => string,
+  isLeader = false,
 ) {
   const statusConfig = APPROVAL_STATUS_MAP[record.status] ?? {
     label: record.status,
@@ -139,14 +150,31 @@ function renderApprovalCard(
       <Space direction="vertical" size={4} style={{ width: '100%' }}>
         <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
           <Space>
+            {record.status === 'PENDING' && (
+              <Button
+                type="text"
+                danger
+                size="small"
+                icon={<CloseOutlined style={{ fontSize: 12 }} />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onWithdraw(record);
+                }}
+                aria-label="撤回申請"
+                title="撤回申請"
+                style={{ width: 22, height: 22, padding: 0 }}
+              />
+            )}
             <Tag color="geekblue">{record.id}</Tag>
             <Tag color={statusConfig.color}>{statusLabel}</Tag>
           </Space>
           <Tag color={isTaskChange ? 'blue' : 'gold'}>{typeLabel}</Tag>
         </Space>
-        <span>
-          {t('approval.requester')}：<strong>{record.requestedByName}</strong>
-        </span>
+        {!isLeader && (
+          <span>
+            {t('approval.requester')}：<strong>{record.requestedByName}</strong>
+          </span>
+        )}
         <span style={{ fontSize: 12, color: '#8c8c8c' }}>
           建立時間：{formatDateTime(record.createdAt, 'YYYY-MM-DD HH:mm')}
         </span>
@@ -171,32 +199,64 @@ function renderApprovalCard(
 
 /**
  * 異動核准頁面主元件
- * 欄位順序：申請單編號、狀態、類型、建立時間、申請人、功能
- * 左上方提供快速搜尋欄，功能僅保留「檢視變更」，進入彈窗後方可進行核准/駁回
+ * 主管（Admin / Manager）：審核全體申請並進行核准/駁回
+ * 組長（Leader）：追蹤自己提出之申請單審核狀態（隱藏申請人欄位，僅顯示本人提出項目）
  */
 const ApprovalPage: FC = () => {
   const { t } = useTranslation();
-  const [filters, setFilters] = useState<ApprovalListParams>({ ...DEFAULT_PARAMS });
+  const user = useUserStore((state) => state.user);
+  const canApprove = usePermissionStore((state) => state.hasPermission('approval:approve'));
+  const isLeader = !canApprove;
 
-  // 檢視變更 Modal
+  const defaultLeaderFilter = useMemo(() => {
+    if (isLeader && user?.name) return user.name;
+    if (isLeader && user?.id) return user.id;
+    return undefined;
+  }, [isLeader, user?.id, user?.name]);
+
+  const [filters, setFilters] = useState<ApprovalListParams>({
+    ...DEFAULT_PARAMS,
+    requestedBy: defaultLeaderFilter,
+  });
+
   const [diffModalOpen, setDiffModalOpen] = useState(false);
   const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
 
-  // 核准確認 Modal
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [approvingApproval, setApprovingApproval] = useState<Approval | null>(null);
   const [approveForm] = Form.useForm<{ comment: string }>();
 
-  // 駁回確認 Modal
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectingApproval, setRejectingApproval] = useState<Approval | null>(null);
   const [rejectForm] = Form.useForm<{ comment: string }>();
 
   const approveMutation = useApproveRequest();
   const rejectMutation = useRejectRequest();
+  const withdrawMutation = useWithdrawRequest();
   const sendNotificationMutation = useSendNotification();
 
-  // Wraps useApprovalList to satisfy BaseTable's queryHook signature
+  // 撤回申請確認
+  const handleWithdrawClick = useCallback(
+    (record: Approval) => {
+      Modal.confirm({
+        title: '撤回確認',
+        content: `確定要撤回申請單【${record.id}】嗎？撤回後狀態將變更為「已撤回」。`,
+        okText: '確認撤回',
+        cancelText: '取消',
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          await withdrawMutation.mutateAsync({ id: record.id });
+          message.success('申請單已成功撤回');
+          if (selectedApproval?.id === record.id) {
+            setDiffModalOpen(false);
+            setSelectedApproval(null);
+          }
+        },
+      });
+    },
+    [withdrawMutation, selectedApproval],
+  );
+
   function useApprovalListQuery(): QueryResult<PaginatedResponse<Approval>> {
     return useApprovalList(filters) as QueryResult<PaginatedResponse<Approval>>;
   }
@@ -215,10 +275,10 @@ const ApprovalPage: FC = () => {
         name: 'keyword',
         label: t('common.keyword'),
         type: 'input',
-        placeholder: '輸入申請單編號或申請人',
+        placeholder: isLeader ? '輸入申請單編號' : '輸入申請單編號或申請人',
       },
     ],
-    [t],
+    [isLeader, t],
   );
 
   const handleSearch = useCallback((values: Record<string, unknown>) => {
@@ -227,29 +287,42 @@ const ApprovalPage: FC = () => {
   }, []);
 
   const handleResetFilters = useCallback(() => {
-    setFilters({ ...DEFAULT_PARAMS });
-  }, []);
+    setFilters({ ...DEFAULT_PARAMS, requestedBy: defaultLeaderFilter });
+  }, [defaultLeaderFilter]);
 
-  /**
-   * 審批通過後自動更新通知主旨並重新發送予客戶。
-   */
   const notifyApprovalResult = useCallback(
-    async (approval: Approval) => {
-      const typeLabel = APPROVAL_TYPE_MAP[approval.type] || '任務變更';
-      await sendNotificationMutation.mutateAsync({
+    (approval: Approval, approved: boolean, comment?: string) => {
+      const actionText = approved ? '核准通過' : '已駁回';
+      const subject = approved
+        ? `【已核准】Ecolab 審批通知 - 您的${
+            APPROVAL_TYPE_MAP[approval.type] || '變更'
+          }申請單（${approval.id}）核准通過`
+        : `【已駁回】Ecolab 審批通知 - 您的${
+            APPROVAL_TYPE_MAP[approval.type] || '變更'
+          }申請單（${approval.id}）已駁回`;
+      const content = `申請人 您好：\n\n您的${
+        APPROVAL_TYPE_MAP[approval.type] || '變更'
+      }申請單【${approval.id}】已由主管完成審批。\n審核結果：${actionText}\n${
+        comment ? `審批說明：${comment}\n` : ''
+      }\n感謝您的配合。`;
+
+      const payload = {
         templateId: 'approval-result',
-        recipientType: 'CUSTOMER',
-        recipientIds: [],
+        recipientType: 'EMPLOYEE' as const,
+        recipientIds: [approval.requestedBy],
         taskId: approval.taskId,
-        variables: {
-          subject: t('approval.approvedSubject', { type: typeLabel }),
-        },
-      });
+        variables: { subject, content },
+      };
+
+      if (sendNotificationMutation.mutateAsync) {
+        sendNotificationMutation.mutateAsync(payload);
+      } else if (sendNotificationMutation.mutate) {
+        sendNotificationMutation.mutate(payload);
+      }
     },
-    [sendNotificationMutation, t],
+    [sendNotificationMutation],
   );
 
-  // 開啟檢視變更 Modal
   const handleViewDiff = useCallback((record: Approval) => {
     setSelectedApproval(record);
     setDiffModalOpen(true);
@@ -260,7 +333,6 @@ const ApprovalPage: FC = () => {
     setSelectedApproval(null);
   }, []);
 
-  // 開啟核准確認 Modal
   const handleApproveClick = useCallback(
     (record: Approval) => {
       setApprovingApproval(record);
@@ -270,40 +342,31 @@ const ApprovalPage: FC = () => {
     [approveForm],
   );
 
-  // 取消核准
   const handleApproveCancel = useCallback(() => {
     setApproveModalOpen(false);
     setApprovingApproval(null);
     approveForm.resetFields();
   }, [approveForm]);
 
-  // 確認核准
   const handleApproveOk = useCallback(async () => {
     if (!approvingApproval) return;
-    let values: { comment?: string } = { comment: '' };
-    try {
-      values = await approveForm.validateFields();
-    } catch {
-      // 備註為選填，若有非預期錯誤則忽略
-    }
+    const values = approveForm.getFieldsValue();
 
     await approveMutation.mutateAsync({
       id: approvingApproval.id,
       comment: values.comment,
     });
-    await notifyApprovalResult(approvingApproval);
     message.success(t('approval.approvedMessage'));
+
+    notifyApprovalResult(approvingApproval, true, values.comment);
 
     setApproveModalOpen(false);
     setApprovingApproval(null);
     approveForm.resetFields();
-
-    // 同步關閉檢視詳情彈窗
     setDiffModalOpen(false);
     setSelectedApproval(null);
   }, [approvingApproval, approveForm, approveMutation, notifyApprovalResult, t]);
 
-  // 開啟駁回確認 Modal
   const handleRejectClick = useCallback(
     (record: Approval) => {
       setRejectingApproval(record);
@@ -313,21 +376,19 @@ const ApprovalPage: FC = () => {
     [rejectForm],
   );
 
-  // 取消駁回
   const handleRejectCancel = useCallback(() => {
     setRejectModalOpen(false);
     setRejectingApproval(null);
     rejectForm.resetFields();
   }, [rejectForm]);
 
-  // 確認駁回
   const handleRejectOk = useCallback(async () => {
     if (!rejectingApproval) return;
     let values: { comment: string };
     try {
       values = await rejectForm.validateFields();
     } catch {
-      return; // 表單驗證失敗時直接中斷
+      return;
     }
 
     await rejectMutation.mutateAsync({
@@ -336,23 +397,42 @@ const ApprovalPage: FC = () => {
     });
     message.success(t('approval.rejectedMessage'));
 
+    notifyApprovalResult(rejectingApproval, false, values.comment);
+
     setRejectModalOpen(false);
     setRejectingApproval(null);
     rejectForm.resetFields();
-
-    // 同步關閉檢視詳情彈窗
     setDiffModalOpen(false);
     setSelectedApproval(null);
-  }, [rejectingApproval, rejectForm, rejectMutation, t]);
+  }, [rejectingApproval, rejectForm, rejectMutation, notifyApprovalResult, t]);
 
-  // 表格欄位定義：申請單編號、狀態、類型、建立時間、申請人、功能
   const columns: ColumnDef<Approval>[] = [
     {
       title: '申請單編號',
       dataIndex: 'id',
       key: 'id',
-      width: 140,
-      render: (value) => <Tag color="geekblue">{value as string}</Tag>,
+      width: 170,
+      render: (value, record) => (
+        <Space size={6} align="center">
+          {record.status === 'PENDING' && (
+            <Button
+              type="text"
+              danger
+              size="small"
+              className="approval-row-withdraw-btn"
+              icon={<CloseOutlined style={{ fontSize: 13 }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleWithdrawClick(record);
+              }}
+              aria-label="撤回申請"
+              title="撤回申請"
+              style={{ width: 24, height: 24, padding: 0 }}
+            />
+          )}
+          <Tag color="geekblue">{value as string}</Tag>
+        </Space>
+      ),
     },
     {
       title: (
@@ -407,12 +487,16 @@ const ApprovalPage: FC = () => {
       width: 160,
       render: (_value, record) => formatDateTime(record.createdAt, 'YYYY-MM-DD HH:mm'),
     },
-    {
-      title: t('approval.requester'),
-      dataIndex: 'requestedByName',
-      key: 'requestedByName',
-      width: 120,
-    },
+    ...(!isLeader
+      ? [
+          {
+            title: t('approval.requester'),
+            dataIndex: 'requestedByName',
+            key: 'requestedByName',
+            width: 120,
+          },
+        ]
+      : []),
     {
       title: t('approval.actions'),
       key: 'actions',
@@ -447,12 +531,14 @@ const ApprovalPage: FC = () => {
         columns={columns}
         queryHook={useApprovalListQuery}
         exportable={false}
+        emptyText="最近無申請紀錄"
         onRowClick={handleViewDiff}
-        cardRender={(record) => renderApprovalCard(record, handleViewDiff, t)}
+        cardRender={(record) =>
+          renderApprovalCard(record, handleViewDiff, handleWithdrawClick, t, isLeader)
+        }
         rowKey="id"
       />
 
-      {/* 檢視變更詳情 Modal：僅在此處可進行核准與駁回操作 */}
       <Modal
         title={
           <Space>
@@ -465,7 +551,7 @@ const ApprovalPage: FC = () => {
         width={650}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            {selectedApproval?.status === 'PENDING' && (
+            {selectedApproval?.status === 'PENDING' && canApprove && (
               <>
                 <Button
                   type="primary"
@@ -486,6 +572,17 @@ const ApprovalPage: FC = () => {
                   {t('approval.reject')}
                 </Button>
               </>
+            )}
+            {selectedApproval?.status === 'PENDING' && !canApprove && (
+              <Button
+                danger
+                icon={<CloseOutlined />}
+                onClick={() => {
+                  if (selectedApproval) handleWithdrawClick(selectedApproval);
+                }}
+              >
+                撤回申請
+              </Button>
             )}
             <Button onClick={handleCloseDiffModal}>關閉</Button>
           </div>

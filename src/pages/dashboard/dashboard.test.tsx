@@ -5,9 +5,10 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import DashboardPage from './index';
+import { useUserStore } from '@/stores/useUserStore';
 import type { ScheduleData } from '@/types/schedule';
 import type { Task } from '@/types/task';
-import type { Approval } from '@/types/notification';
+import type { Approval, Notification } from '@/types/notification';
 import type { PaginatedResponse } from '@/types/common';
 
 // Mock window.matchMedia for Ant Design responsive components
@@ -48,6 +49,8 @@ import { useScheduleData } from '@/queries/useScheduleQueries';
 import { useApprovalList } from '@/queries/useApprovalQueries';
 import { useTaskList } from '@/queries/useTaskQueries';
 import { useNotificationList } from '@/queries/useNotificationQueries';
+import { usePermissionStore } from '@/stores/usePermissionStore';
+import { PERMISSIONS } from '@/constants/permissions';
 
 const scheduleData: ScheduleData = {
   events: [
@@ -153,6 +156,7 @@ function mockTaskListData(list: Task[]): PaginatedResponse<Task> {
 describe('DashboardPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    usePermissionStore.getState().buildPermissions(Object.values(PERMISSIONS), 'ADMIN');
 
     vi.mocked(useScheduleData).mockReturnValue({
       data: scheduleData,
@@ -237,11 +241,11 @@ describe('DashboardPage', () => {
       expect(screen.getByText('王組長')).toBeInTheDocument();
     });
 
-    it('navigates to task approval tab when 前往審批 link is clicked', async () => {
+    it('navigates to task approval tab when 查看細項 link is clicked for Admin', async () => {
       const user = userEvent.setup();
       render(<DashboardPage />);
 
-      await user.click(screen.getByText('前往審批'));
+      await user.click(screen.getByText('查看細項'));
       expect(mockNavigate).toHaveBeenCalledWith('/task?tab=approval');
     });
   });
@@ -294,6 +298,58 @@ describe('DashboardPage', () => {
 
       render(<DashboardPage />);
       expect(screen.getByText('目前無待審核項目')).toBeInTheDocument();
+    });
+  });
+
+  describe('角色問候語與版面自適應', () => {
+    it('displays personalized greeting with user name', () => {
+      useUserStore.setState({
+        user: {
+          id: 'emp-demo',
+          name: 'Demo 員工',
+          employeeNo: 'STAFF01',
+          role: 'STAFF',
+          permissions: [],
+        },
+      });
+
+      render(<DashboardPage />);
+      expect(screen.getByText('Hi, Demo 員工！')).toBeInTheDocument();
+      expect(screen.getByText('今日個人任務')).toBeInTheDocument();
+      expect(screen.getByText('近期通知')).toBeInTheDocument();
+      expect(screen.queryByTestId('pending-approval-card')).not.toBeInTheDocument();
+    });
+
+    it('renders 查看進度 button for LEADER', () => {
+      useUserStore.setState({
+        user: {
+          id: 'emp-leader',
+          name: 'Demo 組長',
+          employeeNo: 'LEADER01',
+          role: 'LEADER',
+          permissions: [],
+        },
+      });
+
+      render(<DashboardPage />);
+      expect(screen.getByText('Hi, Demo 組長！')).toBeInTheDocument();
+      expect(screen.getByText('查看進度')).toBeInTheDocument();
+    });
+
+    it('renders 前往審核 button for MANAGER', () => {
+      useUserStore.setState({
+        user: {
+          id: 'emp-manager',
+          name: '經理主管',
+          employeeNo: 'MGR01',
+          role: 'MANAGER',
+          permissions: ['approval:approve'],
+        },
+      });
+
+      render(<DashboardPage />);
+      expect(screen.getByText('Hi, 經理主管！')).toBeInTheDocument();
+      expect(screen.getByText('前往審核')).toBeInTheDocument();
     });
   });
 });

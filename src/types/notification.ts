@@ -16,6 +16,9 @@ export interface Notification {
   content: string;
   status: NotificationStatus;
   taskId?: string;
+  sentBy?: string;
+  senderName?: string;
+  senderRole?: string;
   sentAt?: string;
   createdAt: string;
 }
@@ -73,7 +76,7 @@ export interface ApprovalStep {
   approverId: string;
   approverName: string;
   role: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
   comment?: string;
   decidedAt?: string;
 }

@@ -24,20 +24,29 @@ Object.defineProperty(window, 'matchMedia', {
 
 const mockApproveMutateAsync = vi.fn().mockResolvedValue(undefined);
 const mockRejectMutateAsync = vi.fn().mockResolvedValue(undefined);
+const mockWithdrawMutateAsync = vi.fn().mockResolvedValue(undefined);
 const mockSendNotificationMutateAsync = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@/queries/useApprovalQueries', () => ({
   useApprovalList: vi.fn(),
   useApproveRequest: vi.fn(),
   useRejectRequest: vi.fn(),
+  useWithdrawRequest: vi.fn(),
 }));
 
 vi.mock('@/queries/useNotificationQueries', () => ({
   useSendNotification: vi.fn(),
 }));
 
-import { useApprovalList, useApproveRequest, useRejectRequest } from '@/queries/useApprovalQueries';
+import {
+  useApprovalList,
+  useApproveRequest,
+  useRejectRequest,
+  useWithdrawRequest,
+} from '@/queries/useApprovalQueries';
 import { useSendNotification } from '@/queries/useNotificationQueries';
+import { usePermissionStore } from '@/stores/usePermissionStore';
+import { PERMISSIONS } from '@/constants/permissions';
 
 const taskChangeApproval: Approval = {
   id: 'approval-001',
@@ -51,14 +60,7 @@ const taskChangeApproval: Approval = {
     { field: 'time', label: '服務時段', before: '09:00 ~ 12:00', after: '14:00 ~ 18:00' },
     { field: 'headcount', label: '人數需求', before: '1 人', after: '2 人' },
   ],
-  approvers: [
-    {
-      approverId: 'ap1',
-      approverName: '陳組長',
-      role: 'LEADER',
-      status: 'PENDING',
-    },
-  ],
+  approvers: [],
   createdAt: '2026-08-01T10:00:00+08:00',
   updatedAt: '2026-08-01T10:00:00+08:00',
 };
@@ -70,19 +72,12 @@ const alertOverrideApproval: Approval = {
   status: 'PENDING',
   requestedBy: 'u2',
   requestedByName: '李組長',
-  changeSummary: '夜間跨日排班證照違規覆蓋',
-  overrideRemark: '經理評估現場有主管陪同施作，核准覆蓋',
-  violatedRules: ['連續工作天數達上限警示'],
-  approvers: [
-    {
-      approverId: 'ap3',
-      approverName: '林經理',
-      role: 'MANAGER',
-      status: 'PENDING',
-    },
-  ],
-  createdAt: '2026-08-02T14:30:00+08:00',
-  updatedAt: '2026-08-02T14:30:00+08:00',
+  changeSummary: '特許覆蓋警示申請',
+  violatedRules: ['連續工作天數超限 (7 天)', '每日工時超過 12 小時'],
+  approvers: [],
+  overrideRemark: '因客戶緊急專案需求特許排班',
+  createdAt: '2026-08-01T11:00:00+08:00',
+  updatedAt: '2026-08-01T11:00:00+08:00',
 };
 
 function mockListData(list: Approval[]): PaginatedResponse<Approval> {
@@ -95,6 +90,7 @@ function mockListData(list: Approval[]): PaginatedResponse<Approval> {
 describe('ApprovalPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    usePermissionStore.getState().buildPermissions(Object.values(PERMISSIONS), 'ADMIN');
 
     vi.mocked(useApprovalList).mockReturnValue({
       data: mockListData([taskChangeApproval, alertOverrideApproval]),
@@ -113,6 +109,11 @@ describe('ApprovalPage', () => {
       mutateAsync: mockRejectMutateAsync,
       isPending: false,
     } as unknown as ReturnType<typeof useRejectRequest>);
+
+    vi.mocked(useWithdrawRequest).mockReturnValue({
+      mutateAsync: mockWithdrawMutateAsync,
+      isPending: false,
+    } as unknown as ReturnType<typeof useWithdrawRequest>);
 
     vi.mocked(useSendNotification).mockReturnValue({
       mutateAsync: mockSendNotificationMutateAsync,

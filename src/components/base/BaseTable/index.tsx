@@ -38,6 +38,7 @@ export interface ColumnDef<T> {
   /** 自訂該欄位的渲染方式 */
   render?: (value: unknown, record: T, index: number) => ReactNode;
   width?: number | string;
+  align?: 'left' | 'right' | 'center';
   /** 固定在表格左側或右側 */
   fixed?: 'left' | 'right';
   ellipsis?: boolean;
@@ -77,6 +78,8 @@ export interface BaseTableProps<T extends object> {
   rowClassName?: (record: T) => string;
   /** 當分頁頁碼或每頁筆數變更時的回呼函式（支援頁碼框輸入跳頁） */
   onPaginationChange?: (page: number, pageSize: number) => void;
+  /** 自訂無資料時的提示文字 */
+  emptyText?: string;
 }
 
 function BaseTable<T extends object>({
@@ -90,6 +93,7 @@ function BaseTable<T extends object>({
   toolbarExtra,
   rowClassName,
   onPaginationChange,
+  emptyText,
 }: BaseTableProps<T>) {
   const { t } = useTranslation();
   // T 為泛型參數，代表單筆資料的型別；queryHook 由呼叫端注入，
@@ -206,6 +210,9 @@ function BaseTable<T extends object>({
             // .base-table-card-grid 規則）取代 antd 內建 Row/Col 斷點，精確控制
             // 欄數切換：<= 820px 單欄（卡片撐滿寬度）、> 820px 雙欄（固定卡寬 + 間隙）。
             className={cardLayout === 'always' ? 'base-table-card-grid' : undefined}
+            locale={{
+              emptyText: isError ? t('common.loadFailed') : (emptyText ?? t('common.noData')),
+            }}
             dataSource={data.list}
             pagination={{
               current: pagination.page,
@@ -260,6 +267,7 @@ function BaseTable<T extends object>({
     sorter: col.sorter,
     render: col.render,
     width: col.width,
+    align: col.align,
     fixed: col.fixed,
     ellipsis: col.ellipsis,
     sortOrder: sortInfo.field === col.dataIndex ? sortInfo.order : undefined,
@@ -271,7 +279,7 @@ function BaseTable<T extends object>({
 
       <Table<T>
         columns={antColumns}
-        dataSource={data?.list}
+        dataSource={data?.list ?? []}
         loading={isLoading}
         rowKey={rowKey}
         rowClassName={rowClassName}
@@ -291,7 +299,7 @@ function BaseTable<T extends object>({
           pageSizeOptions: ['10', '20', '50', '100'],
         }}
         locale={{
-          emptyText: isError ? t('common.loadFailed') : t('common.noData'),
+          emptyText: isError ? t('common.loadFailed') : (emptyText ?? t('common.noData')),
         }}
         scroll={{ x: 'max-content' }}
       />
