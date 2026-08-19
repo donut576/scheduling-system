@@ -371,7 +371,7 @@ const DashboardPage: FC = () => {
         title={
           <Space>
             <BellOutlined style={{ color: '#005EB8' }} />
-            <span>郵件通知發送明細</span>
+            <span>通知發送詳情</span>
           </Space>
         }
         open={Boolean(selectedNotification)}

@@ -280,7 +280,7 @@ describe('DashboardPage', () => {
       // Click notification item to view details
       await user.click(screen.getByText('鼎泰豐 信義旗艦店'));
 
-      expect(screen.getByText('郵件通知發送明細')).toBeInTheDocument();
+      expect(screen.getByText('通知發送詳情')).toBeInTheDocument();
       expect(
         screen.getByText('尊敬的客戶您好：您的排班已確認，服務時間為明日 09:00。'),
       ).toBeInTheDocument();

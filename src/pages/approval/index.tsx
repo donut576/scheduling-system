@@ -143,6 +143,7 @@ function renderApprovalCard(
   return (
     <Card
       size="small"
+      className="approval-card"
       style={{ marginBottom: 8, cursor: 'pointer' }}
       data-testid={`approval-card-${record.id}`}
       onClick={() => onViewDiff(record)}
@@ -150,11 +151,12 @@ function renderApprovalCard(
       <Space direction="vertical" size={4} style={{ width: '100%' }}>
         <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
           <Space>
-            {record.status === 'PENDING' && (
+            {record.status === 'PENDING' ? (
               <Button
                 type="text"
                 danger
                 size="small"
+                className="approval-row-withdraw-btn"
                 icon={<CloseOutlined style={{ fontSize: 12 }} />}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -164,6 +166,8 @@ function renderApprovalCard(
                 title="撤回申請"
                 style={{ width: 22, height: 22, padding: 0 }}
               />
+            ) : (
+              <span style={{ display: 'inline-block', width: 22, height: 22 }} />
             )}
             <Tag color="geekblue">{record.id}</Tag>
             <Tag color={statusConfig.color}>{statusLabel}</Tag>
@@ -414,7 +418,7 @@ const ApprovalPage: FC = () => {
       width: 170,
       render: (value, record) => (
         <Space size={6} align="center">
-          {record.status === 'PENDING' && (
+          {record.status === 'PENDING' ? (
             <Button
               type="text"
               danger
@@ -429,6 +433,8 @@ const ApprovalPage: FC = () => {
               title="撤回申請"
               style={{ width: 24, height: 24, padding: 0 }}
             />
+          ) : (
+            <span style={{ display: 'inline-block', width: 24, height: 24 }} />
           )}
           <Tag color="geekblue">{value as string}</Tag>
         </Space>
@@ -521,6 +527,17 @@ const ApprovalPage: FC = () => {
 
   return (
     <div className="approval-page">
+      <style>{`
+        .approval-row-withdraw-btn {
+          opacity: 0;
+          transition: opacity 0.18s ease-in-out;
+        }
+        .ant-table-row:hover .approval-row-withdraw-btn,
+        .approval-card:hover .approval-row-withdraw-btn,
+        .approval-row-withdraw-btn:focus {
+          opacity: 1;
+        }
+      `}</style>
       <BaseSearchForm
         fields={localizedSearchFields}
         onSearch={handleSearch}

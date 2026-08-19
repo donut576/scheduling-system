@@ -13,10 +13,16 @@ export interface MapViewProps {
   onMarkerClick?: (customer: Customer) => void;
 }
 
-/** 預設地圖中心（台灣） */
-const DEFAULT_CENTER: { lat: number; lng: number } = { lat: 23.9739, lng: 120.9797 };
+/** 預設地圖中心（台灣本島中心） */
+const DEFAULT_CENTER: { lat: number; lng: number } = { lat: 23.8, lng: 120.97 };
 const DEFAULT_ZOOM = 8;
 const ECOLAB_BLUE = '#0067a0';
+
+/** 台灣地理邊界限制 (SW to NE) */
+const TAIWAN_BOUNDS: [[number, number], [number, number]] = [
+  [21.5, 118.5],
+  [26.2, 122.8],
+];
 
 /**
  * MapView - 地圖檢視元件
@@ -48,6 +54,10 @@ const MapView: FC<MapViewProps> = ({
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={zoom}
+        minZoom={7}
+        maxZoom={18}
+        maxBounds={TAIWAN_BOUNDS}
+        maxBoundsViscosity={0.8}
         style={{ width: '100%', height: '100%', minHeight: 400 }}
         data-testid="map-container"
       >

@@ -112,16 +112,20 @@ const MapPage: FC = () => {
     );
   }, [employees, filteredCustomers, tasks]);
 
-  // 若帶有 branchId，定位至該分店；否則使用預設中心
+  // 若帶有 branchId，定位至該分店；否則使用預設中心（台灣全視角）
   const center = useMemo(() => {
-    const target = branchId
-      ? filteredCustomers.find((c) => c.branchId === branchId)
-      : filteredCustomers[0];
-    if (target && typeof target.latitude === 'number' && typeof target.longitude === 'number') {
-      return { lat: target.latitude, lng: target.longitude };
+    if (branchId) {
+      const target = filteredCustomers.find((c) => c.branchId === branchId);
+      if (target && typeof target.latitude === 'number' && typeof target.longitude === 'number') {
+        return { lat: target.latitude, lng: target.longitude };
+      }
     }
     return undefined;
   }, [branchId, filteredCustomers]);
+
+  const zoom = useMemo(() => {
+    return branchId ? 14 : 8;
+  }, [branchId]);
 
   return (
     <div className="map-page" data-testid="map-page" style={{ height: '100%' }}>
@@ -152,6 +156,7 @@ const MapPage: FC = () => {
         <MapView
           customers={filteredCustomers}
           center={center}
+          zoom={zoom}
           markerColorByCustomerId={markerColorByCustomerId}
         />
       </div>

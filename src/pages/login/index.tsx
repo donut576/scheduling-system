@@ -193,11 +193,7 @@ const LoginPage: FC = () => {
           <Form.Item
             name="account"
             label="帳號"
-            extra={
-              <span style={{ fontSize: 12, color: '#8c8c8c' }}>
-                帳號為您的員工編號（例如：STAFF01、LEADER01）
-              </span>
-            }
+            extra={<span style={{ fontSize: 12, color: '#8c8c8c' }}>帳號為您的員工編號</span>}
             rules={[{ required: true, message: t('auth.accountRequired') }]}
           >
             <Input

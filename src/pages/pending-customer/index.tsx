@@ -1231,41 +1231,26 @@ const PendingCustomerPage: FC = () => {
                   title="🏢 基本資訊"
                   style={{ marginBottom: 16, borderRadius: 8 }}
                 >
-                  <Form.Item
-                    name="groupId"
-                    label={t('task.group')}
-                    rules={[{ required: true, message: t('task.groupRequired') }]}
-                  >
+                  <Form.Item name="groupId" label={t('task.group')}>
                     <Select
                       placeholder={t('task.groupSearchPlaceholder')}
                       options={groupOptions}
                       showSearch
                       optionFilterProp="label"
-                      onChange={() => convertForm.setFieldValue('branchId', undefined)}
+                      disabled
                       aria-label={t('task.group')}
                     />
                   </Form.Item>
 
-                  <Form.Item
-                    name="taskType"
-                    label="任務類型"
-                    rules={[{ required: true, message: '請選擇任務類型' }]}
-                  >
+                  <Form.Item name="taskType" label="任務類型">
                     <Checkbox.Group
                       options={taskTypes}
                       value={convertTaskType ? [convertTaskType] : []}
-                      onChange={(checkedValues) => {
-                        const last = checkedValues[checkedValues.length - 1];
-                        convertForm.setFieldValue('taskType', last);
-                      }}
+                      disabled
                     />
                   </Form.Item>
 
-                  <Form.Item
-                    name="branchId"
-                    label={t('task.branch')}
-                    rules={[{ required: true, message: t('task.branchRequired') }]}
-                  >
+                  <Form.Item name="branchId" label={t('task.branch')}>
                     <Select
                       placeholder={
                         convertGroupId
@@ -1275,7 +1260,7 @@ const PendingCustomerPage: FC = () => {
                       options={convertBranchOptions}
                       showSearch
                       optionFilterProp="label"
-                      disabled={!convertGroupId}
+                      disabled
                       aria-label={t('task.branch')}
                     />
                   </Form.Item>
@@ -1376,17 +1361,13 @@ const PendingCustomerPage: FC = () => {
                 >
                   <Row gutter={12}>
                     <Col span={12}>
-                      <Form.Item
-                        name="shift"
-                        label={t('task.shift')}
-                        rules={[{ required: true, message: t('task.shiftRequired') }]}
-                      >
+                      <Form.Item name="shift" label={t('task.shift')}>
                         <Select
                           placeholder={t('task.shiftPlaceholder')}
                           options={shifts}
-                          allowClear
                           showSearch
                           optionFilterProp="label"
+                          disabled
                           aria-label={t('task.shift')}
                         />
                       </Form.Item>
@@ -1409,21 +1390,18 @@ const PendingCustomerPage: FC = () => {
                     </Col>
                   </Row>
 
-                  <Form.Item
-                    name="contents"
-                    label="內容"
-                    rules={[{ required: true, message: t('task.contentRequired') }]}
-                  >
-                    <Checkbox.Group options={contents} />
+                  <Form.Item name="contents" label="內容">
+                    <Checkbox.Group options={contents} disabled />
                   </Form.Item>
 
                   {convertShowOtherNote && (
-                    <Form.Item
-                      name="otherContentNote"
-                      label="其他內容說明"
-                      rules={[{ required: true, message: '勾選「其他」時，請務必填寫說明' }]}
-                    >
-                      <Input placeholder="請輸入自訂服務項目內容" maxLength={100} showCount />
+                    <Form.Item name="otherContentNote" label="其他內容說明">
+                      <Input
+                        placeholder="請輸入自訂服務項目內容"
+                        maxLength={100}
+                        showCount
+                        disabled
+                      />
                     </Form.Item>
                   )}
 
