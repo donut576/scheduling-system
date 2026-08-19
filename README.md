@@ -1,4 +1,4 @@
-# 智慧排班與派遣管理系統 (Intelligent Scheduling System)
+# Scheduling System
 
 一套基於 React 18 與 TypeScript 開發的現代化前端排班與派遣管理平台，專為多案場、多班別及專業派遣巡檢業務設計。系統涵蓋任務派工、視覺化時間軸調度、即時合規防護引擎、多階層審批與地理派工等核心功能，支援桌面與行動裝置。
 
