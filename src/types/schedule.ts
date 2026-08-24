@@ -26,6 +26,7 @@ export interface ScheduleEvent {
     shift: ShiftType;
     assignees: TaskAssignee[];
     contents: TaskContent[];
+    isFromPending?: boolean;
     violationReason?: string;
     overrideReason?: string;
   };

@@ -488,6 +488,22 @@ let mockCustomers: Customer[] = [mockCustomer, ...demoCustomers];
 
 // 額外的員工假資料，分散於不同集團／職位／證照，供指派員工下拉選單使用
 const demoEmployees: Employee[] = [
+  // 台北組 - Demo 員工
+  {
+    id: 'emp-staff',
+    name: 'Demo 員工',
+    phone: '0988776655',
+    employeeNo: 'STAFF01',
+    position: 'STAFF',
+    groupId: 'taipei-morning',
+    groupName: '台北 早班',
+    area: '台北',
+    shift: '早班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
+    isActive: true,
+  },
   // 台北組
   {
     id: 'emp-002',
@@ -1190,9 +1206,7 @@ const demoTasks: Task[] = [
     shift: '早班',
     route: '第六路',
     contents: ['P'],
-    assignees: [
-      { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
-    ],
+    assignees: [],
     remarks: '臨時客戶急件呼叫（ESR）',
     status: 'UNSCHEDULED',
     alertStatus: 'CLEAN',
@@ -1436,11 +1450,45 @@ const demoTasks: Task[] = [
   },
 ];
 
+const STORAGE_KEYS = {
+  TASKS: 'ecolab_mock_tasks_v3',
+  SCHEDULE_EVENTS: 'ecolab_mock_schedule_events_v3',
+  PENDING_CUSTOMERS: 'ecolab_mock_pending_customers_v3',
+  EMPLOYEES: 'ecolab_mock_employees_v3',
+};
+
+function loadStorage<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined' || !window.localStorage) return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw) {
+      const parsed = JSON.parse(raw) as T;
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch (e) {
+    void e;
+  }
+  return fallback;
+}
+
+function persistStorage<T>(key: string, data: T): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    void e;
+  }
+}
+
 // 合併基本測試用員工與額外的 demo 員工，供指派員工下拉選單等端點使用
-let mockEmployees: Employee[] = [mockEmployee, ...demoEmployees];
+let mockEmployees: Employee[] = loadStorage(STORAGE_KEYS.EMPLOYEES, [
+  mockEmployee,
+  ...demoEmployees,
+]);
 
 // 任務清單改為可變狀態，包含 30 筆示範任務（task-001 到 task-030）
-let mockTasks: Task[] = [mockTask, ...demoTasks];
+let mockTasks: Task[] = loadStorage(STORAGE_KEYS.TASKS, [mockTask, ...demoTasks]);
 
 /** 判斷結束時間是否早於或等於開始時間，藉此判斷任務是否為跨日（overnight）任務 */
 const isOvernightRange = (startTime: string, endTime: string): boolean => {
@@ -1521,7 +1569,7 @@ const applyTaskUpdate = (existing: Task, data: Partial<TaskFormData>): Task => {
 
 // --- 其他模組的假資料（待排時間客戶、通知、審批、警示、班表） ---
 
-let mockPendingCustomers: PendingCustomer[] = [
+const defaultPendingCustomers: PendingCustomer[] = [
   {
     id: 'pending-001',
     groupId: 'group-001',
@@ -1809,6 +1857,11 @@ let mockPendingCustomers: PendingCustomer[] = [
     updatedAt: '2026-08-14T11:30:00+08:00',
   },
 ];
+
+let mockPendingCustomers: PendingCustomer[] = loadStorage(
+  STORAGE_KEYS.PENDING_CUSTOMERS,
+  defaultPendingCustomers,
+);
 
 const mockNotifications: Notification[] = [
   {
@@ -2127,7 +2180,7 @@ const mockAlertValidationResult: AlertValidationResult = {
   canOverride: true,
 };
 
-let mockScheduleEvents: ScheduleEvent[] = [
+const defaultScheduleEvents: ScheduleEvent[] = [
   // --- 2026-08-16 (昨日) ---
   {
     id: 'event-001',
@@ -2842,6 +2895,11 @@ let mockScheduleEvents: ScheduleEvent[] = [
   },
 ];
 
+let mockScheduleEvents: ScheduleEvent[] = loadStorage(
+  STORAGE_KEYS.SCHEDULE_EVENTS,
+  defaultScheduleEvents,
+);
+
 const mockScheduleData: ScheduleData = {
   events: mockScheduleEvents,
   resources: [
@@ -2982,7 +3040,54 @@ export const handlers = [
     const page = Number(url.searchParams.get('page')) || 1;
     const pageSize = Number(url.searchParams.get('pageSize')) || 20;
 
-    let list = mockTasks;
+    // 將尚未排定的待排任務 (mockPendingCustomers) 動態同步併入任務清單
+    const pendingAsTasks: Task[] = mockPendingCustomers
+      .filter((p) => p.status !== 'CONVERTED')
+      .map((p) => ({
+        id: `task-${p.id}`,
+        groupId: p.groupId,
+        groupName: p.groupName,
+        branchId: p.branchId,
+        branchName: p.branchName,
+        taskType: p.taskType || 'CONTRACT',
+        date: p.date || '',
+        startTime: p.startTime || '',
+        endTime: p.endTime || '',
+        isOvernight: Boolean(p.isOvernight),
+        headcount: p.headcount || 1,
+        shift: (p.shift as ShiftType) || '早班',
+        route: p.route || '',
+        contents: (p.contents as TaskContent[]) || ['P'],
+        otherContentNote: p.otherContentNote,
+        assignees: (p.assignees || []).map((a) => ({
+          employeeId: a.employeeId,
+          employeeName: a.employeeName,
+          licenses: [],
+        })),
+        recurrenceRule: p.recurrenceRule,
+        remarks: p.remarks || '',
+        status: 'UNSCHEDULED',
+        isFromPending: true,
+        alertStatus: 'CLEAN',
+        createdBy: 'emp-001',
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      }));
+
+    let list = [
+      ...pendingAsTasks,
+      ...mockTasks.filter(
+        (t) =>
+          !pendingAsTasks.some(
+            (pt) =>
+              pt.id === t.id ||
+              pt.id === `task-${t.id}` ||
+              t.id === `task-${pt.id}` ||
+              t.id === pt.id.replace('task-', ''),
+          ),
+      ),
+    ];
+
     if (keyword) {
       const kw = keyword.toLowerCase();
       list = list.filter(
@@ -3006,27 +3111,101 @@ export const handlers = [
       list = list.filter((t) => t.status === status);
     }
     if (startDate) {
-      list = list.filter((t) => t.date >= startDate);
+      list = list.filter((t) => t.date && t.date >= startDate);
     }
     if (endDate) {
-      list = list.filter((t) => t.date <= endDate);
+      list = list.filter((t) => t.date && t.date <= endDate);
     }
 
     return HttpResponse.json(ok(paginated<Task>(list, page, pageSize)));
   }),
   http.get('*/api/v1/tasks/:id', ({ params }) => {
-    const task = mockTasks.find((t) => t.id === params.id) ?? mockTask;
-    return HttpResponse.json(ok<Task>(task));
+    let task = mockTasks.find((t) => t.id === params.id || `task-${t.id}` === params.id);
+    if (!task) {
+      const pending = mockPendingCustomers.find(
+        (p) => p.id === params.id || `task-${p.id}` === params.id,
+      );
+      if (pending) {
+        task = {
+          id: `task-${pending.id}`,
+          groupId: pending.groupId,
+          groupName: pending.groupName,
+          branchId: pending.branchId,
+          branchName: pending.branchName,
+          taskType: pending.taskType || 'CONTRACT',
+          date: pending.date || '',
+          startTime: pending.startTime || '',
+          endTime: pending.endTime || '',
+          isOvernight: Boolean(pending.isOvernight),
+          headcount: pending.headcount || 1,
+          shift: (pending.shift as ShiftType) || '早班',
+          route: pending.route || '',
+          contents: (pending.contents as TaskContent[]) || ['P'],
+          otherContentNote: pending.otherContentNote,
+          assignees: (pending.assignees || []).map((a) => ({
+            employeeId: a.employeeId,
+            employeeName: a.employeeName,
+            licenses: [],
+          })),
+          recurrenceRule: pending.recurrenceRule,
+          remarks: pending.remarks || '',
+          status: 'UNSCHEDULED',
+          alertStatus: 'CLEAN',
+          createdBy: 'emp-001',
+          createdAt: pending.createdAt,
+          updatedAt: pending.updatedAt,
+        };
+      }
+    }
+    return HttpResponse.json(ok<Task>(task ?? mockTask));
   }),
   http.post('*/api/v1/tasks', async ({ request }) => {
     const data = (await request.json()) as TaskFormData;
     const created = buildNewTask(data);
     mockTasks = [...mockTasks, created];
+    persistStorage(STORAGE_KEYS.TASKS, mockTasks);
     return HttpResponse.json(ok<Task>(created));
   }),
   http.patch('*/api/v1/tasks/:id', async ({ params, request }) => {
     const data = (await request.json()) as Partial<TaskFormData>;
-    const existing = mockTasks.find((t) => t.id === params.id);
+    let existing = mockTasks.find((t) => t.id === params.id || `task-${t.id}` === params.id);
+    if (!existing) {
+      const pending = mockPendingCustomers.find(
+        (p) => p.id === params.id || `task-${p.id}` === params.id,
+      );
+      if (pending) {
+        existing = {
+          id: `task-${pending.id}`,
+          groupId: pending.groupId,
+          groupName: pending.groupName,
+          branchId: pending.branchId,
+          branchName: pending.branchName,
+          taskType: pending.taskType || 'CONTRACT',
+          date: pending.date || '',
+          startTime: pending.startTime || '',
+          endTime: pending.endTime || '',
+          isOvernight: Boolean(pending.isOvernight),
+          headcount: pending.headcount || 1,
+          shift: (pending.shift as ShiftType) || '早班',
+          route: pending.route || '',
+          contents: (pending.contents as TaskContent[]) || ['P'],
+          otherContentNote: pending.otherContentNote,
+          assignees: (pending.assignees || []).map((a) => ({
+            employeeId: a.employeeId,
+            employeeName: a.employeeName,
+            licenses: [],
+          })),
+          recurrenceRule: pending.recurrenceRule,
+          remarks: pending.remarks || '',
+          status: 'UNSCHEDULED',
+          alertStatus: 'CLEAN',
+          createdBy: 'emp-001',
+          createdAt: pending.createdAt,
+          updatedAt: pending.updatedAt,
+        };
+        mockTasks = [existing, ...mockTasks];
+      }
+    }
     if (!existing) {
       return HttpResponse.json(ok<Task>(mockTask));
     }
@@ -3040,6 +3219,28 @@ export const handlers = [
       updated.status = 'MODIFIED';
       updated.isApproved = false;
     }
+
+    if (data.assignees !== undefined) {
+      if (Array.isArray(data.assignees)) {
+        if (data.assignees.length === 0) {
+          updated.assignees = [];
+        } else if (typeof data.assignees[0] === 'string') {
+          const ids = data.assignees as unknown as string[];
+          updated.assignees = ids.map((id) => {
+            const emp = mockEmployees.find((e) => e.id === id);
+            return {
+              employeeId: id,
+              employeeName: emp?.name || id,
+              licenses: emp?.licenses || [],
+              area: emp?.area || '台北',
+              groupId: emp?.groupId,
+              groupColor: emp?.groupColor || '#7a69c0',
+            };
+          });
+        }
+      }
+    }
+
     updated.updatedAt = new Date().toISOString();
     mockTasks = mockTasks.map((t) => (t.id === updated.id ? updated : t));
 
@@ -3050,6 +3251,11 @@ export const handlers = [
         `task-${p.id}` === updated.id ||
         p.id === updated.id.replace('task-', '')
       ) {
+        const isFullyStaffed =
+          (updated.assignees?.length || 0) >= (updated.headcount || 1) &&
+          Boolean(updated.date) &&
+          Boolean(updated.startTime) &&
+          updated.status !== 'UNSCHEDULED';
         return {
           ...p,
           groupId: updated.groupId,
@@ -3065,22 +3271,30 @@ export const handlers = [
           shift: updated.shift,
           route: updated.route,
           contents: updated.contents,
-          assignees: updated.assignees?.map((a) => ({
-            employeeId: a.employeeId,
-            employeeName: a.employeeName,
-          })),
+          assignees:
+            updated.assignees?.map((a) => ({
+              employeeId: a.employeeId,
+              employeeName: a.employeeName,
+            })) || [],
           recurrenceRule: updated.recurrenceRule,
           isRecurring: Boolean(updated.recurrenceRule),
           remarks: updated.remarks,
-          status: updated.status === 'UNSCHEDULED' ? 'PENDING' : 'CONVERTED',
+          status: isFullyStaffed ? 'CONVERTED' : 'PENDING',
           updatedAt: new Date().toISOString(),
         };
       }
       return p;
     });
 
-    if (updated.status === 'UNSCHEDULED') {
-      mockScheduleEvents = mockScheduleEvents.filter((e) => e.taskId !== updated.id);
+    if (!updated.assignees || updated.assignees.length === 0) {
+      mockScheduleEvents = mockScheduleEvents.filter(
+        (e) =>
+          e.taskId !== updated.id &&
+          e.taskId !== params.id &&
+          e.id !== `event-${updated.id}` &&
+          e.id !== `event-${params.id}` &&
+          e.taskId !== `task-${params.id}`,
+      );
     } else if (updated.date && updated.startTime && updated.endTime) {
       const existingIdx = mockScheduleEvents.findIndex((e) => e.taskId === updated.id);
       const scheduleEvt: ScheduleEvent = {
@@ -3111,6 +3325,7 @@ export const handlers = [
             groupColor: a.groupColor,
           })),
           contents: updated.contents,
+          isFromPending: true,
         },
       };
       if (existingIdx >= 0) {
@@ -3119,6 +3334,10 @@ export const handlers = [
         mockScheduleEvents.push(scheduleEvt);
       }
     }
+
+    persistStorage(STORAGE_KEYS.TASKS, mockTasks);
+    persistStorage(STORAGE_KEYS.PENDING_CUSTOMERS, mockPendingCustomers);
+    persistStorage(STORAGE_KEYS.SCHEDULE_EVENTS, mockScheduleEvents);
 
     // 比較前後差異
     const diff: {
@@ -3664,6 +3883,8 @@ export const handlers = [
       updatedAt: new Date().toISOString(),
     };
     mockTasks = [newUnscheduledTask, ...mockTasks];
+    persistStorage(STORAGE_KEYS.PENDING_CUSTOMERS, mockPendingCustomers);
+    persistStorage(STORAGE_KEYS.TASKS, mockTasks);
 
     return HttpResponse.json(ok<PendingCustomer>(newPending));
   }),
@@ -3710,6 +3931,9 @@ export const handlers = [
       }
       return t;
     });
+
+    persistStorage(STORAGE_KEYS.PENDING_CUSTOMERS, mockPendingCustomers);
+    persistStorage(STORAGE_KEYS.TASKS, mockTasks);
 
     return HttpResponse.json(ok<PendingCustomer>(updated));
   }),
@@ -3786,17 +4010,25 @@ export const handlers = [
       } else {
         mockScheduleEvents.push(scheduleEvt);
       }
+
+      persistStorage(STORAGE_KEYS.PENDING_CUSTOMERS, mockPendingCustomers);
+      persistStorage(STORAGE_KEYS.TASKS, mockTasks);
+      persistStorage(STORAGE_KEYS.SCHEDULE_EVENTS, mockScheduleEvents);
     }
     return HttpResponse.json(ok(null));
   }),
   http.delete('*/api/v1/pending-customers/:id', ({ params }) => {
     mockPendingCustomers = mockPendingCustomers.filter((p) => p.id !== params.id);
     mockTasks = mockTasks.filter((t) => t.id !== params.id && t.id !== `task-${params.id}`);
+    persistStorage(STORAGE_KEYS.PENDING_CUSTOMERS, mockPendingCustomers);
+    persistStorage(STORAGE_KEYS.TASKS, mockTasks);
     return HttpResponse.json(ok(null));
   }),
   http.delete('/api/pending-customers/:id', ({ params }) => {
     mockPendingCustomers = mockPendingCustomers.filter((p) => p.id !== params.id);
     mockTasks = mockTasks.filter((t) => t.id !== params.id && t.id !== `task-${params.id}`);
+    persistStorage(STORAGE_KEYS.PENDING_CUSTOMERS, mockPendingCustomers);
+    persistStorage(STORAGE_KEYS.TASKS, mockTasks);
     return HttpResponse.json(ok(null));
   }),
 ];

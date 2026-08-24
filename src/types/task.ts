@@ -29,6 +29,7 @@ export interface Task {
   recurrenceRule?: RecurrenceRule;
   status: TaskStatus;
   isApproved?: boolean;
+  isFromPending?: boolean;
   alertStatus: AlertStatus;
   overrideRemark?: string;
   createdBy: string;
@@ -53,6 +54,7 @@ export interface TaskFormData {
   remarks?: string;
   recurrence?: RecurrenceRule;
   status?: TaskStatus;
+  isFromPending?: boolean;
   overrideRemark?: string;
   alertStatus?: AlertStatus;
 }

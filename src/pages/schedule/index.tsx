@@ -65,7 +65,6 @@ const SchedulePage: FC = () => {
   // 員工模式下，鎖定為 'employee' 維度，並依員工所屬組別（例如：台北 早班）呈現同組同仁與集團之服務班表
   const effectiveDimension: ScheduleDimension = isStaff ? 'employee' : dimension;
   const effectiveArea = isStaff ? selectedArea || '台北' : selectedArea;
-  const effectiveShift = isStaff ? selectedShift || '早班' : selectedShift;
 
   // 彈出詳情小框與編輯狀態
   const [selectedEvent, setSelectedEvent] = useState<ScheduleEvent | null>(null);
@@ -309,7 +308,6 @@ const SchedulePage: FC = () => {
     branchId,
     dimension,
     effectiveArea,
-    effectiveShift,
     employeeId,
     employees,
     groupId,
@@ -387,10 +385,19 @@ const SchedulePage: FC = () => {
         targetEndTime = dayjs(dropInfo.date).add(durationMinutes, 'minute').format('HH:mm');
       }
 
-      let newAssigneeIds = task.assignees?.map((a) => a.employeeId) || [];
+      // 檢查指派員工：若在員工維度拖曳到某員工欄位，則累加該員工（不重複）
+      const existingAssigneeIds = task.assignees?.map((a) => a.employeeId) || [];
+      const newAssigneeIds = [...existingAssigneeIds];
       if (effectiveDimension === 'employee' && dropInfo.resourceId) {
-        newAssigneeIds = [dropInfo.resourceId];
+        if (!newAssigneeIds.includes(dropInfo.resourceId)) {
+          newAssigneeIds.push(dropInfo.resourceId);
+        }
       }
+
+      // 判斷人數需求：必須達到 headcount 且有日期時間，才正式轉為 SCHEDULED，否則保持 UNSCHEDULED
+      const requiredHeadcount = task.headcount || 1;
+      const isFullyStaffed = newAssigneeIds.length >= requiredHeadcount;
+      const newStatus = isFullyStaffed ? 'SCHEDULED' : 'UNSCHEDULED';
 
       try {
         await updateTaskMutation.mutateAsync({
@@ -402,26 +409,31 @@ const SchedulePage: FC = () => {
             date: targetDate,
             startTime: targetStartTime,
             endTime: targetEndTime,
-            headcount: task.headcount || 1,
+            headcount: requiredHeadcount,
             shift: task.shift || '早班',
             route: task.route || '',
             contents: task.contents || ['P'],
             otherContentNote: task.otherContentNote,
             assignees: newAssigneeIds,
             remarks: task.remarks,
-            status: 'SCHEDULED',
+            isFromPending: true,
+            status: newStatus,
           },
         });
-        message.success(
-          t('schedule.taskScheduledSuccess', {
-            name: `${task.groupName} - ${task.branchName}`,
-          }) || `已成功將「${task.groupName} - ${task.branchName}」排入班表！`,
-        );
+        if (isFullyStaffed) {
+          message.success(
+            `已成功將「${task.groupName} - ${task.branchName}」全員指派完成 (${newAssigneeIds.length}/${requiredHeadcount}人)，正式排入班表！`,
+          );
+        } else {
+          message.info(
+            `已指派員工 (${newAssigneeIds.length}/${requiredHeadcount}人)，尚缺 ${requiredHeadcount - newAssigneeIds.length} 人，任務保留於待排清單中，請繼續拖曳指派！`,
+          );
+        }
       } catch {
         message.error('排班失敗，請稍後再試');
       }
     },
-    [currentView, effectiveDimension, t, updateTaskMutation],
+    [currentView, effectiveDimension, updateTaskMutation],
   );
 
   // 待排任務卡片點擊編輯
@@ -443,19 +455,66 @@ const SchedulePage: FC = () => {
         shift: task.shift,
         assignees: task.assignees,
         contents: task.contents,
+        isFromPending: true,
       },
     });
     setEditOpen(true);
   }, []);
 
-  // 將已排班任務移回待排任務清單 (Unschedule Task)
-  const handleUnscheduleTask = useCallback(
-    async (taskId: string, taskTitle?: string) => {
+  // 將已排班任務或特定員工移回待排任務清單 (Remove / Unschedule)
+  const handleRemoveFromSchedule = useCallback(
+    async (
+      taskId: string,
+      taskTitle?: string,
+      employeeIdToRemove?: string,
+      scheduleEvt?: ScheduleEvent,
+    ) => {
       try {
+        setDetailOpen(false);
+        setSelectedEvent(null);
+
+        // 若是在員工維度拖曳單一員工區塊，且該任務已指派多位員工
+        if (employeeIdToRemove && scheduleEvt?.extendedProps?.assignees) {
+          const currentAssignees = scheduleEvt.extendedProps.assignees;
+          const remainingAssigneeIds = currentAssignees
+            .filter((a) => a.employeeId !== employeeIdToRemove)
+            .map((a) => a.employeeId);
+
+          const headcount =
+            ((scheduleEvt.extendedProps as Record<string, unknown>)?.headcount as number) ||
+            currentAssignees.length;
+          const isFullyStaffed =
+            remainingAssigneeIds.length >= headcount && remainingAssigneeIds.length > 0;
+
+          await updateTaskMutation.mutateAsync({
+            id: taskId,
+            data: {
+              assignees: remainingAssigneeIds,
+              status: isFullyStaffed ? 'SCHEDULED' : 'UNSCHEDULED',
+              isFromPending: true,
+            },
+          });
+
+          if (remainingAssigneeIds.length > 0) {
+            message.success(
+              `已從「${taskTitle || '任務'}」移除該名員工，目前指派 (${remainingAssigneeIds.length}/${headcount}人)`,
+            );
+          } else {
+            message.success(
+              t('schedule.moveToUnscheduledSuccess', { name: taskTitle || '任務' }) ||
+                `已將「${taskTitle || '任務'}」移回待排任務清單`,
+            );
+          }
+          return;
+        }
+
+        // 全任務移回待排清單
         await updateTaskMutation.mutateAsync({
           id: taskId,
           data: {
             status: 'UNSCHEDULED',
+            assignees: [],
+            isFromPending: true,
           },
         });
         message.success(
@@ -463,10 +522,17 @@ const SchedulePage: FC = () => {
             `已將「${taskTitle || '任務'}」移回待排任務清單`,
         );
       } catch {
-        message.error('移回待排任務失敗，請稍後再試');
+        message.error('操作失敗，請稍後再試');
       }
     },
     [t, updateTaskMutation],
+  );
+
+  const handleUnscheduleTask = useCallback(
+    (taskId: string, taskTitle?: string) => {
+      return handleRemoveFromSchedule(taskId, taskTitle);
+    },
+    [handleRemoveFromSchedule],
   );
 
   // 日曆事件拖曳開始：啟動待排面板放置高亮提示
@@ -495,13 +561,21 @@ const SchedulePage: FC = () => {
           clientY >= rect.top &&
           clientY <= rect.bottom
         ) {
+          const scheduleEvt =
+            (info.event.extendedProps?.scheduleEvent as ScheduleEvent | undefined) ||
+            (info.event.extendedProps as unknown as ScheduleEvent | undefined);
           const taskId =
-            (info.event.extendedProps?.taskId as string) || info.event.id.replace(/^event-/, '');
-          handleUnscheduleTask(taskId, info.event.title);
+            scheduleEvt?.taskId ||
+            (info.event.extendedProps?.taskId as string) ||
+            info.event.id.replace(/^event-/, '').replace(/-emp-[^-]+$/, '');
+          const draggedEmpId =
+            effectiveDimension === 'employee' ? scheduleEvt?.resourceId : undefined;
+
+          handleRemoveFromSchedule(taskId, info.event.title, draggedEmpId, scheduleEvt);
         }
       }
     },
-    [handleUnscheduleTask],
+    [effectiveDimension, handleRemoveFromSchedule],
   );
 
   // 任務詳情格式化
@@ -666,22 +740,45 @@ const SchedulePage: FC = () => {
               className="schedule-event-detail-actions"
               style={{ marginTop: 12, width: '100%', justifyContent: 'flex-end', flexWrap: 'wrap' }}
             >
-              <Button
-                size="small"
-                onClick={() => {
-                  setDetailOpen(false);
-                  handleUnscheduleTask(event.taskId, event.title);
-                }}
-                aria-label={t('schedule.moveToUnscheduled')}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  color: '#ffffff',
-                  borderColor: 'rgba(255, 255, 255, 0.5)',
-                  fontWeight: 600,
-                }}
-              >
-                {t('schedule.moveToUnscheduled') || '移回待排'}
-              </Button>
+              {effectiveDimension === 'employee' &&
+                (event.extendedProps.assignees?.length || 0) > 1 && (
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      setDetailOpen(false);
+                      handleRemoveFromSchedule(event.taskId, event.title, event.resourceId, event);
+                    }}
+                    aria-label="移除此人員"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.15)',
+                      color: '#ffffff',
+                      borderColor: 'rgba(255, 255, 255, 0.5)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    移除此人員
+                  </Button>
+                )}
+              {(Boolean(event.extendedProps.isFromPending) ||
+                event.id.includes('pending') ||
+                event.taskId?.includes('pending')) && (
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setDetailOpen(false);
+                    handleUnscheduleTask(event.taskId, event.title);
+                  }}
+                  aria-label={t('schedule.moveToUnscheduled')}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.15)',
+                    color: '#ffffff',
+                    borderColor: 'rgba(255, 255, 255, 0.5)',
+                    fontWeight: 600,
+                  }}
+                >
+                  {t('schedule.moveToUnscheduled') || '移回待排'}
+                </Button>
+              )}
               <Button
                 size="small"
                 onClick={handleEditClick}
@@ -715,8 +812,10 @@ const SchedulePage: FC = () => {
     },
     [
       detailRows,
+      effectiveDimension,
       handleCancelTask,
       handleEditClick,
+      handleRemoveFromSchedule,
       handleUnscheduleTask,
       hasScheduleEdit,
       selectedEvent?.id,

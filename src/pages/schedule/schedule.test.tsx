@@ -102,6 +102,7 @@ const sampleEvent: ScheduleEvent = {
     shift: 'DAY',
     assignees: [{ employeeId: 'e1', employeeName: '員工A', licenses: [] }],
     contents: ['P'],
+    isFromPending: true,
   },
 };
 
@@ -398,7 +399,7 @@ describe('SchedulePage', () => {
       expect(screen.getByText('指派人員: 員工A')).toBeInTheDocument();
     });
 
-    it('shows edit, cancel, and move to unscheduled buttons in the detail popover', async () => {
+    it('shows edit, cancel, and move to unscheduled buttons in the detail popover for pending-originated tasks', async () => {
       renderPage();
 
       const user = userEvent.setup();
@@ -411,7 +412,7 @@ describe('SchedulePage', () => {
       expect(screen.getByLabelText('移回待排')).toBeInTheDocument();
     });
 
-    it('moves task to unscheduled list when 移回待排 is clicked', async () => {
+    it('moves task to unscheduled list when 移回待排 is clicked for pending-originated tasks', async () => {
       renderPage();
 
       const user = userEvent.setup();
@@ -428,6 +429,8 @@ describe('SchedulePage', () => {
           id: 'task-1',
           data: {
             status: 'UNSCHEDULED',
+            assignees: [],
+            isFromPending: true,
           },
         });
       });
