@@ -8,6 +8,14 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
+// 動態更新頁籤圖示，破除瀏覽器對 localhost 的圖示快取
+if (typeof document !== 'undefined') {
+  const link = document.querySelector<HTMLLinkElement>("link[rel*='icon']");
+  if (link) {
+    link.href = '/favicon-128.png?v=2026';
+  }
+}
+
 /**
  * 依環境變數啟用瀏覽器端的 API Mock（MSW）。
  * 僅在開發環境（DEV）且 VITE_USE_MOCK_API 設為 'true' 時才會動態載入並啟動 worker，

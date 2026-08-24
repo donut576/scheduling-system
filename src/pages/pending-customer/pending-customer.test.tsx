@@ -223,14 +223,14 @@ describe('PendingCustomerPage', () => {
   });
 
   describe('新增/編輯待定客戶 - Requirement 14.2', () => {
-    it('opens create modal with empty form when 新增待排客戶 is clicked', async () => {
+    it('opens create modal with empty form when 新增待排任務 is clicked', async () => {
       const user = userEvent.setup();
       renderWithClient(<PendingCustomerPage />);
 
-      await user.click(screen.getByRole('button', { name: /新增待排客戶/ }));
+      await user.click(screen.getByRole('button', { name: /新增待排任務/ }));
 
       const modal = screen.getByRole('dialog');
-      expect(within(modal).getByText('新增待排客戶表單')).toBeInTheDocument();
+      expect(within(modal).getByText('新增待排任務表單')).toBeInTheDocument();
       expect(within(modal).getByRole('combobox', { name: '集團' })).toBeInTheDocument();
       expect(within(modal).getByLabelText('人數需求')).toBeInTheDocument();
     });
@@ -243,7 +243,7 @@ describe('PendingCustomerPage', () => {
       await user.click(rows[0]!);
 
       await waitFor(() => {
-        expect(screen.getByText('編輯待排客戶表單')).toBeInTheDocument();
+        expect(screen.getByText('編輯待排任務表單')).toBeInTheDocument();
       });
     });
 
@@ -251,7 +251,7 @@ describe('PendingCustomerPage', () => {
       const user = userEvent.setup();
       renderWithClient(<PendingCustomerPage />);
 
-      await user.click(screen.getByRole('button', { name: /新增待排客戶/ }));
+      await user.click(screen.getByRole('button', { name: /新增待排任務/ }));
 
       const modal = screen.getByRole('dialog');
       await user.click(within(modal).getByRole('combobox', { name: '集團' }));
@@ -276,6 +276,10 @@ describe('PendingCustomerPage', () => {
             headcount: 5,
           }),
         );
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       });
     });
   });

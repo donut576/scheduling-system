@@ -568,28 +568,7 @@ const ApprovalPage: FC = () => {
         width={650}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            {selectedApproval?.status === 'PENDING' && canApprove && (
-              <>
-                <Button
-                  type="primary"
-                  icon={<CheckOutlined />}
-                  onClick={() => {
-                    if (selectedApproval) handleApproveClick(selectedApproval);
-                  }}
-                >
-                  {t('approval.approve')}
-                </Button>
-                <Button
-                  danger
-                  icon={<CloseOutlined />}
-                  onClick={() => {
-                    if (selectedApproval) handleRejectClick(selectedApproval);
-                  }}
-                >
-                  {t('approval.reject')}
-                </Button>
-              </>
-            )}
+            <Button onClick={handleCloseDiffModal}>關閉</Button>
             {selectedApproval?.status === 'PENDING' && !canApprove && (
               <Button
                 danger
@@ -601,7 +580,28 @@ const ApprovalPage: FC = () => {
                 撤回申請
               </Button>
             )}
-            <Button onClick={handleCloseDiffModal}>關閉</Button>
+            {selectedApproval?.status === 'PENDING' && canApprove && (
+              <>
+                <Button
+                  danger
+                  icon={<CloseOutlined />}
+                  onClick={() => {
+                    if (selectedApproval) handleRejectClick(selectedApproval);
+                  }}
+                >
+                  {t('approval.reject')}
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<CheckOutlined />}
+                  onClick={() => {
+                    if (selectedApproval) handleApproveClick(selectedApproval);
+                  }}
+                >
+                  {t('approval.approve')}
+                </Button>
+              </>
+            )}
           </div>
         }
       >
@@ -717,7 +717,7 @@ const ApprovalPage: FC = () => {
         )}
       </Modal>
 
-      {/* 核准確認 Modal：確定在取消左邊 */}
+      {/* 核准確認 Modal：取消在左邊，確定在右邊 */}
       <Modal
         title={
           <Space>
@@ -730,6 +730,9 @@ const ApprovalPage: FC = () => {
         width={500}
         footer={
           <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={handleApproveCancel} aria-label="取消">
+              取消
+            </Button>
             <Button
               type="primary"
               loading={approveMutation.isPending}
@@ -737,9 +740,6 @@ const ApprovalPage: FC = () => {
               aria-label="確定"
             >
               確定核准
-            </Button>
-            <Button onClick={handleApproveCancel} aria-label="取消">
-              取消
             </Button>
           </Space>
         }
@@ -762,7 +762,7 @@ const ApprovalPage: FC = () => {
         )}
       </Modal>
 
-      {/* 駁回確認 Modal：確定在取消左邊 */}
+      {/* 駁回確認 Modal：取消在左邊，確定在右邊 */}
       <Modal
         title={
           <Space>
@@ -775,6 +775,9 @@ const ApprovalPage: FC = () => {
         width={500}
         footer={
           <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={handleRejectCancel} aria-label="取消">
+              取消
+            </Button>
             <Button
               type="primary"
               danger
@@ -783,9 +786,6 @@ const ApprovalPage: FC = () => {
               aria-label="確定"
             >
               確定駁回
-            </Button>
-            <Button onClick={handleRejectCancel} aria-label="取消">
-              取消
             </Button>
           </Space>
         }

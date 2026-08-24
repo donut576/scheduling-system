@@ -219,7 +219,7 @@ function renderPendingCustomerCard(
                   onDeleteClick(record);
                 }}
                 aria-label={t('common.delete')}
-                title="刪除待排客戶"
+                title="刪除待排任務"
                 style={{ padding: 0, width: 22, height: 22 }}
               />
             )}
@@ -360,14 +360,14 @@ const PendingCustomerPage: FC = () => {
   const handleDeleteClick = useCallback(
     (record: PendingCustomer) => {
       Modal.confirm({
-        title: '刪除待排客戶',
-        content: `確定要刪除「${record.groupName} - ${record.branchName}」這筆待排客戶資料嗎？`,
+        title: '刪除待排任務',
+        content: `確定要刪除「${record.groupName} - ${record.branchName}」這筆待排任務資料嗎？`,
         okText: t('common.delete'),
         cancelText: t('common.cancel'),
         okButtonProps: { danger: true },
         onOk: async () => {
           await deleteMutation.mutateAsync(record.id);
-          message.success('待排客戶資料已刪除');
+          message.success('待排任務資料已刪除');
         },
       });
     },
@@ -498,7 +498,7 @@ const PendingCustomerPage: FC = () => {
       exportToExcel(
         recordsToExport,
         getPendingCustomerExportColumns(t),
-        `待排客戶列表${filenameSuffix}_${dayjs().format('YYYYMMDD_HHmmss')}`,
+        `待排任務列表${filenameSuffix}_${dayjs().format('YYYYMMDD_HHmmss')}`,
       );
     } catch {
       message.error(t('common.exportFailed'));
@@ -529,7 +529,7 @@ const PendingCustomerPage: FC = () => {
       form.setFieldsValue({
         groupId: record.groupId,
         branchId: record.branchId,
-        taskType: 'CONTRACT',
+        taskType: record.taskType || 'CONTRACT',
         date: record.date ? dayjs(record.date) : undefined,
         startTime: record.startTime || undefined,
         endTime: record.endTime || undefined,
@@ -537,11 +537,13 @@ const PendingCustomerPage: FC = () => {
         shift: record.shift || (shifts[0]?.value as string) || '早班',
         route: record.route || undefined,
         contents: record.contents || ['P'],
+        otherContentNote: record.otherContentNote,
         assignees: record.assignees?.map((a) => a.employeeId) ?? [],
         remarks: record.remarks,
       });
-      setEnableRecurrence(true);
-      setRecurrenceRule(DEFAULT_RECURRENCE_RULE);
+      const hasRecurrence = Boolean(record.recurrenceRule);
+      setEnableRecurrence(hasRecurrence);
+      setRecurrenceRule(record.recurrenceRule || DEFAULT_RECURRENCE_RULE);
       setModalOpen(true);
     },
     [form, shifts],
@@ -567,6 +569,7 @@ const PendingCustomerPage: FC = () => {
     const data: PendingCustomerFormData = {
       groupId: values.groupId,
       branchId: values.branchId,
+      taskType: values.taskType || editingRecord?.taskType || 'CONTRACT',
       date: dateStr,
       startTime: values.startTime || undefined,
       endTime: values.endTime || undefined,
@@ -574,7 +577,9 @@ const PendingCustomerPage: FC = () => {
       shift: values.shift,
       route: values.route || undefined,
       contents: values.contents,
+      otherContentNote: values.otherContentNote,
       assignees: values.assignees?.map((id) => ({ employeeId: id, employeeName: '' })),
+      recurrenceRule: enableRecurrence ? recurrenceRule : undefined,
       remarks: values.remarks,
     };
 
@@ -589,7 +594,7 @@ const PendingCustomerPage: FC = () => {
     setModalOpen(false);
     setEditingRecord(null);
     form.resetFields();
-  }, [form, editingRecord, createMutation, updateMutation, t]);
+  }, [form, editingRecord, enableRecurrence, recurrenceRule, createMutation, updateMutation, t]);
 
   // 開啟「排定任務」確認 Modal，並帶入預排之基本資料供填寫具體日期與時段
   const handleConvertClick = useCallback(
@@ -598,7 +603,7 @@ const PendingCustomerPage: FC = () => {
       convertForm.setFieldsValue({
         groupId: record.groupId,
         branchId: record.branchId,
-        taskType: 'CONTRACT',
+        taskType: record.taskType || 'CONTRACT',
         date: record.date ? dayjs(record.date) : dayjs(),
         startTime: record.startTime || '09:00',
         endTime: record.endTime || '18:00',
@@ -606,11 +611,13 @@ const PendingCustomerPage: FC = () => {
         shift: record.shift || (shifts[0]?.value as string) || '早班',
         route: record.route || '第一路',
         contents: record.contents || ['P'],
+        otherContentNote: record.otherContentNote,
         assignees: record.assignees?.map((a) => a.employeeId) ?? [],
         remarks: record.remarks,
       });
-      setConvertEnableRecurrence(true);
-      setConvertRecurrenceRule(DEFAULT_RECURRENCE_RULE);
+      const hasRecurrence = Boolean(record.recurrenceRule);
+      setConvertEnableRecurrence(hasRecurrence);
+      setConvertRecurrenceRule(record.recurrenceRule || DEFAULT_RECURRENCE_RULE);
       setConvertModalOpen(true);
     },
     [convertForm, shifts],
@@ -642,7 +649,9 @@ const PendingCustomerPage: FC = () => {
       headcount: values.headcount,
       route: values.route,
       contents: values.contents,
+      otherContentNote: values.otherContentNote,
       assignees: values.assignees?.map((id) => ({ employeeId: id, employeeName: '' })),
+      recurrenceRule: convertEnableRecurrence ? convertRecurrenceRule : undefined,
       remarks: values.remarks,
     };
 
@@ -652,7 +661,14 @@ const PendingCustomerPage: FC = () => {
     setConvertModalOpen(false);
     setConvertingRecord(null);
     convertForm.resetFields();
-  }, [convertForm, convertingRecord, convertMutation, t]);
+  }, [
+    convertForm,
+    convertingRecord,
+    convertEnableRecurrence,
+    convertRecurrenceRule,
+    convertMutation,
+    t,
+  ]);
 
   // 仿照任務列表之欄位結構，將狀態改為建立時間，未確認項目以「-」或「待排」呈現
   const columns: ColumnDef<PendingCustomer>[] = [
@@ -675,7 +691,7 @@ const PendingCustomerPage: FC = () => {
                   handleDeleteClick(record);
                 }}
                 aria-label={t('common.delete')}
-                title="刪除待排客戶"
+                title="刪除待排任務"
                 style={{ width: 26, height: 26, padding: 0 }}
               />
             ),
@@ -851,7 +867,8 @@ const PendingCustomerPage: FC = () => {
     {
       title: t('common.actions'),
       key: 'actions',
-      width: 160,
+      width: 170,
+      fixed: 'right',
       render: (_value: unknown, record: PendingCustomer) => (
         <Space size="small" onClick={(e) => e.stopPropagation()}>
           <Button
@@ -922,11 +939,12 @@ const PendingCustomerPage: FC = () => {
         </Space>
       </div>
 
-      {/* 待排客戶列表 */}
+      {/* 待排任務列表 */}
       <BaseTable<PendingCustomer>
         columns={columns}
         queryHook={usePendingCustomerListQuery}
         onRowClick={handleEditClick}
+        scroll={{ x: 1600 }}
         cardRender={(record) =>
           renderPendingCustomerCard(
             record,
@@ -940,10 +958,10 @@ const PendingCustomerPage: FC = () => {
         rowKey="id"
       />
 
-      {/* 新增/編輯待排客戶 Modal（與新增任務相同之 4 Card 分區架構，非必填項可留空） */}
+      {/* 新增/編輯待排任務 Modal（與新增任務相同之 4 Card 分區架構，非必填項可留空） */}
       {modalOpen && (
         <Modal
-          title={editingRecord ? '編輯待排客戶表單' : '新增待排客戶表單'}
+          title={editingRecord ? '編輯待排任務表單' : '新增待排任務表單'}
           open={modalOpen}
           onCancel={handleModalCancel}
           width={980}
@@ -1181,9 +1199,12 @@ const PendingCustomerPage: FC = () => {
 
             <Divider style={{ margin: '16px 0' }} />
 
-            {/* 表單操作按鈕：確定在取消左邊 */}
+            {/* 表單操作按鈕：取消在左邊，確定在右邊 */}
             <Form.Item style={{ marginBottom: 0 }}>
               <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                <Button htmlType="button" onClick={handleModalCancel} aria-label="取消">
+                  取消
+                </Button>
                 <Button
                   type="primary"
                   htmlType="button"
@@ -1192,9 +1213,6 @@ const PendingCustomerPage: FC = () => {
                   aria-label="確定"
                 >
                   確定
-                </Button>
-                <Button htmlType="button" onClick={handleModalCancel} aria-label="取消">
-                  取消
                 </Button>
               </Space>
             </Form.Item>
@@ -1330,10 +1348,10 @@ const PendingCustomerPage: FC = () => {
 
                   <Divider style={{ margin: '12px 0' }} />
 
-                  <Form.Item label="週期" required style={{ marginBottom: 8 }}>
+                  <Form.Item label="週期" style={{ marginBottom: 8 }}>
                     <Radio.Group
                       value={convertEnableRecurrence}
-                      onChange={(e) => setConvertEnableRecurrence(e.target.value)}
+                      disabled
                       style={{ marginBottom: convertEnableRecurrence ? 12 : 0 }}
                     >
                       <Radio.Button value={false}>無週期</Radio.Button>
@@ -1341,10 +1359,7 @@ const PendingCustomerPage: FC = () => {
                     </Radio.Group>
                     {convertEnableRecurrence && (
                       <div style={{ marginTop: 8 }}>
-                        <RecurrenceEditor
-                          value={convertRecurrenceRule}
-                          onChange={(rule) => setConvertRecurrenceRule(rule)}
-                        />
+                        <RecurrenceEditor value={convertRecurrenceRule} disabled />
                       </div>
                     )}
                   </Form.Item>
@@ -1450,9 +1465,12 @@ const PendingCustomerPage: FC = () => {
 
             <Divider style={{ margin: '16px 0' }} />
 
-            {/* 表單操作按鈕：確定在取消左邊 */}
+            {/* 表單操作按鈕：取消在左邊，確定在右邊 */}
             <Form.Item style={{ marginBottom: 0 }}>
               <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                <Button htmlType="button" onClick={handleConvertCancel} aria-label="取消">
+                  取消
+                </Button>
                 <Button
                   type="primary"
                   htmlType="button"
@@ -1461,9 +1479,6 @@ const PendingCustomerPage: FC = () => {
                   aria-label="確定"
                 >
                   確定
-                </Button>
-                <Button htmlType="button" onClick={handleConvertCancel} aria-label="取消">
-                  取消
                 </Button>
               </Space>
             </Form.Item>

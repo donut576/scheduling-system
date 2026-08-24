@@ -642,6 +642,7 @@ function TaskPage() {
         columns={tableColumns}
         queryHook={useCurrentTaskListQuery}
         onRowClick={handleRowClick}
+        scroll={{ x: 1500 }}
         cardRender={(record) => renderTaskCard(record, t)}
         rowKey="id"
         rowClassName={rowClassName}

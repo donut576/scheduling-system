@@ -19,7 +19,8 @@ import type { RecurrenceRule } from '@/types/task';
  */
 export interface RecurrenceEditorProps {
   value?: RecurrenceRule;
-  onChange: (rule: RecurrenceRule) => void;
+  onChange?: (rule: RecurrenceRule) => void;
+  disabled?: boolean;
 }
 
 const { Text } = Typography;
@@ -37,7 +38,11 @@ const DEFAULT_RULE: RecurrenceRule = {
  *
  * Validates: Requirements 5.1
  */
-const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({ value, onChange }) => {
+const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({
+  value,
+  onChange,
+  disabled = false,
+}) => {
   const { t } = useTranslation();
   const rule = value ?? DEFAULT_RULE;
   const frequencyOptions: { label: string; value: RecurrenceRule['frequency'] }[] = [
@@ -63,7 +68,7 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({ value, onChange }) 
 
   const updateRule = useCallback(
     (partial: Partial<RecurrenceRule>) => {
-      onChange({ ...rule, ...partial });
+      onChange?.({ ...rule, ...partial });
     },
     [rule, onChange],
   );
@@ -93,7 +98,7 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({ value, onChange }) 
     }
     // 'custom'（自訂）頻率保留所有欄位，允許同時設定週幾與每月幾號
 
-    onChange(updated);
+    onChange?.(updated);
   };
 
   const handleIntervalChange = (val: number | null) => {
@@ -133,7 +138,7 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({ value, onChange }) 
       }
     }
 
-    onChange(updated);
+    onChange?.(updated);
   };
 
   const handleEndDateChange = (_date: dayjs.Dayjs | null, dateString: string | string[]) => {
@@ -181,6 +186,7 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({ value, onChange }) 
           optionType="button"
           buttonStyle="solid"
           options={frequencyOptions}
+          disabled={disabled}
           aria-labelledby="frequency-label"
         />
       </div>
@@ -194,6 +200,7 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({ value, onChange }) 
             max={365}
             value={rule.interval}
             onChange={handleIntervalChange}
+            disabled={disabled}
             style={{ width: 80 }}
             aria-label={t('recurrence.interval')}
           />
@@ -211,6 +218,7 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({ value, onChange }) 
             value={rule.daysOfWeek ?? []}
             onChange={handleDaysOfWeekChange}
             options={daysOfWeekOptions}
+            disabled={disabled}
             aria-labelledby="days-of-week-label"
           />
         </div>
@@ -226,6 +234,7 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({ value, onChange }) 
               max={31}
               value={rule.dayOfMonth ?? 1}
               onChange={handleDayOfMonthChange}
+              disabled={disabled}
               style={{ width: 80 }}
               aria-label={t('recurrence.dayOfMonth')}
             />
@@ -242,6 +251,7 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({ value, onChange }) 
         <Radio.Group
           value={rule.endType}
           onChange={handleEndTypeChange}
+          disabled={disabled}
           aria-labelledby="end-type-label"
         >
           {endTypeOptions.map((opt) => (
@@ -261,6 +271,7 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({ value, onChange }) 
               value={rule.endDate ? dayjs(rule.endDate) : null}
               onChange={handleEndDateChange}
               format="YYYY-MM-DD"
+              disabled={disabled}
               aria-label={t('recurrence.endDate')}
               disabledDate={(current) => current && current.isBefore(dayjs(), 'day')}
             />
@@ -278,6 +289,7 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({ value, onChange }) 
               max={999}
               value={rule.endCount ?? 10}
               onChange={handleEndCountChange}
+              disabled={disabled}
               style={{ width: 80 }}
               aria-label={t('recurrence.repeatCount')}
             />

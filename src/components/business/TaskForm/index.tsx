@@ -663,9 +663,15 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
           </div>
         )}
 
-        {/* Form Actions */}
+        {/* Form Actions：取消在左，儲存（確認）在右 */}
         <Form.Item style={{ marginBottom: 0 }}>
           <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button htmlType="button" onClick={handleClearAll} aria-label={t('common.clearAll')}>
+              {t('common.clearAll')}
+            </Button>
+            <Button htmlType="button" onClick={onCancel} aria-label={t('common.cancel')}>
+              {t('common.cancel')}
+            </Button>
             <Button
               type="primary"
               htmlType="submit"
@@ -673,12 +679,6 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
               aria-label={t('common.save')}
             >
               {t('common.save')}
-            </Button>
-            <Button htmlType="button" onClick={onCancel} aria-label={t('common.cancel')}>
-              {t('common.cancel')}
-            </Button>
-            <Button htmlType="button" onClick={handleClearAll} aria-label={t('common.clearAll')}>
-              {t('common.clearAll')}
             </Button>
           </Space>
         </Form.Item>

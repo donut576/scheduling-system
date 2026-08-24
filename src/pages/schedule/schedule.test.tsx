@@ -44,13 +44,14 @@ vi.mock('@/queries/useEmployeeQueries', () => ({
   useEmployeeList: vi.fn(),
 }));
 vi.mock('@/queries/useTaskQueries', () => ({
+  useTaskList: vi.fn(),
   useTaskDetail: vi.fn(),
   useUpdateTask: vi.fn(),
 }));
 
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useEmployeeList } from '@/queries/useEmployeeQueries';
-import { useTaskDetail, useUpdateTask } from '@/queries/useTaskQueries';
+import { useTaskList, useTaskDetail, useUpdateTask } from '@/queries/useTaskQueries';
 
 // Mock ScheduleCalendar - it is FullCalendar-based and already has its own test
 // suite. Replace it with a simple stand-in that exposes its props so the page's
@@ -193,6 +194,11 @@ describe('SchedulePage', () => {
     vi.mocked(useTaskDetail).mockReturnValue({
       data: undefined,
     } as unknown as ReturnType<typeof useTaskDetail>);
+
+    vi.mocked(useTaskList).mockReturnValue({
+      data: { list: [], total: 0, page: 1, pageSize: 100 },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useTaskList>);
 
     vi.mocked(useUpdateTask).mockReturnValue({
       mutateAsync: mockUpdateTaskMutateAsync,
@@ -392,7 +398,7 @@ describe('SchedulePage', () => {
       expect(screen.getByText('指派人員: 員工A')).toBeInTheDocument();
     });
 
-    it('shows edit and cancel buttons in the detail popover', async () => {
+    it('shows edit, cancel, and move to unscheduled buttons in the detail popover', async () => {
       renderPage();
 
       const user = userEvent.setup();
@@ -402,6 +408,29 @@ describe('SchedulePage', () => {
         expect(screen.getByLabelText('編輯任務')).toBeInTheDocument();
       });
       expect(screen.getByLabelText('取消任務')).toBeInTheDocument();
+      expect(screen.getByLabelText('移回待排')).toBeInTheDocument();
+    });
+
+    it('moves task to unscheduled list when 移回待排 is clicked', async () => {
+      renderPage();
+
+      const user = userEvent.setup();
+      await user.click(screen.getByText('觸發事件點擊'));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('移回待排')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByLabelText('移回待排'));
+
+      await waitFor(() => {
+        expect(mockUpdateTaskMutateAsync).toHaveBeenCalledWith({
+          id: 'task-1',
+          data: {
+            status: 'UNSCHEDULED',
+          },
+        });
+      });
     });
 
     it('closes the detail popover when close is triggered', async () => {

@@ -17,6 +17,15 @@ import AlertBadge from '@/components/business/AlertBadge';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { toResourceInputs, toEventInputs } from './adapters';
 
+export interface ExternalDropArg {
+  date: Date;
+  dateStr: string;
+  allDay: boolean;
+  resourceId?: string;
+  draggedEl: HTMLElement;
+  jsEvent: MouseEvent;
+}
+
 export interface ScheduleCalendarProps {
   viewMode: 'day' | 'week' | 'month';
   dimension: ScheduleDimension;
@@ -31,6 +40,14 @@ export interface ScheduleCalendarProps {
   onEventDetailClose?: () => void;
   onZoomToDay?: (dateTime: string) => void;
   onZoomViewChange?: (viewMode: 'day' | 'week' | 'month') => void;
+  droppable?: boolean;
+  onExternalDrop?: (arg: ExternalDropArg) => void;
+  editable?: boolean;
+  onEventDragStart?: (event: { id: string; title: string }) => void;
+  onEventDragStop?: (info: {
+    event: { id: string; title: string; extendedProps?: Record<string, unknown> };
+    jsEvent: MouseEvent;
+  }) => void;
 }
 
 /**
@@ -50,6 +67,11 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   onEventDetailClose,
   onZoomToDay,
   onZoomViewChange,
+  droppable = true,
+  onExternalDrop,
+  editable = true,
+  onEventDragStart,
+  onEventDragStop,
 }) => {
   const { t } = useTranslation();
   const calendarRef = useRef<FullCalendar>(null);
@@ -726,6 +748,41 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         selectMinDistance={8}
         select={handleDateSelect}
         datesSet={handleDatesSet}
+        droppable={droppable}
+        editable={editable}
+        eventDragStart={(info: { event: { id: string; title: string } }) => {
+          onEventDragStart?.(info.event);
+        }}
+        eventDragStop={(info: {
+          event: { id: string; title: string; extendedProps?: Record<string, unknown> };
+          jsEvent: MouseEvent;
+        }) => {
+          onEventDragStop?.({
+            event: {
+              id: info.event.id,
+              title: info.event.title,
+              extendedProps: info.event.extendedProps,
+            },
+            jsEvent: info.jsEvent,
+          });
+        }}
+        drop={(arg: {
+          date: Date;
+          dateStr: string;
+          allDay: boolean;
+          resource?: { id: string; title: string };
+          draggedEl: HTMLElement;
+          jsEvent: MouseEvent;
+        }) => {
+          onExternalDrop?.({
+            date: arg.date,
+            dateStr: arg.dateStr,
+            allDay: arg.allDay,
+            resourceId: arg.resource?.id,
+            draggedEl: arg.draggedEl,
+            jsEvent: arg.jsEvent,
+          });
+        }}
         slotEventOverlap={false}
         allDaySlot={false}
         eventMinHeight={38}

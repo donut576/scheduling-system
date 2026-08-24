@@ -66,13 +66,15 @@ export function useCreateTask() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-customers'] });
+      queryClient.invalidateQueries({ queryKey: ['schedule'] });
     },
   });
 }
 
 /**
  * 更新既有任務資料的變更（mutation）hook。
- * 成功後會同時讓任務列表快取與該任務的詳情快取失效，
+ * 成功後會同時讓任務列表快取、該任務詳情快取、待排任務與排班日曆失效，
  * 確保列表與詳情頁都能反映最新資料。
  */
 export function useUpdateTask() {
@@ -89,6 +91,8 @@ export function useUpdateTask() {
         queryKey: taskKeys.detail(variables.id),
       });
       queryClient.invalidateQueries({ queryKey: ['approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-customers'] });
+      queryClient.invalidateQueries({ queryKey: ['schedule'] });
     },
   });
 }

@@ -80,6 +80,8 @@ export interface BaseTableProps<T extends object> {
   onPaginationChange?: (page: number, pageSize: number) => void;
   /** 自訂無資料時的提示文字 */
   emptyText?: string;
+  /** 自訂橫向或縱向捲動設定，預設為 { x: 'max-content' } */
+  scroll?: TableProps<T>['scroll'];
 }
 
 function BaseTable<T extends object>({
@@ -94,6 +96,7 @@ function BaseTable<T extends object>({
   rowClassName,
   onPaginationChange,
   emptyText,
+  scroll,
 }: BaseTableProps<T>) {
   const { t } = useTranslation();
   // T 為泛型參數，代表單筆資料的型別；queryHook 由呼叫端注入，
@@ -301,7 +304,7 @@ function BaseTable<T extends object>({
         locale={{
           emptyText: isError ? t('common.loadFailed') : (emptyText ?? t('common.noData')),
         }}
-        scroll={{ x: 'max-content' }}
+        scroll={scroll ?? { x: 'max-content' }}
       />
     </div>
   );

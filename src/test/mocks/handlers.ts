@@ -1,6 +1,13 @@
 import { http, HttpResponse } from 'msw';
 import type { ApiResponse, PaginatedResponse } from '@/types/common';
-import type { Task, TaskAssignee, TaskFormData, ShiftType, TaskContent } from '@/types/task';
+import type {
+  Task,
+  TaskAssignee,
+  TaskFormData,
+  ShiftType,
+  TaskContent,
+  TaskType,
+} from '@/types/task';
 import type { Employee } from '@/types/employee';
 import type { Customer, CustomerGroup, PendingCustomer } from '@/types/customer';
 import type { PendingCustomerFormData, ConvertToTaskData } from '@/api/pending-customer';
@@ -2120,7 +2127,7 @@ const mockAlertValidationResult: AlertValidationResult = {
   canOverride: true,
 };
 
-const mockScheduleEvents: ScheduleEvent[] = [
+let mockScheduleEvents: ScheduleEvent[] = [
   // --- 2026-08-16 (昨日) ---
   {
     id: 'event-001',
@@ -3024,11 +3031,94 @@ export const handlers = [
       return HttpResponse.json(ok<Task>(mockTask));
     }
     const updated = applyTaskUpdate(existing, data);
-    // 編輯修改後，狀態設為「更改」(MODIFIED)，未核准 (isApproved: false)，字體反紅
-    updated.status = 'MODIFIED';
-    updated.isApproved = false;
+    if (data.status) {
+      updated.status = data.status;
+    } else if (existing.status === 'UNSCHEDULED') {
+      updated.status = 'SCHEDULED';
+      updated.isApproved = true;
+    } else {
+      updated.status = 'MODIFIED';
+      updated.isApproved = false;
+    }
     updated.updatedAt = new Date().toISOString();
     mockTasks = mockTasks.map((t) => (t.id === updated.id ? updated : t));
+
+    // 同步更新至 mockScheduleEvents 與 mockPendingCustomers
+    mockPendingCustomers = mockPendingCustomers.map((p) => {
+      if (
+        p.id === updated.id ||
+        `task-${p.id}` === updated.id ||
+        p.id === updated.id.replace('task-', '')
+      ) {
+        return {
+          ...p,
+          groupId: updated.groupId,
+          groupName: updated.groupName,
+          branchId: updated.branchId,
+          branchName: updated.branchName,
+          taskType: updated.taskType,
+          date: updated.date,
+          startTime: updated.startTime,
+          endTime: updated.endTime,
+          isOvernight: updated.isOvernight,
+          headcount: updated.headcount,
+          shift: updated.shift,
+          route: updated.route,
+          contents: updated.contents,
+          assignees: updated.assignees?.map((a) => ({
+            employeeId: a.employeeId,
+            employeeName: a.employeeName,
+          })),
+          recurrenceRule: updated.recurrenceRule,
+          isRecurring: Boolean(updated.recurrenceRule),
+          remarks: updated.remarks,
+          status: updated.status === 'UNSCHEDULED' ? 'PENDING' : 'CONVERTED',
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return p;
+    });
+
+    if (updated.status === 'UNSCHEDULED') {
+      mockScheduleEvents = mockScheduleEvents.filter((e) => e.taskId !== updated.id);
+    } else if (updated.date && updated.startTime && updated.endTime) {
+      const existingIdx = mockScheduleEvents.findIndex((e) => e.taskId === updated.id);
+      const scheduleEvt: ScheduleEvent = {
+        id:
+          existingIdx >= 0 && mockScheduleEvents[existingIdx]
+            ? mockScheduleEvents[existingIdx].id
+            : `event-${updated.id}`,
+        taskId: updated.id,
+        resourceId: updated.branchId || 'branch-001',
+        title: `${updated.groupName} - ${updated.branchName}`,
+        start: `${updated.date}T${updated.startTime}:00+08:00`,
+        end: `${updated.date}T${updated.endTime}:00+08:00`,
+        groupName: updated.groupName,
+        branchName: updated.branchName,
+        alertStatus: updated.alertStatus || 'CLEAN',
+        isRecurring: Boolean(updated.recurrenceRule),
+        isOvernight: updated.isOvernight,
+        backgroundColor: updated.assignees?.[0]?.groupColor || '#7a69c0',
+        extendedProps: {
+          taskType: updated.taskType,
+          shift: updated.shift,
+          assignees: updated.assignees.map((a) => ({
+            employeeId: a.employeeId,
+            employeeName: a.employeeName,
+            licenses: a.licenses,
+            area: a.area || '台北',
+            groupId: a.groupId,
+            groupColor: a.groupColor,
+          })),
+          contents: updated.contents,
+        },
+      };
+      if (existingIdx >= 0) {
+        mockScheduleEvents[existingIdx] = scheduleEvt;
+      } else {
+        mockScheduleEvents.push(scheduleEvt);
+      }
+    }
 
     // 比較前後差異
     const diff: {
@@ -3520,8 +3610,9 @@ export const handlers = [
   http.post('*/api/v1/pending-customers', async ({ request }) => {
     const data = (await request.json()) as PendingCustomerFormData;
     const { groupName, branchName } = resolveGroupBranchNames(data.groupId, data.branchId);
+    const id = `pending-${Date.now()}`;
     const newPending: PendingCustomer = {
-      id: `pending-${Date.now()}`,
+      id,
       groupId: data.groupId,
       groupName,
       branchId: data.branchId,
@@ -3535,11 +3626,45 @@ export const handlers = [
       route: data.route,
       contents: data.contents ?? ['定期環境清潔'],
       assignees: data.assignees ?? [],
+      recurrenceRule: data.recurrenceRule,
+      isRecurring: Boolean(data.recurrenceRule),
       remarks: data.remarks,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     mockPendingCustomers = [newPending, ...mockPendingCustomers];
+
+    // 同步新增至待排任務清單 (UNSCHEDULED)
+    const newUnscheduledTask: Task = {
+      id: `task-${id}`,
+      groupId: data.groupId,
+      groupName,
+      branchId: data.branchId,
+      branchName,
+      taskType: (data as unknown as { taskType?: TaskType }).taskType || 'CONTRACT',
+      date: data.date || new Date().toISOString().split('T')[0]!,
+      startTime: data.startTime || '09:00',
+      endTime: data.endTime || '17:00',
+      isOvernight: false,
+      headcount: data.headcount || 1,
+      shift: (data.shift as ShiftType) || '早班',
+      route: data.route || '',
+      contents: (data.contents as TaskContent[]) || ['P'],
+      assignees: resolveAssignees(
+        (data.assignees || []).map((a: unknown) =>
+          typeof a === 'string' ? a : (a as { employeeId: string }).employeeId,
+        ),
+      ),
+      recurrenceRule: data.recurrenceRule,
+      remarks: data.remarks || '',
+      status: 'UNSCHEDULED',
+      alertStatus: 'CLEAN',
+      createdBy: 'emp-001',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    mockTasks = [newUnscheduledTask, ...mockTasks];
+
     return HttpResponse.json(ok<PendingCustomer>(newPending));
   }),
   http.patch('*/api/v1/pending-customers/:id', async ({ params, request }) => {
@@ -3555,11 +3680,37 @@ export const handlers = [
     const updated: PendingCustomer = {
       ...existing,
       ...data,
+      recurrenceRule: 'recurrenceRule' in data ? data.recurrenceRule : existing.recurrenceRule,
+      isRecurring: 'recurrenceRule' in data ? Boolean(data.recurrenceRule) : existing.isRecurring,
       groupName,
       branchName,
       updatedAt: new Date().toISOString(),
     };
     mockPendingCustomers = mockPendingCustomers.map((p) => (p.id === updated.id ? updated : p));
+
+    // 同步更新 mockTasks
+    const matchingTaskId = `task-${params.id}`;
+    mockTasks = mockTasks.map((t) => {
+      if (t.id === matchingTaskId || t.id === params.id) {
+        return {
+          ...t,
+          groupId: updated.groupId,
+          groupName: updated.groupName,
+          branchId: updated.branchId,
+          branchName: updated.branchName,
+          date: updated.date || t.date,
+          startTime: updated.startTime || t.startTime,
+          endTime: updated.endTime || t.endTime,
+          shift: (updated.shift as ShiftType) || t.shift,
+          route: updated.route || t.route,
+          recurrenceRule: updated.recurrenceRule,
+          remarks: updated.remarks ?? t.remarks,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return t;
+    });
+
     return HttpResponse.json(ok<PendingCustomer>(updated));
   }),
   http.post('*/api/v1/pending-customers/:id/convert', async ({ params, request }) => {
@@ -3567,8 +3718,14 @@ export const handlers = [
     const pending = mockPendingCustomers.find((p) => p.id === params.id);
     if (pending) {
       pending.status = 'CONVERTED';
-      const newTask: Task = {
-        id: `task-${Date.now()}`,
+      const taskId = `task-${params.id}`;
+      const existingTaskIdx = mockTasks.findIndex((t) => t.id === taskId || t.id === params.id);
+      const recurrenceRule = data.recurrenceRule ?? pending.recurrenceRule;
+      const scheduledTask: Task = {
+        id:
+          existingTaskIdx >= 0 && mockTasks[existingTaskIdx]
+            ? mockTasks[existingTaskIdx].id
+            : `task-${Date.now()}`,
         groupId: pending.groupId,
         groupName: pending.groupName,
         branchId: pending.branchId,
@@ -3582,6 +3739,7 @@ export const handlers = [
         route: data.route ?? pending.route ?? '路線A',
         contents: (data.contents ?? pending.contents ?? ['定期環境清潔']) as TaskContent[],
         assignees: [],
+        recurrenceRule,
         remarks: data.remarks ?? pending.remarks,
         taskType: 'CONTRACT',
         status: 'SCHEDULED',
@@ -3591,16 +3749,54 @@ export const handlers = [
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      mockTasks = [newTask, ...mockTasks];
+
+      if (existingTaskIdx >= 0) {
+        mockTasks[existingTaskIdx] = scheduledTask;
+      } else {
+        mockTasks = [scheduledTask, ...mockTasks];
+      }
+
+      // 同步排入行事曆
+      const existingEvtIdx = mockScheduleEvents.findIndex((e) => e.taskId === scheduledTask.id);
+      const scheduleEvt: ScheduleEvent = {
+        id:
+          existingEvtIdx >= 0 && mockScheduleEvents[existingEvtIdx]
+            ? mockScheduleEvents[existingEvtIdx].id
+            : `event-${scheduledTask.id}`,
+        taskId: scheduledTask.id,
+        resourceId: scheduledTask.branchId || 'branch-001',
+        title: `${scheduledTask.groupName} - ${scheduledTask.branchName}`,
+        start: `${scheduledTask.date}T${scheduledTask.startTime}:00+08:00`,
+        end: `${scheduledTask.date}T${scheduledTask.endTime}:00+08:00`,
+        groupName: scheduledTask.groupName,
+        branchName: scheduledTask.branchName,
+        alertStatus: 'CLEAN',
+        isRecurring: Boolean(recurrenceRule),
+        isOvernight: scheduledTask.isOvernight,
+        backgroundColor: '#7a69c0',
+        extendedProps: {
+          taskType: scheduledTask.taskType,
+          shift: scheduledTask.shift,
+          assignees: [],
+          contents: scheduledTask.contents,
+        },
+      };
+      if (existingEvtIdx >= 0) {
+        mockScheduleEvents[existingEvtIdx] = scheduleEvt;
+      } else {
+        mockScheduleEvents.push(scheduleEvt);
+      }
     }
     return HttpResponse.json(ok(null));
   }),
   http.delete('*/api/v1/pending-customers/:id', ({ params }) => {
     mockPendingCustomers = mockPendingCustomers.filter((p) => p.id !== params.id);
+    mockTasks = mockTasks.filter((t) => t.id !== params.id && t.id !== `task-${params.id}`);
     return HttpResponse.json(ok(null));
   }),
   http.delete('/api/pending-customers/:id', ({ params }) => {
     mockPendingCustomers = mockPendingCustomers.filter((p) => p.id !== params.id);
+    mockTasks = mockTasks.filter((t) => t.id !== params.id && t.id !== `task-${params.id}`);
     return HttpResponse.json(ok(null));
   }),
 ];

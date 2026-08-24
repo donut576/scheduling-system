@@ -4,6 +4,7 @@
  * 定義客戶（場域）、客戶群組/分店，以及待排時間客戶（尚未安排具體排班之客戶）之型別。
  */
 import type { LicenseType } from './alert';
+import type { RecurrenceRule, TaskType } from './task';
 
 /** 客戶（服務場域）資料 */
 export interface Customer {
@@ -50,6 +51,7 @@ export interface PendingCustomer {
   groupName: string;
   branchId: string;
   branchName: string;
+  taskType?: TaskType;
   status: PendingCustomerStatus;
   date?: string;
   startTime?: string;
@@ -61,6 +63,8 @@ export interface PendingCustomer {
   contents?: string[];
   otherContentNote?: string;
   assignees?: { employeeId: string; employeeName: string }[];
+  recurrenceRule?: RecurrenceRule;
+  isRecurring?: boolean;
   remarks?: string;
   createdAt: string;
   updatedAt: string;

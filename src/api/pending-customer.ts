@@ -3,6 +3,7 @@
 import apiInstance from './instance';
 import type { PendingCustomer } from '@/types/customer';
 import type { ApiResponse, PaginatedResponse } from '@/types/common';
+import type { RecurrenceRule, TaskType } from '@/types/task';
 
 // 查詢待處理客戶清單所需的參數
 export interface PendingCustomerListParams {
@@ -19,6 +20,7 @@ export interface PendingCustomerListParams {
 export interface PendingCustomerFormData {
   groupId: string; // 客戶群組 id
   branchId: string; // 分店/據點 id
+  taskType?: TaskType; // 任務類型
   date?: string; // 排班日期
   startTime?: string; // 開始時間
   endTime?: string; // 結束時間
@@ -28,11 +30,13 @@ export interface PendingCustomerFormData {
   contents?: string[]; // 工作內容
   otherContentNote?: string; // 其他內容說明
   assignees?: { employeeId: string; employeeName: string }[]; // 指派人員
+  recurrenceRule?: RecurrenceRule; // 週期規則
   remarks?: string; // 備註
 }
 
 // 將待處理客戶轉換為正式任務時所需的資料結構
 export interface ConvertToTaskData {
+  taskType?: TaskType; // 任務類型
   date: string; // 任務日期
   startTime: string; // 開始時間
   endTime: string; // 結束時間
@@ -42,6 +46,7 @@ export interface ConvertToTaskData {
   contents?: string[]; // 工作內容
   otherContentNote?: string; // 其他內容說明
   assignees?: { employeeId: string; employeeName: string }[]; // 指派人員
+  recurrenceRule?: RecurrenceRule; // 週期規則
   remarks?: string; // 備註
 }
 

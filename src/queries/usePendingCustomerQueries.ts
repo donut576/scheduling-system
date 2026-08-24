@@ -52,13 +52,15 @@ export function useCreatePendingCustomer() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pendingCustomerKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: taskKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['schedule'] });
     },
   });
 }
 
 /**
  * 更新既有待處理客戶資料的變更（mutation）hook。
- * 成功後會讓待處理客戶列表查詢的快取失效。
+ * 成功後會讓待處理客戶列表與任務列表查詢的快取失效。
  */
 export function useUpdatePendingCustomer() {
   const queryClient = useQueryClient();
@@ -74,14 +76,16 @@ export function useUpdatePendingCustomer() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pendingCustomerKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: taskKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['schedule'] });
     },
   });
 }
 
 /**
  * 將待處理客戶轉換為正式任務的變更（mutation）hook。
- * 由於轉換會建立一筆新的任務，成功後需同時讓待處理客戶列表
- * 與任務列表的快取都失效，確保兩邊資料都能反映最新狀態。
+ * 由於轉換會建立一筆新的任務，成功後需同時讓待處理客戶列表、
+ * 任務列表與排班日曆的快取都失效，確保兩邊資料都能反映最新狀態。
  */
 export function useConvertPendingCustomer() {
   const queryClient = useQueryClient();
@@ -94,13 +98,14 @@ export function useConvertPendingCustomer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pendingCustomerKeys.lists() });
       queryClient.invalidateQueries({ queryKey: taskKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['schedule'] });
     },
   });
 }
 
 /**
  * 刪除待處理客戶的變更（mutation）hook。
- * 成功後會讓待處理客戶列表查詢的快取失效。
+ * 成功後會讓待處理客戶列表與任務列表查詢的快取失效。
  */
 export function useDeletePendingCustomer() {
   const queryClient = useQueryClient();
@@ -112,6 +117,8 @@ export function useDeletePendingCustomer() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pendingCustomerKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: taskKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['schedule'] });
     },
   });
 }

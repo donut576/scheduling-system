@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { FC } from 'react';
-import { Segmented, DatePicker, Button, Space, Select, Modal, Tabs, Tag } from 'antd';
+import { Segmented, DatePicker, Button, Space, Select, Modal, Tabs, Tag, message } from 'antd';
 import type { TabsProps } from 'antd';
 import {
   LeftOutlined,
@@ -13,6 +13,8 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import ScheduleCalendar from '@/components/business/ScheduleCalendar';
+import type { ExternalDropArg } from '@/components/business/ScheduleCalendar';
+import UnscheduledTasksPanel from '@/components/business/UnscheduledTasksPanel';
 import TaskForm from '@/components/business/TaskForm';
 import { useScheduleStore } from '@/stores/useScheduleStore';
 import { usePermissionStore } from '@/stores/usePermissionStore';
@@ -28,7 +30,7 @@ import type {
   ScheduleFilters,
   ScheduleViewMode,
 } from '@/types/schedule';
-import type { TaskFormData } from '@/types/task';
+import type { Task, TaskFormData } from '@/types/task';
 
 const { RangePicker } = DatePicker;
 
@@ -70,6 +72,8 @@ const SchedulePage: FC = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [scrollTime, setScrollTime] = useState<string | undefined>(undefined);
+  const [unscheduledCollapsed, setUnscheduledCollapsed] = useState(false);
+  const [isDraggingEvent, setIsDraggingEvent] = useState(false);
 
   // 查詢客戶集團與員工清單
   const { data: customerGroups } = useCustomerGroups();
@@ -361,6 +365,145 @@ const SchedulePage: FC = () => {
     [selectedEvent, updateTaskMutation],
   );
 
+  // 待排任務外部拖曳放置至行事曆
+  const handleExternalDrop = useCallback(
+    async (dropInfo: ExternalDropArg) => {
+      const taskId = dropInfo.draggedEl.getAttribute('data-task-id');
+      const taskRaw = dropInfo.draggedEl.getAttribute('data-task-raw');
+      if (!taskId || !taskRaw) return;
+
+      const task = JSON.parse(taskRaw) as Task;
+      const targetDate = dayjs(dropInfo.date).format('YYYY-MM-DD');
+
+      let targetStartTime = task.startTime || '09:00';
+      let targetEndTime = task.endTime || '17:00';
+
+      if (!dropInfo.allDay && currentView !== 'month') {
+        targetStartTime = dayjs(dropInfo.date).format('HH:mm');
+        const [origSh = 9, origSm = 0] = (task.startTime || '09:00').split(':').map(Number);
+        const [origEh = 17, origEm = 0] = (task.endTime || '17:00').split(':').map(Number);
+        let durationMinutes = origEh * 60 + origEm - (origSh * 60 + origSm);
+        if (durationMinutes <= 0) durationMinutes = 120;
+        targetEndTime = dayjs(dropInfo.date).add(durationMinutes, 'minute').format('HH:mm');
+      }
+
+      let newAssigneeIds = task.assignees?.map((a) => a.employeeId) || [];
+      if (effectiveDimension === 'employee' && dropInfo.resourceId) {
+        newAssigneeIds = [dropInfo.resourceId];
+      }
+
+      try {
+        await updateTaskMutation.mutateAsync({
+          id: taskId,
+          data: {
+            groupId: task.groupId,
+            branchId: task.branchId,
+            taskType: task.taskType,
+            date: targetDate,
+            startTime: targetStartTime,
+            endTime: targetEndTime,
+            headcount: task.headcount || 1,
+            shift: task.shift || '早班',
+            route: task.route || '',
+            contents: task.contents || ['P'],
+            otherContentNote: task.otherContentNote,
+            assignees: newAssigneeIds,
+            remarks: task.remarks,
+            status: 'SCHEDULED',
+          },
+        });
+        message.success(
+          t('schedule.taskScheduledSuccess', {
+            name: `${task.groupName} - ${task.branchName}`,
+          }) || `已成功將「${task.groupName} - ${task.branchName}」排入班表！`,
+        );
+      } catch {
+        message.error('排班失敗，請稍後再試');
+      }
+    },
+    [currentView, effectiveDimension, t, updateTaskMutation],
+  );
+
+  // 待排任務卡片點擊編輯
+  const handleEditUnscheduledTask = useCallback((task: Task) => {
+    setSelectedEvent({
+      id: `event-${task.id}`,
+      taskId: task.id,
+      resourceId: task.branchId,
+      title: `${task.groupName} - ${task.branchName}`,
+      start: `${task.date}T${task.startTime}:00`,
+      end: `${task.date}T${task.endTime}:00`,
+      groupName: task.groupName,
+      branchName: task.branchName,
+      alertStatus: task.alertStatus,
+      isRecurring: Boolean(task.recurrenceRule),
+      isOvernight: task.isOvernight,
+      extendedProps: {
+        taskType: task.taskType,
+        shift: task.shift,
+        assignees: task.assignees,
+        contents: task.contents,
+      },
+    });
+    setEditOpen(true);
+  }, []);
+
+  // 將已排班任務移回待排任務清單 (Unschedule Task)
+  const handleUnscheduleTask = useCallback(
+    async (taskId: string, taskTitle?: string) => {
+      try {
+        await updateTaskMutation.mutateAsync({
+          id: taskId,
+          data: {
+            status: 'UNSCHEDULED',
+          },
+        });
+        message.success(
+          t('schedule.moveToUnscheduledSuccess', { name: taskTitle || '任務' }) ||
+            `已將「${taskTitle || '任務'}」移回待排任務清單`,
+        );
+      } catch {
+        message.error('移回待排任務失敗，請稍後再試');
+      }
+    },
+    [t, updateTaskMutation],
+  );
+
+  // 日曆事件拖曳開始：啟動待排面板放置高亮提示
+  const handleEventDragStart = useCallback(() => {
+    setIsDraggingEvent(true);
+  }, []);
+
+  // 日曆事件拖曳結束：判斷是否放置在待排面板區域
+  const handleEventDragStop = useCallback(
+    (info: {
+      event: { id: string; title: string; extendedProps?: Record<string, unknown> };
+      jsEvent: MouseEvent;
+    }) => {
+      setIsDraggingEvent(false);
+      const { clientX, clientY } = info.jsEvent;
+      const panelEl =
+        document.querySelector('[data-testid="unscheduled-tasks-panel"]') ||
+        document.querySelector('.unscheduled-tasks-panel') ||
+        document.querySelector('[data-testid="unscheduled-tasks-panel-collapsed"]');
+
+      if (panelEl) {
+        const rect = panelEl.getBoundingClientRect();
+        if (
+          clientX >= rect.left &&
+          clientX <= rect.right &&
+          clientY >= rect.top &&
+          clientY <= rect.bottom
+        ) {
+          const taskId =
+            (info.event.extendedProps?.taskId as string) || info.event.id.replace(/^event-/, '');
+          handleUnscheduleTask(taskId, info.event.title);
+        }
+      }
+    },
+    [handleUnscheduleTask],
+  );
+
   // 任務詳情格式化
   const detailRows = useMemo(() => {
     if (!selectedEvent) return null;
@@ -521,8 +664,24 @@ const SchedulePage: FC = () => {
           {hasScheduleEdit && (
             <Space
               className="schedule-event-detail-actions"
-              style={{ marginTop: 12, width: '100%', justifyContent: 'flex-end' }}
+              style={{ marginTop: 12, width: '100%', justifyContent: 'flex-end', flexWrap: 'wrap' }}
             >
+              <Button
+                size="small"
+                onClick={() => {
+                  setDetailOpen(false);
+                  handleUnscheduleTask(event.taskId, event.title);
+                }}
+                aria-label={t('schedule.moveToUnscheduled')}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  color: '#ffffff',
+                  borderColor: 'rgba(255, 255, 255, 0.5)',
+                  fontWeight: 600,
+                }}
+              >
+                {t('schedule.moveToUnscheduled') || '移回待排'}
+              </Button>
               <Button
                 size="small"
                 onClick={handleEditClick}
@@ -554,7 +713,15 @@ const SchedulePage: FC = () => {
         </div>
       );
     },
-    [detailRows, handleCancelTask, handleEditClick, hasScheduleEdit, selectedEvent?.id, t],
+    [
+      detailRows,
+      handleCancelTask,
+      handleEditClick,
+      handleUnscheduleTask,
+      hasScheduleEdit,
+      selectedEvent?.id,
+      t,
+    ],
   );
 
   // 三大 Tab 定義（「總覽」、「集團」、「員工」）
@@ -769,22 +936,47 @@ const SchedulePage: FC = () => {
         )}
       </div>
 
-      {/* 排班行事曆 */}
-      <div style={{ height: 'calc(100vh - 280px)', minHeight: 520 }}>
-        <ScheduleCalendar
-          viewMode={currentView}
-          dimension={effectiveDimension}
-          dateRange={dateRange}
-          filters={filters}
-          onEventClick={handleEventClick}
-          onDateChange={handleDateChange}
-          scrollTime={scrollTime}
-          openEventId={detailOpen ? selectedEvent?.id : undefined}
-          renderEventDetail={renderEventDetail}
-          onEventDetailClose={handleDetailClose}
-          onZoomToDay={handleZoomToDay}
-          onZoomViewChange={handleZoomViewChange}
-        />
+      {/* 排班行事曆與待排任務面板 */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 12,
+          height: 'calc(100vh - 280px)',
+          minHeight: 520,
+        }}
+      >
+        {/* 左側日曆主視圖 */}
+        <div style={{ flex: 1, minWidth: 0, height: '100%' }}>
+          <ScheduleCalendar
+            viewMode={currentView}
+            dimension={effectiveDimension}
+            dateRange={dateRange}
+            filters={filters}
+            onEventClick={handleEventClick}
+            onDateChange={handleDateChange}
+            scrollTime={scrollTime}
+            openEventId={detailOpen ? selectedEvent?.id : undefined}
+            renderEventDetail={renderEventDetail}
+            onEventDetailClose={handleDetailClose}
+            onZoomToDay={handleZoomToDay}
+            onZoomViewChange={handleZoomViewChange}
+            droppable={hasScheduleEdit}
+            onExternalDrop={handleExternalDrop}
+            editable={hasScheduleEdit}
+            onEventDragStart={handleEventDragStart}
+            onEventDragStop={handleEventDragStop}
+          />
+        </div>
+
+        {/* 右側待排任務面板（具排班編輯權限時顯示） */}
+        {hasScheduleEdit && (
+          <UnscheduledTasksPanel
+            collapsed={unscheduledCollapsed}
+            onToggleCollapse={() => setUnscheduledCollapsed((prev) => !prev)}
+            onEditTask={handleEditUnscheduledTask}
+            isDropActive={isDraggingEvent}
+          />
+        )}
       </div>
 
       {/* 編輯任務 Modal */}

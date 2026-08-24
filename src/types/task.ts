@@ -52,6 +52,7 @@ export interface TaskFormData {
   assignees: string[];
   remarks?: string;
   recurrence?: RecurrenceRule;
+  status?: TaskStatus;
   overrideRemark?: string;
   alertStatus?: AlertStatus;
 }
