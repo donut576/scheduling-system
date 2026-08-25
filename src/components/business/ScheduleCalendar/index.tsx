@@ -867,27 +867,22 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           margin: 0 1px !important;
         }
         .fc-timeGridDay-view .fc-timegrid {
-          max-width: 480px;
-          margin: 0 auto !important;
+          width: 100% !important;
         }
         .fc-timeGridDay-view .fc-col-header {
-          max-width: 480px;
-          margin: 0 auto !important;
+          width: 100% !important;
         }
         .fc-timeGridDay-view .fc-scrollgrid {
-          max-width: 480px;
-          margin: 0 auto !important;
+          width: 100% !important;
           border-radius: 8px;
           overflow: hidden;
           background: #ffffff;
         }
         .fc-timeGridDay-view .fc-timegrid-col-events {
-          max-width: 400px;
-          margin: 0 auto !important;
+          width: 100% !important;
         }
         .fc-timeGridDay-view .fc-timegrid-col-bg {
-          max-width: 400px;
-          margin: 0 auto !important;
+          width: 100% !important;
         }
         /* 嚴格固定每一行資源列與時間軸軌道的高度一致（統一 64px） */
         .fc-datagrid-cell-frame {

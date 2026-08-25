@@ -12,7 +12,6 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/BaseTable';
 import TaskForm from '@/components/business/TaskForm';
-import PendingCustomerPage from '@/pages/pending-customer';
 import ApprovalPage from '@/pages/approval';
 import { taskApi } from '@/api/task';
 import { useTaskList, useCreateTask, useUpdateTask } from '@/queries/useTaskQueries';
@@ -675,13 +674,6 @@ function TaskPage() {
       label: t('task.list'),
       children: taskListContent,
     },
-    hasPermission('pending_customer:view')
-      ? {
-          key: 'pending-customer',
-          label: t('menu.pendingCustomer'),
-          children: <PendingCustomerPage />,
-        }
-      : null,
     hasPermission('approval:view')
       ? {
           key: 'approval',

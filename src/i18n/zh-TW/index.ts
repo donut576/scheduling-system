@@ -182,7 +182,7 @@ export default {
     scheduleAndRecurrence: '排程與循環',
     contentAndAssignees: '內容與指派人員',
     remarksSection: '備註說明',
-    dateExtra: '未填寫日期將視為待排時間客戶',
+    dateExtra: '若未指定日期、時段或指派人員，任務將自動存為待排任務，可至班表總覽調度',
     selectDatePlaceholder: '請選擇日期（可留空為待排）',
     noRecurrence: '無週期',
     hasRecurrence: '有週期',

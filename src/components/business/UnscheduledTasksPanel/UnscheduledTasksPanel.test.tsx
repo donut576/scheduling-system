@@ -128,4 +128,12 @@ describe('UnscheduledTasksPanel', () => {
 
     expect(screen.getByTestId('unscheduled-panel-resizer')).toBeInTheDocument();
   });
+
+  it('renders unified unscheduled tasks panel title and badge count', async () => {
+    renderWithClient(<UnscheduledTasksPanel dimension="employee" viewMode="day" />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/待排任務/)).toBeInTheDocument();
+    });
+  });
 });

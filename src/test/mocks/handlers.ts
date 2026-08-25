@@ -677,6 +677,75 @@ const demoEmployees: Employee[] = [
 
 const demoTasks: Task[] = [
   {
+    id: 'task-undated-001',
+    groupId: 'group-001',
+    groupName: '測試集團',
+    branchId: 'branch-001',
+    branchName: '測試分店',
+    taskType: 'CONTRACT',
+    date: '',
+    startTime: '',
+    endTime: '',
+    isOvernight: false,
+    headcount: 2,
+    shift: '早班',
+    route: '第一路',
+    contents: ['P', 'R'],
+    assignees: [],
+    remarks: '年度定期合約任務（待排定日期與時段）',
+    status: 'UNSCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-01T09:00:00+08:00',
+    updatedAt: '2026-08-01T09:00:00+08:00',
+  },
+  {
+    id: 'task-undated-002',
+    groupId: 'group-003',
+    groupName: '陽光連鎖餐飲集團',
+    branchId: 'branch-003-1',
+    branchName: '台中西屯門市',
+    taskType: 'CONTRACT',
+    date: '',
+    startTime: '',
+    endTime: '',
+    isOvernight: false,
+    headcount: 2,
+    shift: '午班',
+    route: '第三路',
+    contents: ['P', 'FIRE_ANT'],
+    assignees: [],
+    remarks: '第三季常態清消合約（客戶尚未指定進場日期）',
+    status: 'UNSCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-01T09:00:00+08:00',
+    updatedAt: '2026-08-01T09:00:00+08:00',
+  },
+  {
+    id: 'task-undated-003',
+    groupId: 'group-005',
+    groupName: '鼎泰豐餐飲股份有限公司',
+    branchId: 'branch-005-1',
+    branchName: '信義旗艦店',
+    taskType: 'CONTRACT',
+    date: '',
+    startTime: '',
+    endTime: '',
+    isOvernight: true,
+    headcount: 2,
+    shift: '大夜班',
+    route: '第四路',
+    contents: ['P', 'R'],
+    assignees: [],
+    remarks: '年度夜間大消毒預排（待店長回簽排程日期）',
+    status: 'UNSCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-001',
+    createdAt: '2026-08-01T09:00:00+08:00',
+    updatedAt: '2026-08-01T09:00:00+08:00',
+  },
+  {
     id: 'task-002',
     groupId: 'group-002',
     groupName: '星耀科技股份有限公司',
@@ -3479,9 +3548,37 @@ export const handlers = [
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
 
+    // 將 mockTasks 中已排班的任務動態轉為 ScheduleEvent 並與 mockScheduleEvents 合併去重
+    const taskEvents: ScheduleEvent[] = mockTasks
+      .filter((t) => (t.status === 'SCHEDULED' || t.status === 'MODIFIED') && t.date && t.startTime)
+      .map((t) => ({
+        id: `event-${t.id}`,
+        taskId: t.id,
+        resourceId: t.branchId,
+        title: `${t.groupName} - ${t.branchName}`,
+        start: `${t.date}T${t.startTime}:00+08:00`,
+        end: `${t.date}T${t.endTime || '16:00'}:00+08:00`,
+        groupName: t.groupName,
+        branchName: t.branchName,
+        alertStatus: t.alertStatus || 'CLEAN',
+        isRecurring: Boolean(t.recurrenceRule),
+        isOvernight: t.isOvernight,
+        extendedProps: {
+          taskType: t.taskType,
+          shift: t.shift,
+          assignees: t.assignees || [],
+          contents: t.contents || [],
+        },
+      }));
+
+    const combinedEvents = [
+      ...mockScheduleEvents,
+      ...taskEvents.filter((te) => !mockScheduleEvents.some((me) => me.taskId === te.taskId)),
+    ];
+
     let events: ScheduleEvent[] = [];
     if (dim === 'employee') {
-      mockScheduleEvents.forEach((e) => {
+      combinedEvents.forEach((e) => {
         if (e.extendedProps.assignees && e.extendedProps.assignees.length > 0) {
           e.extendedProps.assignees.forEach((a) => {
             events.push({
@@ -3494,15 +3591,30 @@ export const handlers = [
           events.push(e);
         }
       });
+    } else if (dim === 'customer') {
+      events = combinedEvents.map((e) => {
+        const matchingTask = mockTasks.find((t) => t.id === e.taskId);
+        return {
+          ...e,
+          resourceId: matchingTask?.branchId || e.resourceId,
+        };
+      });
     } else {
-      events = [...mockScheduleEvents];
+      events = [...combinedEvents];
     }
 
     if (startDate) {
-      events = events.filter((e) => (e.start.split('T')[0] ?? '') >= startDate);
+      events = events.filter((e) => {
+        const startD = e.start.split('T')[0] ?? '';
+        const endD = e.end.split('T')[0] ?? startD;
+        return endD >= startDate;
+      });
     }
     if (endDate) {
-      events = events.filter((e) => (e.start.split('T')[0] ?? '') <= endDate);
+      events = events.filter((e) => {
+        const startD = e.start.split('T')[0] ?? '';
+        return startD <= endDate;
+      });
     }
 
     if (groupId && dim === 'customer') {

@@ -178,7 +178,7 @@ export default {
     scheduleAndRecurrence: 'Schedule & Recurrence',
     contentAndAssignees: 'Content & Assignees',
     remarksSection: 'Remarks',
-    dateExtra: 'Leave empty to treat as pending customer',
+    dateExtra: 'If date, time, or assignees are incomplete, task is saved as unscheduled',
     selectDatePlaceholder: 'Select date (optional for pending)',
     noRecurrence: 'No Recurrence',
     hasRecurrence: 'Recurring',

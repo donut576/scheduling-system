@@ -25,7 +25,14 @@ import {
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import type { Task, TaskFormData, TaskType, TaskContent, RecurrenceRule } from '@/types/task';
+import type {
+  Task,
+  TaskFormData,
+  TaskType,
+  TaskContent,
+  RecurrenceRule,
+  TaskStatus,
+} from '@/types/task';
 import type { AlertValidationResult, AlertContext } from '@/types/alert';
 import type { CustomerGroup } from '@/types/customer';
 import { useDictStore } from '@/stores/useDictStore';
@@ -291,6 +298,12 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
 
       const isOther = values.contents?.includes('OTHER') || values.contents?.includes('其他');
 
+      const isFullyStaffed = (values.assignees?.length ?? 0) >= (values.headcount ?? 1);
+      const hasDate = Boolean(values.date);
+      const hasTime = Boolean(values.startTime && values.endTime);
+      const computedStatus: TaskStatus =
+        isFullyStaffed && hasDate && hasTime ? 'SCHEDULED' : 'UNSCHEDULED';
+
       return {
         groupId: values.groupId,
         branchId: values.branchId,
@@ -307,6 +320,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         remarks: values.remarks,
         recurrence: enableRecurrence ? recurrenceRule : undefined,
         overrideRemark: overrideRemark || values.overrideRemark,
+        status: computedStatus,
       };
     },
     [form, enableRecurrence, recurrenceRule, shifts],

@@ -20,6 +20,7 @@ export interface EmployeeSelectProps {
   onChange: (ids: string[]) => void;
   date?: string;
   requiredLicenses?: LicenseType[];
+  disabled?: boolean;
 }
 
 export interface EmployeeSelectFilters {
@@ -36,6 +37,7 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
   onChange,
   date,
   requiredLicenses = [],
+  disabled = false,
 }) => {
   const { t } = useTranslation();
   const [filters, setFilters] = useState<EmployeeSelectFilters>({});
@@ -112,6 +114,7 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
 
   // 切換員工選取狀態
   const handleToggle = (employee: Employee, checked: boolean) => {
+    if (disabled) return;
     const next = checked ? [...value, employee.id] : value.filter((id) => id !== employee.id);
     onChange(next);
   };
@@ -139,6 +142,7 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
         <Select
           placeholder="地區"
           allowClear
+          disabled={disabled}
           style={{ width: 110 }}
           value={filters.area}
           onChange={(val) => setFilters((prev) => ({ ...prev, area: val }))}
@@ -148,6 +152,7 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
         <Select
           placeholder="班別"
           allowClear
+          disabled={disabled}
           style={{ width: 110 }}
           value={filters.shift}
           onChange={(val) => setFilters((prev) => ({ ...prev, shift: val }))}
@@ -157,6 +162,7 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
         <Select
           placeholder="證照"
           allowClear
+          disabled={disabled}
           style={{ width: 150 }}
           value={filters.licenseType}
           onChange={(val) => setFilters((prev) => ({ ...prev, licenseType: val }))}
@@ -177,7 +183,8 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
           padding: 10,
           minHeight: 48,
           width: '100%',
-          background: '#fafafa',
+          background: disabled ? '#f5f5f5' : '#fafafa',
+          cursor: disabled ? 'not-allowed' : 'default',
         }}
       >
         {isLoading && <span>{t('common.loading')}</span>}
@@ -200,8 +207,9 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
                 border: selected ? '1px solid #1677ff' : '1px solid #d9d9d9',
                 padding: '5px 12px',
                 borderRadius: 4,
-                cursor: 'pointer',
-                background: selected ? '#e6f4ff' : '#ffffff',
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                background: selected ? (disabled ? '#bae0ff' : '#e6f4ff') : '#ffffff',
+                opacity: disabled && !selected ? 0.6 : 1,
                 transition: 'all 0.2s',
               }}
             >
@@ -243,6 +251,11 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
           );
         })}
       </Space>
+      {disabled && (
+        <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 2 }}>
+          📌 未排班任務之人員指派請至「班表總覽」進行拖曳排班。
+        </div>
+      )}
     </Space>
   );
 };

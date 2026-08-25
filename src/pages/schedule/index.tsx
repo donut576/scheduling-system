@@ -1,6 +1,17 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { FC } from 'react';
-import { Segmented, DatePicker, Button, Space, Select, Modal, Tabs, Tag, message } from 'antd';
+import {
+  Segmented,
+  DatePicker,
+  Button,
+  Space,
+  Select,
+  Modal,
+  Tabs,
+  Tag,
+  Badge,
+  message,
+} from 'antd';
 import type { TabsProps } from 'antd';
 import {
   LeftOutlined,
@@ -8,6 +19,7 @@ import {
   AppstoreOutlined,
   TeamOutlined,
   ShopOutlined,
+  ScheduleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -21,7 +33,7 @@ import { usePermissionStore } from '@/stores/usePermissionStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useEmployeeList } from '@/queries/useEmployeeQueries';
-import { useTaskDetail, useUpdateTask } from '@/queries/useTaskQueries';
+import { useTaskDetail, useUpdateTask, useTaskList } from '@/queries/useTaskQueries';
 import { AREA_OPTIONS, EMPLOYEE_SHIFT_OPTIONS } from '@/constants/groups';
 import { formatTaskContents } from '@/constants/taskStatus';
 import type {
@@ -83,6 +95,10 @@ const SchedulePage: FC = () => {
   // 查詢當前選取任務之詳細資料
   const { data: taskDetail } = useTaskDetail(selectedEvent?.taskId ?? '');
   const updateTaskMutation = useUpdateTask();
+
+  // 查詢未排班任務數量（用於頂部工具列徽章提示）
+  const { data: unscheduledData } = useTaskList({ status: 'UNSCHEDULED', pageSize: 100 });
+  const unscheduledCount = unscheduledData?.total ?? unscheduledData?.list?.length ?? 0;
 
   // 集團下拉選單選項
   const groupOptions = useMemo(() => {
@@ -393,8 +409,8 @@ const SchedulePage: FC = () => {
 
       const targetDate = dayjs(dropInfo.date).format('YYYY-MM-DD');
 
-      let targetStartTime = task.startTime || '08:00';
-      let targetEndTime = task.endTime || '16:00';
+      let targetStartTime = task.startTime || '';
+      let targetEndTime = task.endTime || '';
 
       if (!dropInfo.allDay && currentView !== 'month') {
         targetStartTime = dayjs(dropInfo.date).format('HH:mm');
@@ -414,29 +430,39 @@ const SchedulePage: FC = () => {
         }
       }
 
-      // 判斷人數需求：必須達到 headcount 且有日期時間，才正式轉為 SCHEDULED，否則保持 UNSCHEDULED
+      // 檢查分店：若在集團維度拖曳到特定分店欄位，則更新分店 ID
+      let targetBranchId = task.branchId;
+      if (effectiveDimension === 'customer' && dropInfo.resourceId) {
+        targetBranchId = dropInfo.resourceId;
+      }
+
+      // 判斷人數與時段需求：必須有具體時段且達到 headcount，才正式轉為 SCHEDULED，否則保持 UNSCHEDULED
       const requiredHeadcount = task.headcount || 1;
       const isFullyStaffed = newAssigneeIds.length >= requiredHeadcount;
-      const newStatus = isFullyStaffed ? 'SCHEDULED' : 'UNSCHEDULED';
+      const hasTime = Boolean(targetStartTime && targetEndTime);
+      const newStatus = isFullyStaffed && hasTime ? 'SCHEDULED' : 'UNSCHEDULED';
 
       // 根據開始時間自動判定標準班次：
       // - 早班（日班）：08:00 – 16:00 (或 07:00 – 15:00)
       // - 午班（中班／小夜班）：16:00 – 00:00 (或 15:00 – 23:00)
       // - 大夜班（晚班）：00:00 – 08:00 (或 23:00 – 07:00)
-      const targetStartHour = Number(targetStartTime.split(':')[0]) || 8;
-      const computedShift =
-        targetStartHour >= 7 && targetStartHour < 15
-          ? '早班'
-          : targetStartHour >= 15 && targetStartHour < 23
-            ? '午班'
-            : '大夜班';
+      let computedShift = task.shift || '早班';
+      if (targetStartTime) {
+        const targetStartHour = Number(targetStartTime.split(':')[0]) || 8;
+        computedShift =
+          targetStartHour >= 7 && targetStartHour < 15
+            ? '早班'
+            : targetStartHour >= 15 && targetStartHour < 23
+              ? '午班'
+              : '大夜班';
+      }
 
       try {
         await updateTaskMutation.mutateAsync({
           id: taskId,
           data: {
             groupId: task.groupId,
-            branchId: task.branchId,
+            branchId: targetBranchId,
             taskType: task.taskType,
             date: targetDate,
             startTime: targetStartTime,
@@ -452,9 +478,17 @@ const SchedulePage: FC = () => {
             status: newStatus,
           },
         });
-        if (isFullyStaffed) {
+        if (newStatus === 'SCHEDULED') {
           message.success(
             `已成功將「${task.groupName} - ${task.branchName}」全員指派完成 (${newAssigneeIds.length}/${requiredHeadcount}人)，正式排入班表！`,
+          );
+        } else if (currentView === 'month') {
+          message.info(
+            `已排定「${task.groupName} - ${task.branchName}」施作日期為 ${targetDate}，可切換至日視圖進一步排定時段與指派人員！`,
+          );
+        } else if (effectiveDimension === 'customer') {
+          message.info(
+            `已鎖定「${task.groupName} - ${task.branchName}」施作時段 (${targetStartTime} - ${targetEndTime})，請切換至員工視圖指派人員！`,
           );
         } else {
           message.info(
@@ -476,29 +510,41 @@ const SchedulePage: FC = () => {
     setDraggingUnscheduledTask(null);
   }, []);
 
-  // 待排任務卡片點擊編輯
-  const handleEditUnscheduledTask = useCallback((task: Task) => {
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
+
+  // 開啟完整任務編輯表單 Modal
+  const handleOpenEditModalForTask = useCallback((task: Task) => {
     setSelectedEvent({
       id: `event-${task.id}`,
       taskId: task.id,
       resourceId: task.branchId,
       title: `${task.groupName} - ${task.branchName}`,
-      start: `${task.date}T${task.startTime}:00`,
-      end: `${task.date}T${task.endTime}:00`,
+      start: task.date && task.startTime ? `${task.date}T${task.startTime}:00` : '',
+      end: task.date && task.endTime ? `${task.date}T${task.endTime}:00` : '',
       groupName: task.groupName,
       branchName: task.branchName,
-      alertStatus: task.alertStatus,
+      alertStatus: task.alertStatus || 'CLEAN',
       isRecurring: Boolean(task.recurrenceRule),
-      isOvernight: task.isOvernight,
+      isOvernight: task.isOvernight || false,
       extendedProps: {
         taskType: task.taskType,
         shift: task.shift,
-        assignees: task.assignees,
-        contents: task.contents,
+        assignees: task.assignees || [],
+        contents: task.contents || [],
         isFromPending: true,
+        headcount: task.headcount,
+        remarks: task.remarks,
+        route: task.route,
+        task,
       },
     });
+    setViewingTask(null);
     setEditOpen(true);
+  }, []);
+
+  // 待排任務卡片點擊：開啟任務資訊小卡
+  const handleViewUnscheduledTaskDetail = useCallback((task: Task) => {
+    setViewingTask(task);
   }, []);
 
   // 將已排班任務或特定員工移回待排任務清單 (Remove / Unschedule)
@@ -899,9 +945,16 @@ const SchedulePage: FC = () => {
 
   return (
     <div className="schedule-page" data-testid="schedule-page">
-      {/* 頂部維度切換 Tabs（具排班編輯權限之管理員/經理/組長可切換維度；員工純檢視總覽班表） */}
+      {/* 頂部維度切換 Tabs 與左側待排快捷按鈕 */}
       {hasScheduleEdit && (
-        <div style={{ marginBottom: 12 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            marginBottom: 12,
+          }}
+        >
           <Tabs
             aria-label={t('schedule.dimension')}
             activeKey={dimension}
@@ -911,215 +964,490 @@ const SchedulePage: FC = () => {
             className="schedule-dimension-tabs"
             tabBarStyle={{ marginBottom: 0 }}
           />
+
+          {/* 待排任務按鈕：置於左側 Tab 旁 */}
+          {effectiveDimension === 'employee' && currentView === 'day' ? (
+            <Button
+              type={!unscheduledCollapsed ? 'primary' : 'default'}
+              icon={<ScheduleOutlined />}
+              onClick={() => setUnscheduledCollapsed((prev) => !prev)}
+              aria-label="toggle-unscheduled-tasks"
+              style={{
+                borderRadius: 6,
+                height: 38,
+                fontWeight: 600,
+                borderColor: '#1677ff',
+                color: !unscheduledCollapsed ? '#ffffff' : '#1677ff',
+                backgroundColor: !unscheduledCollapsed ? '#1677ff' : '#e6f4ff',
+                boxShadow: !unscheduledCollapsed ? '0 2px 6px rgba(22, 119, 255, 0.25)' : 'none',
+              }}
+            >
+              <span>待排任務</span>
+              <Badge
+                count={unscheduledCount}
+                overflowCount={99}
+                style={{
+                  marginLeft: 8,
+                  backgroundColor: !unscheduledCollapsed ? '#ffffff' : '#1677ff',
+                  color: !unscheduledCollapsed ? '#1677ff' : '#ffffff',
+                  fontWeight: 700,
+                }}
+              />
+            </Button>
+          ) : (
+            <Button
+              type="primary"
+              icon={<ScheduleOutlined />}
+              onClick={() => {
+                setDimension('employee');
+                setView('day');
+                setUnscheduledCollapsed(false);
+              }}
+              aria-label="go-to-employee-dispatch"
+              style={{
+                borderRadius: 6,
+                height: 38,
+                fontWeight: 600,
+                backgroundColor: '#1677ff',
+                borderColor: '#1677ff',
+                boxShadow: '0 2px 6px rgba(22, 119, 255, 0.3)',
+              }}
+            >
+              <span>待排任務</span>
+              <Badge
+                count={unscheduledCount}
+                overflowCount={99}
+                style={{
+                  marginLeft: 6,
+                  backgroundColor: '#ff4d4f',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                }}
+              />
+              <span style={{ fontSize: 13, color: '#ffffff', marginLeft: 6, fontWeight: 500 }}>
+                ➔ 前往員工日排班
+              </span>
+            </Button>
+          )}
         </div>
       )}
 
-      {/* 工具列 */}
-      <div
-        className="schedule-toolbar"
-        style={{
-          background: '#fff',
-          padding: '12px 16px',
-          borderRadius: 8,
-          marginBottom: 12,
-          border: '1px solid #f0f0f0',
-        }}
-      >
-        {/* 第一行：班表視圖（日/週/月）、日期導覽按鈕 */}
-        <div
-          className="schedule-toolbar-row schedule-toolbar-row1"
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 16,
-            alignItems: 'center',
-            marginBottom: dimension !== 'overview' ? 12 : 0,
-          }}
-        >
-          <Space wrap size="middle" align="center">
-            <div className="schedule-toolbar-item">
-              <span className="schedule-toolbar-label" style={{ marginRight: 8, fontWeight: 500 }}>
-                {t('schedule.viewTitle')}
-              </span>
-              <Segmented
-                aria-label={t('schedule.viewMode')}
-                value={currentView}
-                onChange={handleViewModeChange}
-                options={[
-                  { label: t('schedule.dayView'), value: 'day' },
-                  { label: t('schedule.weekView'), value: 'week' },
-                  { label: t('schedule.monthView'), value: 'month' },
-                ]}
-              />
-            </div>
-
-            <div className="schedule-toolbar-item schedule-date-nav-item">
-              <Space.Compact>
-                <Button
-                  icon={<LeftOutlined />}
-                  onClick={handlePrevDate}
-                  aria-label={t('schedule.prevDay')}
-                />
-                <RangePicker
-                  aria-label={t('schedule.period')}
-                  value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
-                  onChange={handlePeriodChange}
-                  allowClear={false}
-                />
-                <Button
-                  icon={<RightOutlined />}
-                  onClick={handleNextDate}
-                  aria-label={t('schedule.nextDay')}
-                />
-              </Space.Compact>
-            </div>
-          </Space>
-        </div>
-
-        {/* 第二行：依 Tab 維度切換之篩選列（全部具備 allowClear 小叉叉；總覽 Tab 不需 search bar） */}
-        {dimension !== 'overview' && !isStaff && (
-          <div className="schedule-toolbar-row schedule-toolbar-row2">
-            {dimension === 'customer' && (
-              <Space wrap size="middle" align="center" className="schedule-filter-group">
-                <div className="schedule-filter-item">
-                  <span className="schedule-filter-label" style={{ marginRight: 6 }}>
-                    {t('schedule.groupNameLabel')}
-                  </span>
-                  <Select
-                    aria-label={t('schedule.groupFilter')}
-                    placeholder={t('schedule.selectGroupPlaceholder')}
-                    allowClear
-                    showSearch
-                    optionFilterProp="label"
-                    style={{ width: 220 }}
-                    options={groupOptions}
-                    value={groupId}
-                    onChange={handleGroupChange}
-                  />
-                </div>
-                <div className="schedule-filter-item">
-                  <span className="schedule-filter-label" style={{ marginRight: 6 }}>
-                    {t('schedule.branchLabel')}
-                  </span>
-                  <Select
-                    aria-label={t('schedule.branchFilter')}
-                    placeholder={t('schedule.selectBranchPlaceholder')}
-                    allowClear
-                    showSearch
-                    optionFilterProp="label"
-                    style={{ width: 220 }}
-                    options={branchOptions}
-                    value={branchId}
-                    onChange={setBranchId}
-                  />
-                </div>
-              </Space>
-            )}
-
-            {dimension === 'employee' && (
-              <Space wrap size="middle" align="center" className="schedule-filter-group">
-                <div className="schedule-filter-item">
-                  <span className="schedule-filter-label" style={{ marginRight: 6 }}>
-                    {t('schedule.employeeLabel')}
-                  </span>
-                  <Select
-                    aria-label={t('schedule.employeeFilter')}
-                    placeholder={t('schedule.selectEmployeePlaceholder')}
-                    allowClear
-                    showSearch
-                    filterOption={(input, option) => {
-                      const label = String(option?.label ?? '').toLowerCase();
-                      const search = String(
-                        (option as { searchValue?: string })?.searchValue ?? '',
-                      ).toLowerCase();
-                      const query = input.toLowerCase();
-                      return label.includes(query) || search.includes(query);
-                    }}
-                    style={{ width: 240 }}
-                    options={employeeOptions}
-                    value={employeeId}
-                    onChange={setEmployeeId}
-                  />
-                </div>
-                <div className="schedule-filter-item">
-                  <span className="schedule-filter-label" style={{ marginRight: 6 }}>
-                    {t('schedule.areaLabel')}
-                  </span>
-                  <Select
-                    aria-label="地區篩選"
-                    placeholder={t('schedule.selectAreaPlaceholder')}
-                    allowClear
-                    style={{ width: 140 }}
-                    options={AREA_OPTIONS}
-                    value={selectedArea}
-                    onChange={setSelectedArea}
-                  />
-                </div>
-                <div className="schedule-filter-item">
-                  <span className="schedule-filter-label" style={{ marginRight: 6 }}>
-                    {t('schedule.shiftLabel')}
-                  </span>
-                  <Select
-                    aria-label={t('schedule.shiftFilter')}
-                    placeholder={t('schedule.selectShiftPlaceholder')}
-                    allowClear
-                    style={{ width: 140 }}
-                    options={EMPLOYEE_SHIFT_OPTIONS}
-                    value={selectedShift}
-                    onChange={setSelectedShift}
-                  />
-                </div>
-              </Space>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* 排班行事曆與待排任務面板 */}
+      {/* 排班主工作區：左右雙欄結構（右側待排任務面板頂端與左側工具列平齊，拉高可視空間） */}
       <div
         style={{
           display: 'flex',
           gap: 12,
-          height: 'calc(100vh - 280px)',
-          minHeight: 520,
+          height: 'calc(100vh - 190px)',
+          minHeight: 560,
         }}
       >
-        {/* 左側日曆主視圖 */}
-        <div style={{ flex: 1, minWidth: 0, height: '100%' }}>
-          <ScheduleCalendar
-            viewMode={currentView}
-            dimension={effectiveDimension}
-            dateRange={dateRange}
-            filters={filters}
-            onEventClick={handleEventClick}
-            onDateChange={handleDateChange}
-            scrollTime={scrollTime}
-            openEventId={detailOpen ? selectedEvent?.id : undefined}
-            renderEventDetail={renderEventDetail}
-            onEventDetailClose={handleDetailClose}
-            onZoomToDay={handleZoomToDay}
-            onZoomViewChange={handleZoomViewChange}
-            droppable={hasScheduleEdit}
-            onExternalDrop={handleExternalDrop}
-            editable={hasScheduleEdit}
-            onEventDragStart={handleEventDragStart}
-            onEventDragStop={handleEventDragStop}
-            draggingTask={draggingUnscheduledTask}
-          />
+        {/* 左側：工具列與日曆主視圖 */}
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+          }}
+        >
+          {/* 工具列 */}
+          <div
+            className="schedule-toolbar"
+            style={{
+              background: '#fff',
+              padding: '12px 16px',
+              borderRadius: 8,
+              marginBottom: 12,
+              border: '1px solid #f0f0f0',
+            }}
+          >
+            {/* 第一行：班表視圖（日/週/月）、日期導覽按鈕 */}
+            <div
+              className="schedule-toolbar-row schedule-toolbar-row1"
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 16,
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: dimension !== 'overview' ? 12 : 0,
+              }}
+            >
+              <Space wrap size="middle" align="center">
+                <div className="schedule-toolbar-item">
+                  <span
+                    className="schedule-toolbar-label"
+                    style={{ marginRight: 8, fontWeight: 500 }}
+                  >
+                    {t('schedule.viewTitle')}
+                  </span>
+                  <Segmented
+                    aria-label={t('schedule.viewMode')}
+                    value={currentView}
+                    onChange={handleViewModeChange}
+                    options={[
+                      { label: t('schedule.dayView'), value: 'day' },
+                      { label: t('schedule.weekView'), value: 'week' },
+                      { label: t('schedule.monthView'), value: 'month' },
+                    ]}
+                  />
+                </div>
+
+                <div className="schedule-toolbar-item schedule-date-nav-item">
+                  <Space.Compact>
+                    <Button
+                      icon={<LeftOutlined />}
+                      onClick={handlePrevDate}
+                      aria-label={t('schedule.prevDay')}
+                    />
+                    <RangePicker
+                      aria-label={t('schedule.period')}
+                      value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
+                      onChange={handlePeriodChange}
+                      allowClear={false}
+                    />
+                    <Button
+                      icon={<RightOutlined />}
+                      onClick={handleNextDate}
+                      aria-label={t('schedule.nextDay')}
+                    />
+                  </Space.Compact>
+                </div>
+              </Space>
+            </div>
+
+            {/* 第二行：依 Tab 維度切換之篩選列（全部具備 allowClear 小叉叉；總覽 Tab 不需 search bar） */}
+            {dimension !== 'overview' && !isStaff && (
+              <div className="schedule-toolbar-row schedule-toolbar-row2">
+                {dimension === 'customer' && (
+                  <Space wrap size="middle" align="center" className="schedule-filter-group">
+                    <div className="schedule-filter-item">
+                      <span className="schedule-filter-label" style={{ marginRight: 6 }}>
+                        {t('schedule.groupNameLabel')}
+                      </span>
+                      <Select
+                        aria-label={t('schedule.groupFilter')}
+                        placeholder={t('schedule.selectGroupPlaceholder')}
+                        allowClear
+                        showSearch
+                        optionFilterProp="label"
+                        style={{ width: 220 }}
+                        options={groupOptions}
+                        value={groupId}
+                        onChange={handleGroupChange}
+                      />
+                    </div>
+                    <div className="schedule-filter-item">
+                      <span className="schedule-filter-label" style={{ marginRight: 6 }}>
+                        {t('schedule.branchLabel')}
+                      </span>
+                      <Select
+                        aria-label={t('schedule.branchFilter')}
+                        placeholder={t('schedule.selectBranchPlaceholder')}
+                        allowClear
+                        showSearch
+                        optionFilterProp="label"
+                        style={{ width: 220 }}
+                        options={branchOptions}
+                        value={branchId}
+                        onChange={setBranchId}
+                      />
+                    </div>
+                  </Space>
+                )}
+
+                {dimension === 'employee' && (
+                  <Space wrap size="middle" align="center" className="schedule-filter-group">
+                    <div className="schedule-filter-item">
+                      <span className="schedule-filter-label" style={{ marginRight: 6 }}>
+                        {t('schedule.employeeLabel')}
+                      </span>
+                      <Select
+                        aria-label={t('schedule.employeeFilter')}
+                        placeholder={t('schedule.selectEmployeePlaceholder')}
+                        allowClear
+                        showSearch
+                        filterOption={(input, option) => {
+                          const label = String(option?.label ?? '').toLowerCase();
+                          const search = String(
+                            (option as { searchValue?: string })?.searchValue ?? '',
+                          ).toLowerCase();
+                          const query = input.toLowerCase();
+                          return label.includes(query) || search.includes(query);
+                        }}
+                        style={{ width: 240 }}
+                        options={employeeOptions}
+                        value={employeeId}
+                        onChange={setEmployeeId}
+                      />
+                    </div>
+                    <div className="schedule-filter-item">
+                      <span className="schedule-filter-label" style={{ marginRight: 6 }}>
+                        {t('schedule.areaLabel')}
+                      </span>
+                      <Select
+                        aria-label="地區篩選"
+                        placeholder={t('schedule.selectAreaPlaceholder')}
+                        allowClear
+                        style={{ width: 140 }}
+                        options={AREA_OPTIONS}
+                        value={selectedArea}
+                        onChange={setSelectedArea}
+                      />
+                    </div>
+                    <div className="schedule-filter-item">
+                      <span className="schedule-filter-label" style={{ marginRight: 6 }}>
+                        {t('schedule.shiftLabel')}
+                      </span>
+                      <Select
+                        aria-label={t('schedule.shiftFilter')}
+                        placeholder={t('schedule.selectShiftPlaceholder')}
+                        allowClear
+                        style={{ width: 140 }}
+                        options={EMPLOYEE_SHIFT_OPTIONS}
+                        value={selectedShift}
+                        onChange={setSelectedShift}
+                      />
+                    </div>
+                  </Space>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 日曆主元件 */}
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <ScheduleCalendar
+              viewMode={currentView}
+              dimension={effectiveDimension}
+              dateRange={dateRange}
+              filters={filters}
+              onEventClick={handleEventClick}
+              onDateChange={handleDateChange}
+              scrollTime={scrollTime}
+              openEventId={detailOpen ? selectedEvent?.id : undefined}
+              renderEventDetail={renderEventDetail}
+              onEventDetailClose={handleDetailClose}
+              onZoomToDay={handleZoomToDay}
+              onZoomViewChange={handleZoomViewChange}
+              droppable={
+                hasScheduleEdit && effectiveDimension === 'employee' && currentView === 'day'
+              }
+              onExternalDrop={handleExternalDrop}
+              editable={hasScheduleEdit}
+              onEventDragStart={handleEventDragStart}
+              onEventDragStop={handleEventDragStop}
+              draggingTask={draggingUnscheduledTask}
+            />
+          </div>
         </div>
 
-        {/* 右側待排任務面板（具排班編輯權限時顯示） */}
-        {hasScheduleEdit && (
+        {/* 右側待排任務面板（具排班編輯權限且處於員工日視圖時顯示，高度與左側同高） */}
+        {hasScheduleEdit && effectiveDimension === 'employee' && currentView === 'day' && (
           <UnscheduledTasksPanel
             collapsed={unscheduledCollapsed}
             onToggleCollapse={() => setUnscheduledCollapsed((prev) => !prev)}
-            onEditTask={handleEditUnscheduledTask}
+            onEditTask={handleViewUnscheduledTaskDetail}
             onDragStartTask={handleDragStartTask}
             onDragEndTask={handleDragEndTask}
             isDropActive={isDraggingEvent}
+            dimension={effectiveDimension}
+            viewMode={currentView}
           />
         )}
       </div>
+
+      {/* 待排任務詳情小卡 Modal */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16, fontWeight: 700 }}>📋 任務詳情小卡</span>
+            {viewingTask && (
+              <Tag
+                color={
+                  viewingTask.taskType === 'CONTRACT'
+                    ? 'blue'
+                    : viewingTask.taskType === 'ONETIME'
+                      ? 'green'
+                      : 'purple'
+                }
+                style={{ margin: 0, fontWeight: 600 }}
+              >
+                {viewingTask.taskType === 'CONTRACT'
+                  ? '合約'
+                  : viewingTask.taskType === 'ONETIME'
+                    ? '單次'
+                    : 'ESR'}
+              </Tag>
+            )}
+          </div>
+        }
+        open={Boolean(viewingTask)}
+        onCancel={() => setViewingTask(null)}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={() => setViewingTask(null)}>關閉</Button>
+            {hasScheduleEdit && viewingTask && (
+              <Button
+                type="primary"
+                onClick={() => {
+                  const taskToEdit = viewingTask;
+                  handleOpenEditModalForTask(taskToEdit);
+                }}
+              >
+                {t('common.edit') || '編輯任務'}
+              </Button>
+            )}
+          </div>
+        }
+        width={500}
+        destroyOnClose
+      >
+        {viewingTask && (
+          <div
+            style={{ display: 'grid', gap: 12, fontSize: 14, lineHeight: 1.6, padding: '12px 0' }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid #f0f0f0',
+                paddingBottom: 6,
+              }}
+            >
+              <span style={{ color: '#8c8c8c' }}>客戶集團：</span>
+              <span style={{ fontWeight: 600, color: '#1f1f1f' }}>{viewingTask.groupName}</span>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid #f0f0f0',
+                paddingBottom: 6,
+              }}
+            >
+              <span style={{ color: '#8c8c8c' }}>分店名稱：</span>
+              <span style={{ fontWeight: 600, color: '#1f1f1f' }}>{viewingTask.branchName}</span>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottom: '1px solid #f0f0f0',
+                paddingBottom: 6,
+              }}
+            >
+              <span style={{ color: '#8c8c8c' }}>施作日期：</span>
+              <span>
+                {viewingTask.date ? (
+                  <span style={{ fontWeight: 500, color: '#1f1f1f' }}>{viewingTask.date}</span>
+                ) : (
+                  <Tag color="orange" style={{ margin: 0, fontWeight: 600 }}>
+                    📅 待排定日期
+                  </Tag>
+                )}
+              </span>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottom: '1px solid #f0f0f0',
+                paddingBottom: 6,
+              }}
+            >
+              <span style={{ color: '#8c8c8c' }}>施作時段：</span>
+              <span>
+                {viewingTask.startTime && viewingTask.endTime ? (
+                  <span style={{ color: '#1f1f1f' }}>
+                    {viewingTask.shift || ''} ({viewingTask.startTime} ~ {viewingTask.endTime})
+                  </span>
+                ) : (
+                  <Tag color="purple" style={{ margin: 0, fontWeight: 600 }}>
+                    ⏰ 待定時段
+                  </Tag>
+                )}
+              </span>
+            </div>
+            {viewingTask.route && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  borderBottom: '1px solid #f0f0f0',
+                  paddingBottom: 6,
+                }}
+              >
+                <span style={{ color: '#8c8c8c' }}>指定路線：</span>
+                <span style={{ color: '#1f1f1f' }}>{viewingTask.route}</span>
+              </div>
+            )}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottom: '1px solid #f0f0f0',
+                paddingBottom: 6,
+              }}
+            >
+              <span style={{ color: '#8c8c8c' }}>需求人數：</span>
+              <span>
+                {viewingTask.assignees &&
+                viewingTask.assignees.length < (viewingTask.headcount || 1) ? (
+                  <Tag color="red" style={{ margin: 0, fontWeight: 600 }}>
+                    ⚠️ 缺 {(viewingTask.headcount || 1) - (viewingTask.assignees?.length || 0)} 人 (
+                    {viewingTask.assignees?.length || 0}/{viewingTask.headcount || 1})
+                  </Tag>
+                ) : (
+                  <Tag color="green" style={{ margin: 0, fontWeight: 600 }}>
+                    ✓ 人員已齊 ({viewingTask.assignees?.length || 0}/{viewingTask.headcount || 1})
+                  </Tag>
+                )}
+              </span>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid #f0f0f0',
+                paddingBottom: 6,
+              }}
+            >
+              <span style={{ color: '#8c8c8c' }}>指派人員：</span>
+              <span style={{ color: '#1f1f1f' }}>
+                {viewingTask.assignees && viewingTask.assignees.length > 0
+                  ? viewingTask.assignees.map((a) => a.employeeName).join('、')
+                  : '尚未指派'}
+              </span>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid #f0f0f0',
+                paddingBottom: 6,
+              }}
+            >
+              <span style={{ color: '#8c8c8c' }}>施作項目：</span>
+              <span style={{ fontWeight: 500, color: '#1f1f1f' }}>
+                {viewingTask.contents ? formatTaskContents(viewingTask.contents, ', ', t) : '-'}
+              </span>
+            </div>
+            {viewingTask.remarks && (
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#8c8c8c' }}>備註說明：</span>
+                <span style={{ color: '#595959', maxWidth: '70%', textAlign: 'right' }}>
+                  {viewingTask.remarks}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
 
       {/* 編輯任務 Modal */}
       <Modal
@@ -1130,10 +1458,12 @@ const SchedulePage: FC = () => {
         width={800}
         destroyOnClose
       >
-        {taskDetail && (
+        {(taskDetail || (selectedEvent?.extendedProps as unknown as { task?: Task })?.task) && (
           <TaskForm
             mode="edit"
-            initialData={taskDetail}
+            initialData={
+              taskDetail || (selectedEvent?.extendedProps as unknown as { task: Task }).task
+            }
             onSubmit={handleEditSubmit}
             onCancel={handleEditClose}
           />

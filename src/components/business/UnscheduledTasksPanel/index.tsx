@@ -1,16 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Badge, Button, Card, Empty, Input, Segmented, Select, Space, Tag, Tooltip } from 'antd';
-import {
-  ClockCircleOutlined,
-  LeftOutlined,
-  RightOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
+import { Badge, Button, Card, Empty, Input, Space, Tag, Tooltip } from 'antd';
+import { LeftOutlined, RightOutlined, SearchOutlined } from '@ant-design/icons';
 import { Draggable } from '@fullcalendar/interaction';
 import { useTranslation } from 'react-i18next';
 import { useTaskList } from '@/queries/useTaskQueries';
 import type { Task, TaskType } from '@/types/task';
-import { formatTaskContents } from '@/constants/taskStatus';
 
 export interface UnscheduledTasksPanelProps {
   collapsed?: boolean;
@@ -23,6 +17,8 @@ export interface UnscheduledTasksPanelProps {
   onWidthChange?: (width: number) => void;
   className?: string;
   style?: React.CSSProperties;
+  dimension?: 'overview' | 'customer' | 'employee';
+  viewMode?: 'day' | 'week' | 'month';
 }
 
 const TASK_TYPE_COLORS: Record<TaskType, string> = {
@@ -34,8 +30,8 @@ const TASK_TYPE_COLORS: Record<TaskType, string> = {
 /**
  * 待排任務面板 (UnscheduledTasksPanel)
  *
- * 呈現所有未排班（status = 'UNSCHEDULED'）之任務清單，
- * 支援關鍵字搜尋、任務類型過濾與折疊切換。
+ * 呈現未排班（status = 'UNSCHEDULED'）之任務清單，
+ * 支援依當前行事曆情境（視圖與維度）自動情境過濾（缺日期/缺時段/缺人員）與關鍵字搜尋。
  * 整合 FullCalendar Draggable，使卡片可直接拖曳至日曆上完成排班，
  * 並支援將已排程任務直接拖出至面板移回待排。
  * 同時支援左側邊界拖曳調整寬度與拉動收合。
@@ -43,7 +39,7 @@ const TASK_TYPE_COLORS: Record<TaskType, string> = {
 export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
   collapsed = false,
   onToggleCollapse,
-  onEditTask: _onEditTask,
+  onEditTask,
   onDragStartTask,
   onDragEndTask,
   isDropActive = false,
@@ -51,6 +47,8 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
   onWidthChange,
   className = '',
   style,
+  dimension: _dimension = 'overview',
+  viewMode: _viewMode = 'month',
 }) => {
   const { t } = useTranslation();
   const listContainerRef = useRef<HTMLDivElement>(null);
@@ -99,12 +97,7 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
     window.addEventListener('mouseup', cleanup);
   };
 
-  // 待排原因分類篩選與搜尋狀態
-  const [reasonFilter, setReasonFilter] = useState<
-    'ALL' | 'MISSING_DATE' | 'MISSING_ASSIGNEES' | 'MISSING_TIME'
-  >('ALL');
   const [keyword, setKeyword] = useState<string>('');
-  const [selectedType, setSelectedType] = useState<string>('ALL');
 
   // 查詢所有待排任務
   const { data: taskData, isLoading } = useTaskList({
@@ -114,56 +107,21 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
 
   const rawTasks = useMemo(() => taskData?.list ?? [], [taskData?.list]);
 
-  // 動態統計各待排原因數量
-  const reasonCounts = useMemo(() => {
-    let missingDate = 0;
-    let missingAssignees = 0;
-    let missingTime = 0;
-
-    rawTasks.forEach((task) => {
-      if (!task.date || task.date === '') missingDate++;
-      if (
-        !task.assignees ||
-        task.assignees.length === 0 ||
-        task.assignees.length < (task.headcount || 1)
-      ) {
-        missingAssignees++;
-      }
-      if (!task.startTime || !task.endTime || task.startTime === '') missingTime++;
-    });
-
+  // 面板標頭顯示資訊（標題、代表色彩與總數量）
+  const contextLabel = useMemo(() => {
     return {
-      all: rawTasks.length,
-      missingDate,
-      missingAssignees,
-      missingTime,
+      title: t('schedule.unscheduledTasks') || '待排任務清單',
+      badgeColor: '#1677ff',
+      count: rawTasks.length,
+      desc: '拖曳卡片至員工時間軸空檔，即可直接排班',
     };
-  }, [rawTasks]);
+  }, [rawTasks.length, t]);
 
-  // 本地篩選任務清單（依待排原因、任務類型與關鍵字）
+  // 本地篩選任務清單（支援關鍵字搜尋：集團、分店、備註、路線、指派人員）
   const filteredTasks = useMemo(() => {
     let result = rawTasks;
 
-    // 1. 待排原因分類篩選
-    if (reasonFilter === 'MISSING_DATE') {
-      result = result.filter((task) => !task.date || task.date === '');
-    } else if (reasonFilter === 'MISSING_ASSIGNEES') {
-      result = result.filter(
-        (task) =>
-          !task.assignees ||
-          task.assignees.length === 0 ||
-          task.assignees.length < (task.headcount || 1),
-      );
-    } else if (reasonFilter === 'MISSING_TIME') {
-      result = result.filter((task) => !task.startTime || !task.endTime || task.startTime === '');
-    }
-
-    // 2. 任務類型篩選
-    if (selectedType !== 'ALL') {
-      result = result.filter((task) => task.taskType === selectedType);
-    }
-
-    // 3. 關鍵字搜尋
+    // 關鍵字搜尋
     if (keyword.trim()) {
       const q = keyword.trim().toLowerCase();
       result = result.filter(
@@ -176,7 +134,7 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
       );
     }
     return result;
-  }, [keyword, rawTasks, reasonFilter, selectedType]);
+  }, [keyword, rawTasks]);
 
   const onDragStartTaskRef = useRef(onDragStartTask);
   const onDragEndTaskRef = useRef(onDragEndTask);
@@ -399,12 +357,14 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
       >
         <Space size={8} align="center">
           <span style={{ fontWeight: 700, fontSize: 14, color: '#1f1f1f' }}>
-            {t('schedule.unscheduledTasksTitle') || '待排任務清單'}
+            {contextLabel.title}
           </span>
           <Badge
-            count={rawTasks.length}
+            count={contextLabel.count}
             overflowCount={99}
-            style={{ backgroundColor: '#1677ff' }}
+            style={{
+              backgroundColor: contextLabel.badgeColor,
+            }}
           />
         </Space>
         {onToggleCollapse && (
@@ -438,103 +398,26 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
         </div>
       )}
 
-      {/* 搜尋與篩選列 */}
+      {/* 搜尋列 */}
       <div
         style={{
-          padding: '10px 12px 10px 12px',
+          padding: '10px 12px 6px 12px',
           borderBottom: '1px solid #f0f0f0',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
           backgroundColor: '#fafafa',
         }}
       >
-        {/* 關鍵字搜尋 + 任務類型選單 */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          <Input
-            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-            placeholder={t('schedule.searchUnscheduledPlaceholder') || '搜尋客戶或備註...'}
-            allowClear
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            size="small"
-            style={{ flex: 1, borderRadius: 6 }}
-          />
-          <Select
-            size="small"
-            value={selectedType}
-            onChange={(val) => setSelectedType(val)}
-            style={{ width: 100 }}
-            options={[
-              { label: t('schedule.allTaskTypes') || '全部類型', value: 'ALL' },
-              {
-                label: t('task.contract') || t('schedule.taskTypes.contract') || '合約',
-                value: 'CONTRACT',
-              },
-              {
-                label: t('task.onetime') || t('schedule.taskTypes.onetime') || '單次',
-                value: 'ONETIME',
-              },
-              { label: t('task.esr') || t('schedule.taskTypes.esr') || 'ESR', value: 'ESR' },
-            ]}
-          />
-        </div>
-
-        {/* 待排原因分類 Tabs (全部 / 缺日期 / 缺人員 / 缺時間) */}
-        <Segmented
+        <Input
+          prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+          placeholder={t('schedule.searchUnscheduledPlaceholder') || '搜尋待排任務...'}
+          allowClear
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
           size="small"
-          block
-          value={reasonFilter}
-          onChange={(val) =>
-            setReasonFilter(val as 'ALL' | 'MISSING_DATE' | 'MISSING_ASSIGNEES' | 'MISSING_TIME')
-          }
-          options={[
-            {
-              label: (
-                <span style={{ fontSize: 12, fontWeight: 500 }}>
-                  {t('schedule.filterAll') || '全部'}
-                  <span style={{ marginLeft: 3, opacity: 0.7, fontSize: 11 }}>
-                    ({reasonCounts.all})
-                  </span>
-                </span>
-              ),
-              value: 'ALL',
-            },
-            {
-              label: (
-                <span style={{ fontSize: 12, fontWeight: 500 }}>
-                  {t('schedule.filterMissingDate') || '缺日期'}
-                  <span style={{ marginLeft: 3, opacity: 0.7, fontSize: 11 }}>
-                    ({reasonCounts.missingDate})
-                  </span>
-                </span>
-              ),
-              value: 'MISSING_DATE',
-            },
-            {
-              label: (
-                <span style={{ fontSize: 12, fontWeight: 500 }}>
-                  {t('schedule.filterMissingAssignees') || '缺人員'}
-                  <span style={{ marginLeft: 3, opacity: 0.7, fontSize: 11 }}>
-                    ({reasonCounts.missingAssignees})
-                  </span>
-                </span>
-              ),
-              value: 'MISSING_ASSIGNEES',
-            },
-            {
-              label: (
-                <span style={{ fontSize: 12, fontWeight: 500 }}>
-                  {t('schedule.filterMissingTime') || '缺時間'}
-                  <span style={{ marginLeft: 3, opacity: 0.7, fontSize: 11 }}>
-                    ({reasonCounts.missingTime})
-                  </span>
-                </span>
-              ),
-              value: 'MISSING_TIME',
-            },
-          ]}
+          style={{ width: '100%', borderRadius: 6, marginBottom: 6 }}
         />
+        <div style={{ fontSize: 11, color: '#0958d9', paddingLeft: 2 }}>
+          💡 拖曳待排卡片至左側班表，即可快速排班
+        </div>
       </div>
 
       {/* 待排任務清單容器 */}
@@ -555,22 +438,29 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
             {t('common.loading') || '載入中...'}
           </div>
         ) : filteredTasks.length === 0 ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={
-              reasonFilter === 'MISSING_DATE'
-                ? '目前沒有缺日期的待排任務'
-                : reasonFilter === 'MISSING_ASSIGNEES'
-                  ? '目前沒有缺人員的待排任務'
-                  : reasonFilter === 'MISSING_TIME'
-                    ? '目前沒有缺時間的待排任務'
-                    : t('schedule.unscheduledTasksEmpty') || '目前沒有待排任務'
-            }
-            style={{ margin: '40px 0' }}
-          />
+          <div
+            style={{
+              padding: '32px 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={
+                <span style={{ color: '#8c8c8c', fontSize: 13 }}>
+                  {keyword
+                    ? t('schedule.noSearchResults') || '無符合搜尋條件之任務'
+                    : `當前視角暫無${contextLabel.title}`}
+                </span>
+              }
+              style={{ margin: '32px 0' }}
+            />
+          </div>
         ) : (
           filteredTasks.map((task) => {
-            const contentsLabel = task.contents ? formatTaskContents(task.contents, ', ', t) : '-';
             const hasAssignees = Array.isArray(task.assignees) && task.assignees.length > 0;
             const requiredHeadcount = task.headcount || 1;
             const currentAssigneeCount = hasAssignees ? task.assignees.length : 0;
@@ -593,8 +483,9 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                 data-task-raw={JSON.stringify(task)}
                 size="small"
                 className="unscheduled-task-draggable-card"
+                onClick={() => onEditTask?.(task)}
                 style={{
-                  cursor: 'grab',
+                  cursor: 'pointer',
                   borderRadius: 8,
                   border: '1px solid #e8e8e8',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
@@ -613,7 +504,7 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: 6,
-                    marginBottom: 3,
+                    marginBottom: 5,
                   }}
                 >
                   <div
@@ -644,78 +535,83 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                   </Tag>
                 </div>
 
-                {/* 第 2 行：日期 + 班次時段 (路線) */}
+                {/* 第 2 行：缺項 Labels（缺日期 / 缺時段 / 缺人員） */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 5,
-                    fontSize: 12,
-                    color: '#595959',
-                    marginBottom: 3,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
+                    flexWrap: 'wrap',
                   }}
                 >
-                  <ClockCircleOutlined style={{ color: '#8c8c8c', fontSize: 11, flexShrink: 0 }} />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {task.date ? task.date : '日期未定'} · {task.shift || '未定班次'}{' '}
-                    {task.startTime && task.endTime ? `(${task.startTime}~${task.endTime})` : ''}
-                    {task.route ? ` · ${task.route}` : ''}
-                  </span>
-                </div>
-
-                {/* 第 3 行：核心缺額進度 + 施作項目 */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 6,
-                    fontSize: 11,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                    {isMissingAssignees ? (
-                      <span
-                        style={{
-                          color: '#d4380d',
-                          fontWeight: 600,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 2,
-                        }}
-                      >
-                        ⚠️ 缺 {missingCount} 人 ({currentAssigneeCount}/{requiredHeadcount})
-                      </span>
-                    ) : (
-                      <span
-                        style={{
-                          color: '#389e0d',
-                          fontWeight: 600,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 2,
-                        }}
-                      >
-                        ✓ 已派齊 ({currentAssigneeCount}/{requiredHeadcount}人)
-                      </span>
-                    )}
-                  </div>
-                  {contentsLabel && contentsLabel !== '-' && (
-                    <span
+                  {!task.date ? (
+                    <Tag
+                      color="orange"
                       style={{
-                        color: '#8c8c8c',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: '55%',
+                        margin: 0,
+                        fontSize: 11,
+                        lineHeight: '20px',
+                        padding: '0 6px',
+                        fontWeight: 600,
+                        borderRadius: 4,
                       }}
-                      title={`施作項目: ${contentsLabel}`}
                     >
-                      項目: {contentsLabel}
+                      📅 待排日期
+                    </Tag>
+                  ) : (
+                    <span style={{ fontSize: 12, color: '#595959', fontWeight: 500 }}>
+                      {task.date}
                     </span>
+                  )}
+
+                  {!task.startTime || !task.endTime ? (
+                    <Tag
+                      color="purple"
+                      style={{
+                        margin: 0,
+                        fontSize: 11,
+                        lineHeight: '20px',
+                        padding: '0 6px',
+                        fontWeight: 600,
+                        borderRadius: 4,
+                      }}
+                    >
+                      ⏰ 待定時段
+                    </Tag>
+                  ) : (
+                    <span style={{ fontSize: 12, color: '#595959' }}>
+                      · {task.shift || ''} ({task.startTime}~{task.endTime})
+                    </span>
+                  )}
+
+                  {isMissingAssignees ? (
+                    <Tag
+                      color="red"
+                      style={{
+                        margin: 0,
+                        fontWeight: 600,
+                        fontSize: 11,
+                        lineHeight: '20px',
+                        padding: '0 6px',
+                        borderRadius: 4,
+                      }}
+                    >
+                      ⚠️ 缺 {missingCount} 人 ({currentAssigneeCount}/{requiredHeadcount})
+                    </Tag>
+                  ) : (
+                    <Tag
+                      color="green"
+                      style={{
+                        margin: 0,
+                        fontWeight: 600,
+                        fontSize: 11,
+                        lineHeight: '20px',
+                        padding: '0 6px',
+                        borderRadius: 4,
+                      }}
+                    >
+                      ✓ 人員已齊 ({currentAssigneeCount}/{requiredHeadcount})
+                    </Tag>
                   )}
                 </div>
               </Card>
