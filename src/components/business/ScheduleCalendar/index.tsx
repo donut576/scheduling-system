@@ -6,11 +6,11 @@ import resourceTimelinePlugin from '@fullcalendar/resource-timeline';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Popover, Tooltip, Button } from 'antd';
-import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { Popover } from 'antd';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { ScheduleDimension, ScheduleEvent, ScheduleFilters } from '@/types/schedule';
+import type { Task } from '@/types/task';
 import { useScheduleData } from '@/queries/useScheduleQueries';
 import { useUserStore } from '@/stores/useUserStore';
 import { isHoliday } from '@/utils/date';
@@ -49,6 +49,7 @@ export interface ScheduleCalendarProps {
     event: { id: string; title: string; extendedProps?: Record<string, unknown> };
     jsEvent: MouseEvent;
   }) => void;
+  draggingTask?: Task | null;
 }
 
 /**
@@ -73,6 +74,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   editable = true,
   onEventDragStart,
   onEventDragStop,
+  draggingTask,
 }) => {
   const { t } = useTranslation();
   const calendarRef = useRef<FullCalendar>(null);
@@ -89,7 +91,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   const dragStartXRef = useRef<number>(0);
   const dragStartWidthRef = useRef<number>(60);
 
-  // 左側標頭欄位寬度（支援滑鼠拖曳拉大/拉小與一鍵收合/展開）
+  // 左側標頭欄位寬度（支援滑鼠拖曳拉大/拉小）
   const [resourceAreaWidth, setResourceAreaWidth] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const saved = window.localStorage.getItem('ecolab_resource_area_width');
@@ -100,7 +102,6 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
     }
     return isMobile ? 180 : 260;
   });
-  const [isResourceCollapsed, setIsResourceCollapsed] = useState<boolean>(false);
   const isDraggingResourceDividerRef = useRef<boolean>(false);
   const dragResourceStartXRef = useRef<number>(0);
   const dragResourceStartWidthRef = useRef<number>(260);
@@ -157,30 +158,46 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
     return 'resourceTimelineMonth';
   }, [dimension, viewMode]);
 
-  // 縮放處理函式：放大（Zoom In）與縮小（Zoom Out）
+  // 全域註冊 window 事件監聽，確保滑鼠釋放時能正確停止拖曳
+  useEffect(() => {
+    const handleMouseUp = () => {
+      if (isDraggingTimelineRef.current) {
+        isDraggingTimelineRef.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+      if (isDraggingResourceDividerRef.current) {
+        isDraggingResourceDividerRef.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
   const handleZoom = useCallback(
     (direction: 'in' | 'out') => {
-      if (direction === 'in') {
-        if (viewMode === 'month') {
-          onZoomViewChange?.('week');
-        } else if (viewMode === 'week') {
-          onZoomViewChange?.('day');
-        } else if (viewMode === 'day') {
-          setDaySlotDurationIndex((prev) => Math.max(0, prev - 1));
-        }
-      } else {
-        if (viewMode === 'day') {
-          if (daySlotDurationIndex < slotDurations.length - 1) {
-            setDaySlotDurationIndex((prev) => prev + 1);
-          } else {
-            onZoomViewChange?.('week');
+      if (viewMode === 'day') {
+        setDaySlotDurationIndex((prev) => {
+          if (direction === 'in') {
+            return Math.max(0, prev - 1);
           }
-        } else if (viewMode === 'week') {
-          onZoomViewChange?.('month');
+          return Math.min(slotDurations.length - 1, prev + 1);
+        });
+      } else if (viewMode === 'week') {
+        const nextView = direction === 'in' ? 'day' : 'month';
+        onZoomViewChange?.(nextView);
+      } else if (viewMode === 'month') {
+        if (direction === 'in') {
+          onZoomViewChange?.('week');
         }
       }
     },
-    [daySlotDurationIndex, onZoomViewChange, slotDurations.length, viewMode],
+    [onZoomViewChange, slotDurations.length, viewMode],
   );
 
   // 滑鼠滾輪與觸控板 Pinch-to-zoom 監聽
@@ -212,7 +229,6 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           handleZoom('out');
         }
       }
-      // 一般觸控板雙指左右滑動、上下滾動：不呼叫 e.preventDefault()，放行給 FullCalendar 原生平滑滑動！
     },
     [handleZoom],
   );
@@ -221,19 +237,21 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
     (e: React.MouseEvent<HTMLDivElement>) => {
       const target = e.target as HTMLElement;
 
-      // 檢查是否點擊在左側標頭欄位與時間軸的分割線上（支援滑鼠拖曳拉大/拉小）
+      // 檢查是否點擊在左側標頭欄位與時間軸的分割線或箭頭指示上（支援滑鼠拖曳拉大/拉小）
       const isDivider = Boolean(
         target.closest('.fc-resource-timeline-divider') ||
         target.classList.contains('fc-resource-timeline-divider') ||
-        target.closest('.fc-col-resizer'),
+        target.closest('.fc-col-resizer') ||
+        target.closest('.fc-col-resizer-handle'),
       );
 
       if (isDivider) {
         isDraggingResourceDividerRef.current = true;
         dragResourceStartXRef.current = e.clientX;
-        dragResourceStartWidthRef.current = isResourceCollapsed ? 60 : resourceAreaWidth;
+        dragResourceStartWidthRef.current = resourceAreaWidth;
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
+        containerRef.current?.classList.add('is-resizing-resource');
         e.preventDefault();
         return;
       }
@@ -247,25 +265,29 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         document.body.style.userSelect = 'none';
       }
     },
-    [isResourceCollapsed, resourceAreaWidth, timelineSlotMinWidth],
+    [resourceAreaWidth, timelineSlotMinWidth],
   );
 
   useEffect(() => {
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('.fc-resource-timeline-divider')) {
+        containerRef.current?.classList.add('is-hovering-divider');
+      } else if (!isDraggingResourceDividerRef.current) {
+        containerRef.current?.classList.remove('is-hovering-divider');
+      }
+    };
+
     const handleWindowMouseMove = (e: MouseEvent) => {
       if (isDraggingResourceDividerRef.current) {
         const deltaX = e.clientX - dragResourceStartXRef.current;
         const newWidth = Math.max(
-          60,
+          80,
           Math.min(600, Math.round(dragResourceStartWidthRef.current + deltaX)),
         );
-        if (newWidth <= 75) {
-          setIsResourceCollapsed(true);
-        } else {
-          setIsResourceCollapsed(false);
-          setResourceAreaWidth(newWidth);
-          if (typeof window !== 'undefined') {
-            window.localStorage.setItem('ecolab_resource_area_width', String(newWidth));
-          }
+        setResourceAreaWidth(newWidth);
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('ecolab_resource_area_width', String(newWidth));
         }
         return;
       }
@@ -284,6 +306,8 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         isDraggingResourceDividerRef.current = false;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
+        containerRef.current?.classList.remove('is-resizing-resource');
+        containerRef.current?.classList.remove('is-hovering-divider');
       }
       if (isDraggingTimelineRef.current) {
         isDraggingTimelineRef.current = false;
@@ -294,10 +318,12 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
 
     window.addEventListener('mousemove', handleWindowMouseMove);
     window.addEventListener('mouseup', handleWindowMouseUp);
+    window.addEventListener('mouseover', handleMouseOver);
 
     return () => {
       window.removeEventListener('mousemove', handleWindowMouseMove);
       window.removeEventListener('mouseup', handleWindowMouseUp);
+      window.removeEventListener('mouseover', handleMouseOver);
     };
   }, []);
 
@@ -590,144 +616,65 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
     [effectiveView, onEventClick, onEventDetailClose, openEventId, renderEventDetail, t],
   );
 
-  // 資源標籤渲染（支援一般兩行設計，與收合狀態下的緊湊頭像/縮圖）
-  const renderResourceLabelContent = useCallback(
-    (arg: ResourceLabelContentArg) => {
-      const ext = arg.resource.extendedProps as
-        { mainTitle?: string; subTitle?: string; isSelf?: boolean } | undefined;
-      const mainTitle = ext?.mainTitle || arg.resource.title;
-      const subTitle = ext?.subTitle;
-      const isSelf = ext?.isSelf || false;
+  // 資源標籤渲染（支援一般兩行設計）
+  const renderResourceLabelContent = useCallback((arg: ResourceLabelContentArg) => {
+    const ext = arg.resource.extendedProps as
+      { mainTitle?: string; subTitle?: string; isSelf?: boolean } | undefined;
+    const mainTitle = ext?.mainTitle || arg.resource.title;
+    const subTitle = ext?.subTitle;
+    const isSelf = ext?.isSelf || false;
 
-      if (isResourceCollapsed) {
-        return (
-          <Tooltip title={`${mainTitle}${subTitle ? ` (${subTitle})` : ''}`} placement="right">
-            <div
-              aria-label={arg.resource.title}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '100%',
-                height: '100%',
-                cursor: 'pointer',
-                overflow: 'hidden',
-              }}
-            >
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  backgroundColor: isSelf ? '#1677ff' : '#f0f5ff',
-                  color: isSelf ? '#ffffff' : '#0958d9',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-                }}
-              >
-                {mainTitle ? mainTitle.slice(0, 2) : ''}
-              </span>
-            </div>
-          </Tooltip>
-        );
-      }
-
-      return (
-        <div
-          aria-label={arg.resource.title}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            padding: '4px 6px',
-            lineHeight: 1.3,
-            overflow: 'hidden',
-            backgroundColor: isSelf ? '#f0f7ff' : 'transparent',
-            borderRadius: 4,
-          }}
-        >
-          <span style={{ display: 'none' }}>{arg.resource.title}</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-            <span
-              style={{
-                fontWeight: 700,
-                color: isSelf ? '#0958d9' : '#1f1f1f',
-                fontSize: '13px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {mainTitle}
-            </span>
-          </div>
-          {subTitle && (
-            <span
-              style={{
-                color: isSelf ? '#1677ff' : '#8c8c8c',
-                fontSize: '12px',
-                marginTop: '2px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                fontWeight: isSelf ? 500 : 400,
-              }}
-            >
-              {subTitle}
-            </span>
-          )}
+    return (
+      <div
+        aria-label={arg.resource.title}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          padding: '4px 6px',
+          lineHeight: 1.3,
+          overflow: 'hidden',
+          backgroundColor: isSelf ? '#f0f7ff' : 'transparent',
+          borderRadius: 4,
+        }}
+      >
+        <span style={{ display: 'none' }}>{arg.resource.title}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+          <span
+            style={{
+              fontWeight: 700,
+              color: isSelf ? '#0958d9' : '#1f1f1f',
+              fontSize: '13px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {mainTitle}
+          </span>
         </div>
-      );
-    },
-    [isResourceCollapsed],
-  );
+        {subTitle && (
+          <span
+            style={{
+              color: isSelf ? '#1677ff' : '#8c8c8c',
+              fontSize: '12px',
+              marginTop: '2px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              fontWeight: isSelf ? 500 : 400,
+            }}
+          >
+            {subTitle}
+          </span>
+        )}
+      </div>
+    );
+  }, []);
 
   const renderResourceAreaHeader = useCallback(() => {
     if (isMobile) {
       return <span>{t('schedule.individual')}</span>;
-    }
-
-    if (isResourceCollapsed) {
-      return (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '100%',
-            height: '100%',
-            padding: '2px 0',
-          }}
-        >
-          <Tooltip title="展開標頭欄位" placement="right">
-            <Button
-              type="text"
-              size="small"
-              aria-label="展開標頭欄位"
-              icon={<MenuUnfoldOutlined style={{ fontSize: 15, color: '#1677ff' }} />}
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsResourceCollapsed(false);
-              }}
-              style={{
-                width: 32,
-                height: 32,
-                padding: 0,
-                minWidth: 32,
-                borderRadius: 6,
-                backgroundColor: '#f0f5ff',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            />
-          </Tooltip>
-        </div>
-      );
     }
 
     const titleText =
@@ -758,8 +705,9 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           width: '100%',
-          padding: '2px 2px 2px 4px',
+          padding: '2px 4px',
           boxSizing: 'border-box',
+          position: 'relative',
         }}
       >
         <div
@@ -798,32 +746,9 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             </span>
           )}
         </div>
-        <Tooltip title="收合標頭欄位" placement="bottom">
-          <Button
-            type="text"
-            size="small"
-            aria-label="收合標頭欄位"
-            icon={<MenuFoldOutlined style={{ fontSize: 14, color: '#595959' }} />}
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsResourceCollapsed(true);
-            }}
-            style={{
-              width: 26,
-              height: 26,
-              padding: 0,
-              minWidth: 26,
-              borderRadius: 4,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          />
-        </Tooltip>
       </div>
     );
-  }, [dimension, isMobile, isResourceCollapsed, t]);
+  }, [dimension, isMobile, t]);
 
   // 日期格線：國定假日以紅色標示
   const dayHeaderClassNames = useCallback(
@@ -834,6 +759,75 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
     },
     [holidays],
   );
+
+  // 拖曳待排任務時，直接透過 DOM 操作更新可用時段（高亮）與非可用時段（灰階斜紋）
+  // 避免造成 FullCalendar 元件重新渲染導致 HitGrid / Drop 判定中斷
+  useEffect(() => {
+    const calendarEl = containerRef.current;
+    if (!calendarEl) return;
+
+    const prevAllowed = calendarEl.querySelectorAll(
+      '.fc-slot-allowed-highlight, .fc-slot-header-allowed',
+    );
+    prevAllowed.forEach((el) => {
+      el.classList.remove('fc-slot-allowed-highlight', 'fc-slot-header-allowed');
+    });
+
+    const prevDim = calendarEl.querySelectorAll('.fc-slot-disabled-dim, .fc-slot-header-dim');
+    prevDim.forEach((el) => {
+      el.classList.remove('fc-slot-disabled-dim', 'fc-slot-header-dim');
+    });
+
+    if (!draggingTask) return;
+
+    // 1. 日檢視：比對小時 (HH:mm)
+    if (viewMode === 'day' && draggingTask.startTime && draggingTask.endTime) {
+      const slots = calendarEl.querySelectorAll<HTMLElement>(
+        '.fc-timeline-slot[data-date], .fc-timegrid-slot[data-time], .fc-timeline-lane',
+      );
+      slots.forEach((slot) => {
+        const dateAttr = slot.getAttribute('data-date');
+        const timeAttr = slot.getAttribute('data-time');
+        let slotTime = '';
+        if (dateAttr) {
+          const timePart = dateAttr.split('T')[1];
+          if (timePart) slotTime = timePart.substring(0, 5);
+        } else if (timeAttr) {
+          slotTime = timeAttr.substring(0, 5);
+        }
+
+        if (slotTime) {
+          const isAllowed = slotTime >= draggingTask.startTime && slotTime < draggingTask.endTime;
+          if (isAllowed) {
+            slot.classList.add('fc-slot-allowed-highlight');
+          } else {
+            slot.classList.add('fc-slot-disabled-dim');
+          }
+        }
+      });
+    }
+
+    // 2. 週/月檢視：比對日期 (YYYY-MM-DD)
+    if ((viewMode === 'week' || viewMode === 'month') && draggingTask.date) {
+      const slots = calendarEl.querySelectorAll<HTMLElement>(
+        '.fc-timeline-slot[data-date], .fc-daygrid-day[data-date]',
+      );
+      slots.forEach((slot) => {
+        const dateAttr = slot.getAttribute('data-date');
+        if (dateAttr) {
+          const slotDate = dateAttr.split('T')[0];
+          if (slotDate) {
+            const isAllowed = slotDate === draggingTask.date;
+            if (isAllowed) {
+              slot.classList.add('fc-slot-allowed-highlight');
+            } else {
+              slot.classList.add('fc-slot-disabled-dim');
+            }
+          }
+        }
+      });
+    }
+  }, [draggingTask, viewMode]);
 
   const slotLabelClassNames = useCallback(
     (arg: { date?: Date }) => {
@@ -960,19 +954,27 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           cursor: col-resize;
           user-select: none;
         }
-        /* 左側標頭欄位分割線：支援滑鼠拖曳拉大/拉小與懸停藍色高亮 */
+        /* 左側標頭欄位分割線：支援滑鼠拖曳拉大/拉小與整條懸停/拖曳藍色高亮 */
+        .schedule-calendar-container .fc-scrollgrid:has(.fc-resource-timeline-divider:hover) .fc-resource-timeline-divider,
+        .schedule-calendar-container.is-hovering-divider .fc-resource-timeline-divider,
+        .schedule-calendar-container.is-resizing-resource .fc-resource-timeline-divider,
+        .fc-resource-timeline-divider:hover,
+        .fc-resource-timeline-divider:active {
+          background-color: #1677ff !important;
+          border-left-color: #1677ff !important;
+          border-right-color: #1677ff !important;
+        }
         .fc-resource-timeline-divider {
           width: 6px !important;
+          min-width: 6px !important;
+          max-width: 6px !important;
           cursor: col-resize !important;
           background-color: #f0f2f5 !important;
           border-left: 1px solid #d9e2ec !important;
           border-right: 1px solid #d9e2ec !important;
-          transition: background-color 0.15s ease;
+          transition: background-color 0.15s ease, border-color 0.15s ease;
           user-select: none;
-        }
-        .fc-resource-timeline-divider:hover,
-        .fc-resource-timeline-divider:active {
-          background-color: #1677ff !important;
+          box-sizing: border-box !important;
         }
         /* 支援觸控板與觸控螢幕原生雙向平滑滑動 */
         .schedule-calendar-container .fc-scroller {
@@ -990,6 +992,44 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         .fc-timegrid-now-indicator-arrow {
           border-top-color: #ff4d4f !important;
           border-bottom-color: #ff4d4f !important;
+        }
+        /* 拖曳待排任務時的不可用時段灰階斜紋遮罩樣式 */
+        .fc-slot-disabled-dim,
+        .fc-timeline-lane.fc-slot-disabled-dim,
+        .fc-timeline-slot.fc-slot-disabled-dim,
+        .fc-timegrid-slot.fc-slot-disabled-dim {
+          background-color: #f7f8fa !important;
+          background-image: repeating-linear-gradient(
+            -45deg,
+            rgba(0, 0, 0, 0.02),
+            rgba(0, 0, 0, 0.02) 8px,
+            rgba(0, 0, 0, 0.05) 8px,
+            rgba(0, 0, 0, 0.05) 16px
+          ) !important;
+          opacity: 0.38 !important;
+          transition: all 0.2s ease;
+        }
+
+        /* 拖曳待排任務時的可用時間段淡藍高亮與虛線邊界導引樣式 */
+        .fc-slot-allowed-highlight,
+        .fc-timeline-lane.fc-slot-allowed-highlight,
+        .fc-timeline-slot.fc-slot-allowed-highlight,
+        .fc-timegrid-slot.fc-slot-allowed-highlight {
+          background-color: rgba(22, 119, 255, 0.09) !important;
+          border-left: 2px dashed rgba(22, 119, 255, 0.5) !important;
+          border-right: 2px dashed rgba(22, 119, 255, 0.5) !important;
+          transition: all 0.2s ease;
+        }
+
+        .fc-slot-header-allowed {
+          background-color: #e6f4ff !important;
+          color: #0958d9 !important;
+          font-weight: 700 !important;
+        }
+
+        .fc-slot-header-dim {
+          opacity: 0.45 !important;
+          background-color: #f5f5f5 !important;
         }
         /* 隱藏 FullCalendar 商業版權提示訊息 */
         .fc-license-message {
@@ -1050,11 +1090,30 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             jsEvent: arg.jsEvent,
           });
         }}
+        eventReceive={(info: {
+          event: {
+            id: string;
+            title: string;
+            start: Date | null;
+            extendedProps?: Record<string, unknown>;
+          };
+          draggedEl: HTMLElement;
+        }) => {
+          if (info.event.start) {
+            onExternalDrop?.({
+              date: info.event.start,
+              dateStr: dayjs(info.event.start).format('YYYY-MM-DDTHH:mm:ss'),
+              allDay: false,
+              draggedEl: info.draggedEl,
+              jsEvent: new MouseEvent('drop'),
+            });
+          }
+        }}
         slotEventOverlap={false}
         allDaySlot={false}
         eventMinHeight={38}
         slotMinWidth={timelineSlotMinWidth}
-        resourceAreaWidth={isResourceCollapsed ? '60px' : `${resourceAreaWidth}px`}
+        resourceAreaWidth={`${resourceAreaWidth}px`}
         resourceAreaHeaderContent={renderResourceAreaHeader}
         height="100%"
         nowIndicator

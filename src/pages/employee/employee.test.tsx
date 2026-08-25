@@ -79,7 +79,7 @@ const employees: Employee[] = [
     groupId: 'group-b',
     groupName: '南區',
     area: '台南',
-    shift: '晚班',
+    shift: '午班',
     groupColor: '#52c41a',
     designatedLeaves: [],
     licenses: [],

@@ -35,7 +35,7 @@ const mockEmployees: Employee[] = [
     groupId: 'group-b',
     groupName: 'B組',
     area: '台中',
-    shift: '晚班',
+    shift: '午班',
     groupColor: '#52c41a',
     designatedLeaves: [],
     licenses: ['SAFETY_6HR'],

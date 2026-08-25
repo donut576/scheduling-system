@@ -73,6 +73,7 @@ const SchedulePage: FC = () => {
   const [scrollTime, setScrollTime] = useState<string | undefined>(undefined);
   const [unscheduledCollapsed, setUnscheduledCollapsed] = useState(false);
   const [isDraggingEvent, setIsDraggingEvent] = useState(false);
+  const [draggingUnscheduledTask, setDraggingUnscheduledTask] = useState<Task | null>(null);
 
   // 查詢客戶集團與員工清單
   const { data: customerGroups } = useCustomerGroups();
@@ -366,20 +367,39 @@ const SchedulePage: FC = () => {
   // 待排任務外部拖曳放置至行事曆
   const handleExternalDrop = useCallback(
     async (dropInfo: ExternalDropArg) => {
-      const taskId = dropInfo.draggedEl.getAttribute('data-task-id');
-      const taskRaw = dropInfo.draggedEl.getAttribute('data-task-raw');
-      if (!taskId || !taskRaw) return;
+      const taskId =
+        dropInfo.draggedEl?.getAttribute('data-task-id') ||
+        dropInfo.draggedEl?.closest?.('[data-task-id]')?.getAttribute('data-task-id') ||
+        draggingUnscheduledTask?.id ||
+        '';
+      const taskRaw =
+        dropInfo.draggedEl?.getAttribute('data-task-raw') ||
+        dropInfo.draggedEl?.closest?.('[data-task-raw]')?.getAttribute('data-task-raw');
 
-      const task = JSON.parse(taskRaw) as Task;
+      let task: Task | null = null;
+      if (taskRaw) {
+        try {
+          task = JSON.parse(taskRaw) as Task;
+        } catch {
+          task = null;
+        }
+      }
+      if (!task && draggingUnscheduledTask) {
+        task = draggingUnscheduledTask;
+      }
+      setDraggingUnscheduledTask(null);
+
+      if (!taskId || !task) return;
+
       const targetDate = dayjs(dropInfo.date).format('YYYY-MM-DD');
 
-      let targetStartTime = task.startTime || '09:00';
-      let targetEndTime = task.endTime || '17:00';
+      let targetStartTime = task.startTime || '08:00';
+      let targetEndTime = task.endTime || '16:00';
 
       if (!dropInfo.allDay && currentView !== 'month') {
         targetStartTime = dayjs(dropInfo.date).format('HH:mm');
-        const [origSh = 9, origSm = 0] = (task.startTime || '09:00').split(':').map(Number);
-        const [origEh = 17, origEm = 0] = (task.endTime || '17:00').split(':').map(Number);
+        const [origSh = 8, origSm = 0] = (task.startTime || '08:00').split(':').map(Number);
+        const [origEh = 16, origEm = 0] = (task.endTime || '16:00').split(':').map(Number);
         let durationMinutes = origEh * 60 + origEm - (origSh * 60 + origSm);
         if (durationMinutes <= 0) durationMinutes = 120;
         targetEndTime = dayjs(dropInfo.date).add(durationMinutes, 'minute').format('HH:mm');
@@ -399,6 +419,18 @@ const SchedulePage: FC = () => {
       const isFullyStaffed = newAssigneeIds.length >= requiredHeadcount;
       const newStatus = isFullyStaffed ? 'SCHEDULED' : 'UNSCHEDULED';
 
+      // 根據開始時間自動判定標準班次：
+      // - 早班（日班）：08:00 – 16:00 (或 07:00 – 15:00)
+      // - 午班（中班／小夜班）：16:00 – 00:00 (或 15:00 – 23:00)
+      // - 大夜班（晚班）：00:00 – 08:00 (或 23:00 – 07:00)
+      const targetStartHour = Number(targetStartTime.split(':')[0]) || 8;
+      const computedShift =
+        targetStartHour >= 7 && targetStartHour < 15
+          ? '早班'
+          : targetStartHour >= 15 && targetStartHour < 23
+            ? '午班'
+            : '大夜班';
+
       try {
         await updateTaskMutation.mutateAsync({
           id: taskId,
@@ -410,7 +442,7 @@ const SchedulePage: FC = () => {
             startTime: targetStartTime,
             endTime: targetEndTime,
             headcount: requiredHeadcount,
-            shift: task.shift || '早班',
+            shift: computedShift,
             route: task.route || '',
             contents: task.contents || ['P'],
             otherContentNote: task.otherContentNote,
@@ -433,8 +465,16 @@ const SchedulePage: FC = () => {
         message.error('排班失敗，請稍後再試');
       }
     },
-    [currentView, effectiveDimension, updateTaskMutation],
+    [currentView, draggingUnscheduledTask, effectiveDimension, updateTaskMutation],
   );
+
+  const handleDragStartTask = useCallback((task: Task) => {
+    setDraggingUnscheduledTask(task);
+  }, []);
+
+  const handleDragEndTask = useCallback(() => {
+    setDraggingUnscheduledTask(null);
+  }, []);
 
   // 待排任務卡片點擊編輯
   const handleEditUnscheduledTask = useCallback((task: Task) => {
@@ -1064,6 +1104,7 @@ const SchedulePage: FC = () => {
             editable={hasScheduleEdit}
             onEventDragStart={handleEventDragStart}
             onEventDragStop={handleEventDragStop}
+            draggingTask={draggingUnscheduledTask}
           />
         </div>
 
@@ -1073,6 +1114,8 @@ const SchedulePage: FC = () => {
             collapsed={unscheduledCollapsed}
             onToggleCollapse={() => setUnscheduledCollapsed((prev) => !prev)}
             onEditTask={handleEditUnscheduledTask}
+            onDragStartTask={handleDragStartTask}
+            onDragEndTask={handleDragEndTask}
             isDropActive={isDraggingEvent}
           />
         )}

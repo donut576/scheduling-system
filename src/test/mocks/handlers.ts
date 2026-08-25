@@ -104,8 +104,8 @@ const mockTask: Task = {
   branchName: '測試分店',
   taskType: 'CONTRACT',
   date: '2026-01-15',
-  startTime: '09:00',
-  endTime: '17:00',
+  startTime: '08:00',
+  endTime: '16:00',
   isOvernight: false,
   headcount: 2,
   shift: '早班',
@@ -511,10 +511,10 @@ const demoEmployees: Employee[] = [
     phone: '0922334455',
     employeeNo: 'E0002',
     position: 'LEADER',
-    groupId: 'taipei-evening',
-    groupName: '台北 晚班',
+    groupId: 'taipei-night',
+    groupName: '台北 大夜班',
     area: '台北',
-    shift: '晚班',
+    shift: '大夜班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
@@ -557,10 +557,10 @@ const demoEmployees: Employee[] = [
     phone: '0955667788',
     employeeNo: 'E0005',
     position: 'STAFF',
-    groupId: 'hsinchu-evening',
-    groupName: '新竹 晚班',
+    groupId: 'hsinchu-afternoon',
+    groupName: '新竹 午班',
     area: '新竹',
-    shift: '晚班',
+    shift: '午班',
     groupColor: '#69c0a5',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
@@ -618,10 +618,10 @@ const demoEmployees: Employee[] = [
     phone: '0966778822',
     employeeNo: 'E0009',
     position: 'STAFF',
-    groupId: 'taichung-evening',
-    groupName: '台中 晚班',
+    groupId: 'taichung-night',
+    groupName: '台中 大夜班',
     area: '台中',
-    shift: '晚班',
+    shift: '大夜班',
     groupColor: '#c09569',
     designatedLeaves: [],
     licenses: ['FIRE_ANT'],
@@ -684,8 +684,8 @@ const demoTasks: Task[] = [
     branchName: '內湖三期辦公室',
     taskType: 'CONTRACT',
     date: '2026-08-02',
-    startTime: '13:30',
-    endTime: '17:30',
+    startTime: '08:30',
+    endTime: '15:30',
     isOvernight: false,
     headcount: 2,
     shift: '早班',
@@ -711,7 +711,7 @@ const demoTasks: Task[] = [
     taskType: 'CONTRACT',
     date: '2026-08-03',
     startTime: '08:30',
-    endTime: '16:30',
+    endTime: '15:30',
     isOvernight: false,
     headcount: 3,
     shift: '早班',
@@ -741,11 +741,11 @@ const demoTasks: Task[] = [
     branchName: '台中西屯門市',
     taskType: 'CONTRACT',
     date: '2026-08-04',
-    startTime: '22:00',
-    endTime: '02:00',
+    startTime: '23:00',
+    endTime: '03:00',
     isOvernight: true,
     headcount: 2,
-    shift: '晚班',
+    shift: '大夜班',
     route: '第三路',
     contents: ['P', 'R', 'FIRE_ANT'],
     assignees: [
@@ -767,11 +767,11 @@ const demoTasks: Task[] = [
     branchName: '台南永康門市',
     taskType: 'ONETIME',
     date: '2026-08-05',
-    startTime: '14:00',
-    endTime: '18:00',
+    startTime: '16:00',
+    endTime: '20:00',
     isOvernight: false,
     headcount: 1,
-    shift: '早班',
+    shift: '午班',
     route: '第一路',
     contents: ['BED_BUG'],
     assignees: [
@@ -797,8 +797,8 @@ const demoTasks: Task[] = [
     branchName: '板橋大樓管理處',
     taskType: 'CONTRACT',
     date: '2026-08-06',
-    startTime: '09:00',
-    endTime: '12:00',
+    startTime: '08:00',
+    endTime: '15:00',
     isOvernight: false,
     headcount: 2,
     shift: '早班',
@@ -823,11 +823,11 @@ const demoTasks: Task[] = [
     branchName: '桃園青埔社區',
     taskType: 'CONTRACT',
     date: '2026-08-07',
-    startTime: '13:00',
-    endTime: '17:00',
+    startTime: '16:00',
+    endTime: '20:00',
     isOvernight: false,
     headcount: 2,
-    shift: '早班',
+    shift: '午班',
     route: '第三路',
     contents: ['P', 'TERMITE'],
     assignees: [
@@ -849,11 +849,11 @@ const demoTasks: Task[] = [
     branchName: '信義旗艦店',
     taskType: 'CONTRACT',
     date: '2026-08-08',
-    startTime: '22:30',
-    endTime: '01:30',
+    startTime: '23:30',
+    endTime: '03:30',
     isOvernight: true,
     headcount: 2,
-    shift: '晚班',
+    shift: '大夜班',
     route: '第四路',
     contents: ['P', 'R'],
     assignees: [
@@ -876,10 +876,10 @@ const demoTasks: Task[] = [
     taskType: 'CONTRACT',
     date: '2026-08-09',
     startTime: '23:00',
-    endTime: '02:00',
+    endTime: '03:00',
     isOvernight: true,
     headcount: 2,
-    shift: '晚班',
+    shift: '大夜班',
     route: '第四路',
     contents: ['P', 'R', 'S'],
     assignees: [
@@ -929,11 +929,11 @@ const demoTasks: Task[] = [
     branchName: '台北101辦公大樓',
     taskType: 'CONTRACT',
     date: '2026-08-11',
-    startTime: '18:30',
-    endTime: '22:30',
+    startTime: '16:30',
+    endTime: '21:30',
     isOvernight: false,
     headcount: 2,
-    shift: '晚班',
+    shift: '午班',
     route: '第五路',
     contents: ['P', 'R'],
     assignees: [
@@ -956,7 +956,7 @@ const demoTasks: Task[] = [
     taskType: 'CONTRACT',
     date: '2026-08-12',
     startTime: '08:00',
-    endTime: '17:00',
+    endTime: '15:00',
     isOvernight: false,
     headcount: 3,
     shift: '早班',
@@ -988,11 +988,11 @@ const demoTasks: Task[] = [
     branchName: '中科十五廠',
     taskType: 'CONTRACT',
     date: '2026-08-13',
-    startTime: '09:00',
-    endTime: '18:00',
+    startTime: '08:30',
+    endTime: '15:30',
     isOvernight: false,
     headcount: 2,
-    shift: '午班',
+    shift: '早班',
     route: '第二路',
     contents: ['P', 'TERMITE'],
     assignees: [
@@ -1015,7 +1015,7 @@ const demoTasks: Task[] = [
     taskType: 'CONTRACT',
     date: '2026-08-14',
     startTime: '08:30',
-    endTime: '17:30',
+    endTime: '15:30',
     isOvernight: false,
     headcount: 2,
     shift: '早班',
@@ -1040,11 +1040,11 @@ const demoTasks: Task[] = [
     branchName: '信義A13',
     taskType: 'CONTRACT',
     date: '2026-08-15',
-    startTime: '22:00',
-    endTime: '02:00',
+    startTime: '23:00',
+    endTime: '03:00',
     isOvernight: true,
     headcount: 2,
-    shift: '晚班',
+    shift: '大夜班',
     route: '第四路',
     contents: ['P', 'R', 'BED_BUG'],
     assignees: [
@@ -1066,11 +1066,11 @@ const demoTasks: Task[] = [
     branchName: '板橋大遠百',
     taskType: 'CONTRACT',
     date: '2026-08-16',
-    startTime: '22:30',
-    endTime: '02:30',
+    startTime: '23:00',
+    endTime: '03:00',
     isOvernight: true,
     headcount: 2,
-    shift: '晚班',
+    shift: '大夜班',
     route: '第二路',
     contents: ['P', 'R'],
     assignees: [
@@ -1199,8 +1199,8 @@ const demoTasks: Task[] = [
     branchName: '測試分店',
     taskType: 'ESR',
     date: '2026-08-21',
-    startTime: '14:00',
-    endTime: '16:00',
+    startTime: '09:00',
+    endTime: '13:00',
     isOvernight: false,
     headcount: 1,
     shift: '早班',
@@ -1245,8 +1245,8 @@ const demoTasks: Task[] = [
     branchName: '台中西屯門市',
     taskType: 'ONETIME',
     date: '2026-08-23',
-    startTime: '15:00',
-    endTime: '18:00',
+    startTime: '16:00',
+    endTime: '20:00',
     isOvernight: false,
     headcount: 2,
     shift: '午班',
@@ -1271,8 +1271,8 @@ const demoTasks: Task[] = [
     branchName: '板橋大樓管理處',
     taskType: 'CONTRACT',
     date: '2026-08-24',
-    startTime: '13:30',
-    endTime: '16:30',
+    startTime: '08:30',
+    endTime: '15:30',
     isOvernight: false,
     headcount: 2,
     shift: '早班',
@@ -1297,11 +1297,11 @@ const demoTasks: Task[] = [
     branchName: '信義旗艦店',
     taskType: 'CONTRACT',
     date: '2026-08-25',
-    startTime: '22:30',
-    endTime: '01:30',
+    startTime: '23:30',
+    endTime: '03:30',
     isOvernight: true,
     headcount: 2,
-    shift: '晚班',
+    shift: '大夜班',
     route: '第四路',
     contents: ['P', 'R'],
     assignees: [
@@ -1350,7 +1350,7 @@ const demoTasks: Task[] = [
     taskType: 'CONTRACT',
     date: '2026-08-27',
     startTime: '08:00',
-    endTime: '17:00',
+    endTime: '15:00',
     isOvernight: false,
     headcount: 2,
     shift: '早班',
@@ -1379,11 +1379,11 @@ const demoTasks: Task[] = [
     branchName: '信義A13',
     taskType: 'ONETIME',
     date: '2026-08-28',
-    startTime: '21:00',
-    endTime: '23:00',
+    startTime: '16:00',
+    endTime: '21:00',
     isOvernight: false,
     headcount: 1,
-    shift: '晚班',
+    shift: '午班',
     route: '第四路',
     contents: ['P'],
     assignees: [
@@ -1451,11 +1451,54 @@ const demoTasks: Task[] = [
 ];
 
 const STORAGE_KEYS = {
-  TASKS: 'ecolab_mock_tasks_v3',
-  SCHEDULE_EVENTS: 'ecolab_mock_schedule_events_v3',
-  PENDING_CUSTOMERS: 'ecolab_mock_pending_customers_v3',
-  EMPLOYEES: 'ecolab_mock_employees_v3',
+  TASKS: 'ecolab_mock_tasks_v4',
+  SCHEDULE_EVENTS: 'ecolab_mock_schedule_events_v4',
+  PENDING_CUSTOMERS: 'ecolab_mock_pending_customers_v4',
+  EMPLOYEES: 'ecolab_mock_employees_v4',
 };
+
+// 清除舊版本可能殘留非標準「晚班」的 localStorage 快取
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    const legacyKeys = [
+      'ecolab_mock_tasks',
+      'ecolab_mock_tasks_v2',
+      'ecolab_mock_tasks_v3',
+      'ecolab_mock_schedule_events',
+      'ecolab_mock_schedule_events_v2',
+      'ecolab_mock_schedule_events_v3',
+      'ecolab_mock_pending_customers',
+      'ecolab_mock_pending_customers_v2',
+      'ecolab_mock_pending_customers_v3',
+      'ecolab_mock_employees',
+      'ecolab_mock_employees_v2',
+      'ecolab_mock_employees_v3',
+    ];
+    legacyKeys.forEach((k) => window.localStorage.removeItem(k));
+  } catch (e) {
+    void e;
+  }
+}
+
+function normalizeItemShift<T>(item: T): T {
+  if (!item || typeof item !== 'object') return item;
+  const anyItem = item as Record<string, unknown>;
+  if (anyItem.shift === '晚班') {
+    const startTime = typeof anyItem.startTime === 'string' ? anyItem.startTime : '';
+    const sh = startTime ? Number(startTime.split(':')[0]) : 16;
+    anyItem.shift = sh >= 23 || sh < 7 ? '大夜班' : '午班';
+  }
+  if (anyItem.groupName && typeof anyItem.groupName === 'string') {
+    anyItem.groupName = anyItem.groupName.replace('晚班', '大夜班');
+  }
+  if (anyItem.extendedProps && typeof anyItem.extendedProps === 'object') {
+    const ext = anyItem.extendedProps as Record<string, unknown>;
+    if (ext.shift === '晚班') {
+      ext.shift = '午班';
+    }
+  }
+  return item;
+}
 
 function loadStorage<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined' || !window.localStorage) return fallback;
@@ -1463,8 +1506,10 @@ function loadStorage<T>(key: string, fallback: T): T {
     const raw = window.localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw) as T;
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      if (parsed && typeof parsed === 'object') return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map(normalizeItemShift) as unknown as T;
+      }
+      if (parsed && typeof parsed === 'object') return normalizeItemShift(parsed);
     }
   } catch (e) {
     void e;
@@ -1600,7 +1645,7 @@ const defaultPendingCustomers: PendingCustomer[] = [
     startTime: undefined,
     endTime: undefined,
     headcount: 3,
-    shift: '晚班',
+    shift: '大夜班',
     route: '第二路',
     contents: ['P', 'S'],
     assignees: [],
@@ -1676,7 +1721,7 @@ const defaultPendingCustomers: PendingCustomer[] = [
     startTime: undefined,
     endTime: undefined,
     headcount: 2,
-    shift: '晚班',
+    shift: '午班',
     route: '第四路',
     contents: ['P', 'R'],
     assignees: [],
@@ -1752,7 +1797,7 @@ const defaultPendingCustomers: PendingCustomer[] = [
     startTime: undefined,
     endTime: undefined,
     headcount: 2,
-    shift: '晚班',
+    shift: '大夜班',
     route: '第四路',
     contents: ['BED_BUG', 'P'],
     assignees: [],
@@ -2438,8 +2483,8 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     taskId: 'task-009',
     resourceId: 'branch-010-2',
     title: '鼎泰美食王國 - 新竹巨城店',
-    start: '2026-08-18T13:00:00+08:00',
-    end: '2026-08-18T17:30:00+08:00',
+    start: '2026-08-18T16:00:00+08:00',
+    end: '2026-08-18T20:30:00+08:00',
     groupName: '鼎泰美食王國',
     branchName: '新竹巨城店',
     alertStatus: 'CLEAN',
@@ -2447,7 +2492,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'ONETIME',
-      shift: '晚班',
+      shift: '午班',
       assignees: [
         { employeeId: 'emp-007', employeeName: '李佩珊', licenses: ['SAFETY_6HR'], area: '新竹' },
       ],
@@ -2651,7 +2696,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'CONTRACT',
-      shift: '晚班',
+      shift: '午班',
       assignees: [
         {
           employeeId: 'emp-003',
@@ -2668,8 +2713,8 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     taskId: 'task-011',
     resourceId: 'branch-006-2',
     title: '晶圓精密工業 - 中科研發大樓',
-    start: '2026-08-18T14:00:00+08:00',
-    end: '2026-08-18T18:30:00+08:00',
+    start: '2026-08-18T16:00:00+08:00',
+    end: '2026-08-18T20:30:00+08:00',
     groupName: '晶圓精密工業',
     branchName: '中科研發大樓',
     alertStatus: 'CLEAN',
@@ -2677,7 +2722,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'ESR',
-      shift: '晚班',
+      shift: '午班',
       assignees: [
         { employeeId: 'emp-009', employeeName: '周冠宇', licenses: ['FIRE_ANT'], area: '台中' },
       ],
@@ -2782,8 +2827,8 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     taskId: 'task-016',
     resourceId: 'branch-002-1',
     title: '星耀科技 - 內湖三期辦公室',
-    start: '2026-08-20T13:30:00+08:00',
-    end: '2026-08-20T18:00:00+08:00',
+    start: '2026-08-20T16:00:00+08:00',
+    end: '2026-08-20T21:00:00+08:00',
     groupName: '星耀科技股份有限公司',
     branchName: '內湖三期辦公室',
     alertStatus: 'CLEAN',
@@ -2806,7 +2851,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     resourceId: 'branch-006-1',
     title: '晶圓精密工業 - 竹科總部一廠',
     start: '2026-08-21T08:30:00+08:00',
-    end: '2026-08-21T16:30:00+08:00',
+    end: '2026-08-21T15:30:00+08:00',
     groupName: '晶圓精密工業',
     branchName: '竹科總部一廠',
     alertStatus: 'CLEAN',
@@ -2826,8 +2871,8 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     taskId: 'task-018',
     resourceId: 'branch-010-2',
     title: '鼎泰美食王國 - 新竹巨城店',
-    start: '2026-08-21T14:00:00+08:00',
-    end: '2026-08-21T19:00:00+08:00',
+    start: '2026-08-21T16:00:00+08:00',
+    end: '2026-08-21T21:00:00+08:00',
     groupName: '鼎泰美食王國',
     branchName: '新竹巨城店',
     alertStatus: 'CLEAN',
@@ -2835,7 +2880,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'ONETIME',
-      shift: '晚班',
+      shift: '午班',
       assignees: [
         { employeeId: 'emp-007', employeeName: '李佩珊', licenses: ['SAFETY_6HR'], area: '新竹' },
       ],
@@ -2849,8 +2894,8 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     taskId: 'task-019',
     resourceId: 'branch-003-2',
     title: '陽光連鎖餐飲集團 - 台北信義旗艦店',
-    start: '2026-08-22T10:00:00+08:00',
-    end: '2026-08-22T16:00:00+08:00',
+    start: '2026-08-22T08:30:00+08:00',
+    end: '2026-08-22T15:30:00+08:00',
     groupName: '陽光連鎖餐飲集團',
     branchName: '台北信義旗艦店',
     alertStatus: 'CLEAN',
@@ -2858,7 +2903,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'CONTRACT',
-      shift: '午班',
+      shift: '早班',
       assignees: [
         { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL'], area: '台北' },
       ],
@@ -2872,8 +2917,8 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     taskId: 'task-020',
     resourceId: 'branch-010-1',
     title: '鼎泰美食王國 - 台北101旗艦店',
-    start: '2026-08-23T11:00:00+08:00',
-    end: '2026-08-23T17:00:00+08:00',
+    start: '2026-08-23T08:30:00+08:00',
+    end: '2026-08-23T15:30:00+08:00',
     groupName: '鼎泰美食王國',
     branchName: '台北101旗艦店',
     alertStatus: 'CLEAN',

@@ -105,22 +105,16 @@ describe('UnscheduledTasksPanel', () => {
     expect(screen.getByTestId('unscheduled-tasks-panel')).toBeInTheDocument();
   });
 
-  it('triggers onEditTask when edit button is clicked on a task card', async () => {
-    const user = userEvent.setup();
-    const onEditTask = vi.fn();
-
-    renderWithClient(<UnscheduledTasksPanel onEditTask={onEditTask} />);
+  it('renders clean compact draggable cards for unscheduled tasks without edit button', async () => {
+    renderWithClient(<UnscheduledTasksPanel />);
 
     await waitFor(() => {
-      expect(screen.getAllByTestId(/unscheduled-task-card-/).length).toBeGreaterThan(0);
+      const cards = screen.getAllByTestId(/unscheduled-task-card-/);
+      expect(cards.length).toBeGreaterThan(0);
     });
 
-    const editButtons = screen.getAllByRole('button', { name: /編輯|Edit/i });
-    const firstButton = editButtons[0];
-    if (firstButton) {
-      await user.click(firstButton);
-      expect(onEditTask).toHaveBeenCalledTimes(1);
-    }
+    const editButtons = screen.queryAllByRole('button', { name: /編輯|Edit/i });
+    expect(editButtons).toHaveLength(0);
   });
 
   it('renders drop zone indicator when isDropActive is true', async () => {

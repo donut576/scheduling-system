@@ -1,14 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Card, Empty, Input, Segmented, Select, Space, Tag, Tooltip } from 'antd';
 import {
-  CalendarOutlined,
   ClockCircleOutlined,
-  EditOutlined,
-  HolderOutlined,
   LeftOutlined,
   RightOutlined,
   SearchOutlined,
-  UserOutlined,
 } from '@ant-design/icons';
 import { Draggable } from '@fullcalendar/interaction';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +16,8 @@ export interface UnscheduledTasksPanelProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   onEditTask?: (task: Task) => void;
+  onDragStartTask?: (task: Task) => void;
+  onDragEndTask?: () => void;
   isDropActive?: boolean;
   width?: number;
   onWidthChange?: (width: number) => void;
@@ -45,7 +43,9 @@ const TASK_TYPE_COLORS: Record<TaskType, string> = {
 export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
   collapsed = false,
   onToggleCollapse,
-  onEditTask,
+  onEditTask: _onEditTask,
+  onDragStartTask,
+  onDragEndTask,
   isDropActive = false,
   width: controlledWidth,
   onWidthChange,
@@ -178,7 +178,12 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
     return result;
   }, [keyword, rawTasks, reasonFilter, selectedType]);
 
-  // 初始化 FullCalendar 外部拖曳實例
+  const onDragStartTaskRef = useRef(onDragStartTask);
+  const onDragEndTaskRef = useRef(onDragEndTask);
+  onDragStartTaskRef.current = onDragStartTask;
+  onDragEndTaskRef.current = onDragEndTask;
+
+  // 初始化 FullCalendar 外部拖曳實例（只在收合狀態切換時重新綁定，不在渲染時銷毀）
   useEffect(() => {
     if (collapsed || !listContainerRef.current) {
       if (draggableInstanceRef.current) {
@@ -188,17 +193,32 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
       return;
     }
 
-    // 重新建立 Draggable 實例
     if (draggableInstanceRef.current) {
       draggableInstanceRef.current.destroy();
+      draggableInstanceRef.current = null;
     }
 
     draggableInstanceRef.current = new Draggable(listContainerRef.current, {
       itemSelector: '.unscheduled-task-draggable-card',
       eventData: (eventEl: HTMLElement) => {
-        const taskId = eventEl.getAttribute('data-task-id') || '';
-        const taskRaw = eventEl.getAttribute('data-task-raw');
-        const task: Task | null = taskRaw ? JSON.parse(taskRaw) : null;
+        const taskId =
+          eventEl.getAttribute('data-task-id') ||
+          eventEl.closest('[data-task-id]')?.getAttribute('data-task-id') ||
+          '';
+        const taskRaw =
+          eventEl.getAttribute('data-task-raw') ||
+          eventEl.closest('[data-task-raw]')?.getAttribute('data-task-raw');
+        let task: Task | null = null;
+        if (taskRaw) {
+          try {
+            task = JSON.parse(taskRaw) as Task;
+          } catch {
+            task = null;
+          }
+        }
+        if (task) {
+          onDragStartTaskRef.current?.(task);
+        }
         const duration =
           task?.startTime && task?.endTime
             ? calculateDuration(task.startTime, task.endTime)
@@ -217,13 +237,28 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
       },
     });
 
+    const handleGlobalDragEnd = () => {
+      onDragEndTaskRef.current?.();
+    };
+
+    window.addEventListener('pointerup', handleGlobalDragEnd);
+    window.addEventListener('mouseup', handleGlobalDragEnd);
+    window.addEventListener('touchend', handleGlobalDragEnd);
+    window.addEventListener('dragend', handleGlobalDragEnd);
+    window.addEventListener('drop', handleGlobalDragEnd);
+
     return () => {
       if (draggableInstanceRef.current) {
         draggableInstanceRef.current.destroy();
         draggableInstanceRef.current = null;
       }
+      window.removeEventListener('pointerup', handleGlobalDragEnd);
+      window.removeEventListener('mouseup', handleGlobalDragEnd);
+      window.removeEventListener('touchend', handleGlobalDragEnd);
+      window.removeEventListener('dragend', handleGlobalDragEnd);
+      window.removeEventListener('drop', handleGlobalDragEnd);
     };
-  }, [collapsed, filteredTasks]);
+  }, [collapsed]);
 
   /** 計算時間長度字串（格式 HH:mm） */
   function calculateDuration(startTime: string, endTime: string): string {
@@ -273,9 +308,11 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
             }}
           />
         </Tooltip>
-        <Badge count={rawTasks.length} overflowCount={99} color="#1677ff">
-          <CalendarOutlined style={{ fontSize: 18, color: '#1677ff', marginBottom: 8 }} />
-        </Badge>
+        <Badge
+          count={rawTasks.length}
+          overflowCount={99}
+          style={{ backgroundColor: '#1677ff', marginBottom: 8 }}
+        />
         <div
           style={{
             writingMode: 'vertical-rl',
@@ -348,6 +385,7 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
           }}
         />
       </div>
+
       {/* 面板頂部標頭 */}
       <div
         style={{
@@ -360,7 +398,6 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
         }}
       >
         <Space size={8} align="center">
-          <CalendarOutlined style={{ color: '#1677ff', fontSize: 16 }} />
           <span style={{ fontWeight: 700, fontSize: 14, color: '#1f1f1f' }}>
             {t('schedule.unscheduledTasksTitle') || '待排任務清單'}
           </span>
@@ -500,7 +537,7 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
         />
       </div>
 
-      {/* 待排任務清單區域（支援外部拖曳） */}
+      {/* 待排任務清單容器 */}
       <div
         ref={listContainerRef}
         data-testid="unscheduled-tasks-list"
@@ -510,7 +547,7 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
           padding: '10px 12px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 10,
+          gap: 8,
         }}
       >
         {isLoading ? (
@@ -535,9 +572,11 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
           filteredTasks.map((task) => {
             const contentsLabel = task.contents ? formatTaskContents(task.contents, ', ', t) : '-';
             const hasAssignees = Array.isArray(task.assignees) && task.assignees.length > 0;
-            const assigneeNames = hasAssignees
-              ? task.assignees.map((a) => a.employeeName).join('、')
-              : t('schedule.unassigned') || '尚未指派人員';
+            const requiredHeadcount = task.headcount || 1;
+            const currentAssigneeCount = hasAssignees ? task.assignees.length : 0;
+            const isMissingAssignees = currentAssigneeCount < requiredHeadcount;
+            const missingCount = Math.max(0, requiredHeadcount - currentAssigneeCount);
+
             const taskTypeColor = TASK_TYPE_COLORS[task.taskType] || 'default';
             const taskTypeLabel =
               task.taskType === 'CONTRACT'
@@ -545,11 +584,6 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                 : task.taskType === 'ONETIME'
                   ? t('task.onetime') || t('schedule.taskTypes.onetime') || '單次'
                   : t('task.esr') || t('schedule.taskTypes.esr') || 'ESR';
-
-            const isMissingDate = !task.date || task.date === '';
-            const isMissingAssignees =
-              !hasAssignees || task.assignees.length < (task.headcount || 1);
-            const isMissingTime = !task.startTime || !task.endTime || task.startTime === '';
 
             return (
               <Card
@@ -563,190 +597,125 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                   cursor: 'grab',
                   borderRadius: 8,
                   border: '1px solid #e8e8e8',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
                   transition: 'all 0.15s ease',
                   backgroundColor: '#ffffff',
                 }}
                 hoverable
                 styles={{
-                  body: { padding: '10px 12px' },
+                  body: { padding: '8px 10px' },
                 }}
               >
-                {/* 卡片標題與標籤 */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: 6,
-                    marginBottom: 6,
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        fontSize: 13,
-                        color: '#1f1f1f',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                      title={`${task.groupName} - ${task.branchName}`}
-                    >
-                      {task.groupName}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: '#595959',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        marginTop: 1,
-                      }}
-                    >
-                      {task.branchName}
-                    </div>
-                  </div>
-                  <Tag
-                    color={taskTypeColor}
-                    style={{ margin: 0, fontWeight: 600, fontSize: 11, borderRadius: 4 }}
-                  >
-                    {taskTypeLabel}
-                  </Tag>
-                </div>
-
-                {/* 待排原因警示標籤（顯眼標註缺項） */}
-                {(isMissingDate || isMissingAssignees || isMissingTime) && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
-                    {isMissingDate && (
-                      <Tag color="orange" style={{ margin: 0, fontSize: 11, borderRadius: 4 }}>
-                        ⚠️ {t('schedule.missingDateTag') || '待定日期'}
-                      </Tag>
-                    )}
-                    {isMissingAssignees && (
-                      <Tag color="error" style={{ margin: 0, fontSize: 11, borderRadius: 4 }}>
-                        ⚠️ {t('schedule.missingAssigneeTag') || '缺人員'} (
-                        {task.assignees?.length || 0}/{task.headcount || 1}人)
-                      </Tag>
-                    )}
-                    {isMissingTime && (
-                      <Tag color="purple" style={{ margin: 0, fontSize: 11, borderRadius: 4 }}>
-                        ⚠️ {t('schedule.missingTimeTag') || '待定時間'}
-                      </Tag>
-                    )}
-                  </div>
-                )}
-
-                {/* 服務項目、時間與排班資訊 */}
-                <div
-                  style={{
-                    display: 'grid',
-                    gap: 4,
-                    fontSize: 12,
-                    color: '#595959',
-                    marginBottom: 8,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                    <Tag color={task.date ? 'blue' : 'warning'} style={{ margin: 0, fontSize: 11 }}>
-                      {task.date ? task.date : '待排日期'}
-                    </Tag>
-                    {task.route && (
-                      <Tag color="cyan" style={{ margin: 0, fontSize: 11 }}>
-                        {task.route}
-                      </Tag>
-                    )}
-                    <span style={{ color: '#8c8c8c', fontSize: 11 }}>
-                      需求: {task.headcount || 1} 人
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <ClockCircleOutlined style={{ color: '#8c8c8c', fontSize: 12 }} />
-                    <span>
-                      {task.shift} · {task.startTime} ~ {task.endTime}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <UserOutlined style={{ color: '#8c8c8c', fontSize: 12 }} />
-                    <span
-                      style={{
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: panelWidth > 450 ? 400 : 220,
-                      }}
-                    >
-                      {assigneeNames}
-                    </span>
-                  </div>
-                  {contentsLabel && contentsLabel !== '-' && (
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: '#8c8c8c',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {t('schedule.detailContent') || '內容'}: {contentsLabel}
-                    </div>
-                  )}
-                  {task.remarks && (
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: '#fa8c16',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                      title={task.remarks}
-                    >
-                      備註: {task.remarks}
-                    </div>
-                  )}
-                </div>
-
-                {/* 底部拖曳提示與操作按鈕 */}
+                {/* 第 1 行：集團 · 分店 (粗體) + 類型標籤 */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    paddingTop: 6,
-                    borderTop: '1px dashed #f0f0f0',
+                    gap: 6,
+                    marginBottom: 3,
                   }}
                 >
-                  <span
+                  <div
                     style={{
+                      fontWeight: 700,
+                      fontSize: 13,
+                      color: '#1f1f1f',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      flex: 1,
+                    }}
+                    title={`${task.groupName} - ${task.branchName}`}
+                  >
+                    {task.groupName} · {task.branchName}
+                  </div>
+                  <Tag
+                    color={taskTypeColor}
+                    style={{
+                      margin: 0,
+                      fontWeight: 600,
                       fontSize: 11,
-                      color: '#1677ff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      userSelect: 'none',
+                      borderRadius: 4,
+                      flexShrink: 0,
                     }}
                   >
-                    <HolderOutlined style={{ color: '#8c8c8c' }} />
-                    {t('schedule.dragToSchedule') || '拖曳至班表排班'}
+                    {taskTypeLabel}
+                  </Tag>
+                </div>
+
+                {/* 第 2 行：日期 + 班次時段 (路線) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: 12,
+                    color: '#595959',
+                    marginBottom: 3,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  <ClockCircleOutlined style={{ color: '#8c8c8c', fontSize: 11, flexShrink: 0 }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {task.date ? task.date : '日期未定'} · {task.shift || '未定班次'}{' '}
+                    {task.startTime && task.endTime ? `(${task.startTime}~${task.endTime})` : ''}
+                    {task.route ? ` · ${task.route}` : ''}
                   </span>
-                  {onEditTask && (
-                    <Button
-                      type="link"
-                      size="small"
-                      icon={<EditOutlined />}
-                      style={{ padding: 0, height: 'auto', fontSize: 11 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditTask(task);
+                </div>
+
+                {/* 第 3 行：核心缺額進度 + 施作項目 */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 6,
+                    fontSize: 11,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                    {isMissingAssignees ? (
+                      <span
+                        style={{
+                          color: '#d4380d',
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 2,
+                        }}
+                      >
+                        ⚠️ 缺 {missingCount} 人 ({currentAssigneeCount}/{requiredHeadcount})
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          color: '#389e0d',
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 2,
+                        }}
+                      >
+                        ✓ 已派齊 ({currentAssigneeCount}/{requiredHeadcount}人)
+                      </span>
+                    )}
+                  </div>
+                  {contentsLabel && contentsLabel !== '-' && (
+                    <span
+                      style={{
+                        color: '#8c8c8c',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: '55%',
                       }}
+                      title={`施作項目: ${contentsLabel}`}
                     >
-                      {t('common.edit') || '編輯'}
-                    </Button>
+                      項目: {contentsLabel}
+                    </span>
                   )}
                 </div>
               </Card>
