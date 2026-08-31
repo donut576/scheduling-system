@@ -482,3 +482,95 @@ tr.row-confirmed .ant-tag * {
   line-height: 20px;
   border-radius: 999px;
 }
+
+/* 排班工具列整體樣式：支援橫向平滑滑動（窄寬度時左右滑動，永不溢出破版） */
+.schedule-toolbar {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.schedule-toolbar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.schedule-toolbar::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 2px;
+}
+
+.schedule-toolbar::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+.schedule-toolbar-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px 16px;
+  min-width: max-content;
+}
+
+.schedule-toolbar-item {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.schedule-toolbar-label {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-weight: 500;
+  user-select: none;
+}
+
+/* 防止 Segmented (日/週/月) 選項標籤在窄寬度下文字換行或被擠壓變形 */
+.schedule-toolbar .ant-segmented {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.schedule-toolbar .ant-segmented .ant-segmented-item {
+  flex-shrink: 0;
+}
+
+.schedule-toolbar .ant-segmented .ant-segmented-item-label {
+  white-space: nowrap !important;
+  text-overflow: clip !important;
+  padding: 0 10px;
+  font-weight: 500;
+}
+
+/* 排班工具列日期導覽項目：確保在各種寬度與模式下 picker 與左右按鈕不溢位 */
+.schedule-date-nav-item {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.schedule-date-nav-item .ant-space-compact {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  max-width: 100%;
+}
+
+.schedule-date-nav-item .ant-picker {
+  flex-shrink: 0;
+  max-width: 100%;
+}
+
+.schedule-filter-item {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.schedule-filter-label {
+  flex-shrink: 0;
+  white-space: nowrap;
+}

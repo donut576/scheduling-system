@@ -1,7 +1,12 @@
 // 排班（Schedule）相關 API 呼叫層
 // 提供排班資料查詢與更新（新增/修改/移除任務）等操作
 import apiInstance from './instance';
-import type { ScheduleData, ScheduleParams } from '@/types/schedule';
+import type {
+  ScheduleData,
+  ScheduleParams,
+  CopyScheduleParams,
+  CopyScheduleResult,
+} from '@/types/schedule';
 import type { ApiResponse } from '@/types/common';
 
 // 更新排班時使用的資料結構，包含一批變更項目
@@ -21,4 +26,8 @@ export const scheduleApi = {
 
   // 更新排班資料，可一次送出多筆變更
   update: (data: ScheduleUpdateData) => apiInstance.patch<ApiResponse<null>>('/schedule', data),
+
+  // 週期性複製排班
+  copy: (data: CopyScheduleParams) =>
+    apiInstance.post<ApiResponse<CopyScheduleResult>>('/schedule/copy', data),
 };

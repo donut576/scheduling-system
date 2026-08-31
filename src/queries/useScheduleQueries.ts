@@ -51,3 +51,22 @@ export function useUpdateSchedule() {
     },
   });
 }
+
+/**
+ * 週期性複製排班的變更（mutation）hook。
+ * 成功複製後自動刷新排班日曆與任務清單快取。
+ */
+export function useCopySchedule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: Parameters<typeof scheduleApi.copy>[0]) => {
+      const response = await scheduleApi.copy(data);
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
+      queryClient.invalidateQueries({ queryKey: taskKeys.all });
+    },
+  });
+}

@@ -22,6 +22,21 @@ import i18n from '@/i18n';
 // 設定 fast-check 全域預設執行次數，作為 property-based 測試的基準值
 fc.configureGlobal({ numRuns: 100 });
 
+// Mock window.matchMedia for Ant Design components
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  }),
+});
+
 // 所有測試開始前啟動 MSW server，攔截未被 mock 的請求時直接放行（bypass）
 beforeAll(() => {
   server.listen({ onUnhandledRequest: 'bypass' });

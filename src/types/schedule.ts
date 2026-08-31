@@ -86,3 +86,22 @@ export interface ScheduleChange {
 export type ScheduleViewMode = 'day' | 'week' | 'month';
 /** 排班檢視維度：總覽、依客戶或依員工 */
 export type ScheduleDimension = 'overview' | 'customer' | 'employee';
+
+/** 複製排班請求參數 */
+export interface CopyScheduleParams {
+  sourceStartDate: string;
+  sourceEndDate: string;
+  targetStartDate: string;
+  targetEndDate: string;
+  employeeIds?: string[];
+  area?: string;
+  taskTypes?: TaskType[];
+  overwrite?: boolean;
+}
+
+/** 複製排班結果回傳 */
+export interface CopyScheduleResult {
+  copiedCount: number;
+  skippedCount: number;
+  tasks: Task[];
+}

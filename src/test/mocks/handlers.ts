@@ -14,7 +14,14 @@ import type { PendingCustomerFormData, ConvertToTaskData } from '@/api/pending-c
 import type { Notification, NotificationTemplate, Approval } from '@/types/notification';
 import type { UserProfile, LoginResponse } from '@/types/auth';
 import type { AlertValidationResult, LicenseType } from '@/types/alert';
-import type { ScheduleData, ScheduleEvent, ScheduleResource } from '@/types/schedule';
+import type {
+  ScheduleData,
+  ScheduleEvent,
+  ScheduleResource,
+  CopyScheduleParams,
+  CopyScheduleResult,
+} from '@/types/schedule';
+import dayjs from 'dayjs';
 import { ROLE_PERMISSIONS } from '@/constants/permissions';
 import { getGroupColor } from '@/utils/groupColor';
 
@@ -3682,6 +3689,123 @@ export const handlers = [
     );
   }),
   http.patch('*/api/v1/schedule', () => HttpResponse.json(ok(null))),
+  http.post('*/api/v1/schedule/copy', async ({ request }) => {
+    const body = (await request.json()) as CopyScheduleParams;
+    const {
+      sourceStartDate,
+      sourceEndDate,
+      targetStartDate,
+      employeeIds,
+      area,
+      taskTypes = ['CONTRACT', 'ONETIME'],
+      overwrite = false,
+    } = body;
+
+    // 計算來源與目標日期的天數偏移 (Day Offset)
+    const sourceStart = dayjs(sourceStartDate);
+    const targetStart = dayjs(targetStartDate);
+    const dayOffset = targetStart.diff(sourceStart, 'day');
+
+    // 找出來源區間內的已排班任務
+    const sourceTasks = mockTasks.filter((t) => {
+      if (!t.date || t.status === 'CANCELLED' || t.status === 'UNSCHEDULED') return false;
+      if (t.date < sourceStartDate || t.date > sourceEndDate) return false;
+      if (taskTypes.length > 0 && !taskTypes.includes(t.taskType)) return false;
+      if (employeeIds && employeeIds.length > 0) {
+        const hasMatchingEmp = t.assignees?.some((a) => employeeIds.includes(a.employeeId));
+        if (!hasMatchingEmp) return false;
+      }
+      if (area) {
+        const matchingEmps = mockEmployees.filter((e) => e.area === area).map((e) => e.id);
+        const hasMatchingEmp = t.assignees?.some((a) => matchingEmps.includes(a.employeeId));
+        if (!hasMatchingEmp) return false;
+      }
+      return true;
+    });
+
+    let copiedCount = 0;
+    let skippedCount = 0;
+    const newTasks: Task[] = [];
+    const newScheduleEvents: ScheduleEvent[] = [];
+
+    sourceTasks.forEach((st) => {
+      const originalDate = dayjs(st.date);
+      const newDateStr = originalDate.add(dayOffset, 'day').format('YYYY-MM-DD');
+
+      // 衝突檢核：若非覆蓋模式，且目標員工在該時段已有任務
+      if (!overwrite) {
+        const hasConflict = mockTasks.some((existing) => {
+          if (
+            existing.date !== newDateStr ||
+            existing.status === 'CANCELLED' ||
+            existing.status === 'UNSCHEDULED'
+          )
+            return false;
+          // 若有相同員工在重疊時段
+          const commonEmp = existing.assignees?.some((ea) =>
+            st.assignees?.some((sa) => sa.employeeId === ea.employeeId),
+          );
+          if (commonEmp && existing.startTime === st.startTime) return true;
+          return false;
+        });
+
+        if (hasConflict) {
+          skippedCount++;
+          return;
+        }
+      }
+
+      const newTaskId = `task-copy-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      const newTask: Task = {
+        ...st,
+        id: newTaskId,
+        date: newDateStr,
+        status: 'SCHEDULED',
+        alertStatus: 'CLEAN',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      newTasks.push(newTask);
+      newScheduleEvents.push({
+        id: `event-${newTaskId}`,
+        taskId: newTaskId,
+        resourceId: newTask.branchId,
+        title: `${newTask.groupName} - ${newTask.branchName}`,
+        start: `${newDateStr}T${newTask.startTime}:00+08:00`,
+        end: `${newDateStr}T${newTask.endTime || '16:00'}:00+08:00`,
+        groupName: newTask.groupName,
+        branchName: newTask.branchName,
+        alertStatus: 'CLEAN',
+        isRecurring: Boolean(newTask.recurrenceRule),
+        isOvernight: newTask.isOvernight,
+        extendedProps: {
+          taskType: newTask.taskType,
+          shift: newTask.shift,
+          assignees: newTask.assignees || [],
+          contents: newTask.contents || [],
+          headcount: newTask.headcount,
+          remarks: newTask.remarks,
+          route: newTask.route,
+          task: newTask,
+        },
+      });
+
+      copiedCount++;
+    });
+
+    mockTasks = [...newTasks, ...mockTasks];
+    mockScheduleEvents = [...newScheduleEvents, ...mockScheduleEvents];
+    persistStorage(STORAGE_KEYS.TASKS, mockTasks);
+
+    return HttpResponse.json(
+      ok<CopyScheduleResult>({
+        copiedCount,
+        skippedCount,
+        tasks: newTasks,
+      }),
+    );
+  }),
 
   // customer.ts
   http.get('*/api/v1/customers', () => HttpResponse.json(ok(paginated<Customer>(mockCustomers)))),

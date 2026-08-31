@@ -20,6 +20,8 @@ import {
   TeamOutlined,
   ShopOutlined,
   ScheduleOutlined,
+  ExclamationCircleOutlined,
+  CopyOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -28,6 +30,7 @@ import ScheduleCalendar from '@/components/business/ScheduleCalendar';
 import type { ExternalDropArg } from '@/components/business/ScheduleCalendar';
 import UnscheduledTasksPanel from '@/components/business/UnscheduledTasksPanel';
 import TaskForm from '@/components/business/TaskForm';
+import CopyScheduleModal from '@/components/business/CopyScheduleModal';
 import { useScheduleStore } from '@/stores/useScheduleStore';
 import { usePermissionStore } from '@/stores/usePermissionStore';
 import { useUserStore } from '@/stores/useUserStore';
@@ -86,6 +89,7 @@ const SchedulePage: FC = () => {
   const [unscheduledCollapsed, setUnscheduledCollapsed] = useState(false);
   const [isDraggingEvent, setIsDraggingEvent] = useState(false);
   const [draggingUnscheduledTask, setDraggingUnscheduledTask] = useState<Task | null>(null);
+  const [copyModalOpen, setCopyModalOpen] = useState(false);
 
   // 查詢客戶集團與員工清單
   const { data: customerGroups } = useCustomerGroups();
@@ -547,8 +551,8 @@ const SchedulePage: FC = () => {
     setViewingTask(task);
   }, []);
 
-  // 將已排班任務或特定員工移回待排任務清單 (Remove / Unschedule)
-  const handleRemoveFromSchedule = useCallback(
+  // 執行將已排班任務或特定員工移回待排任務清單
+  const executeRemoveFromSchedule = useCallback(
     async (
       taskId: string,
       taskTitle?: string,
@@ -614,9 +618,48 @@ const SchedulePage: FC = () => {
     [t, updateTaskMutation],
   );
 
+  // 移回待排任務（支援二次確認警示視窗防呆）
+  const handleRemoveFromSchedule = useCallback(
+    (
+      taskId: string,
+      taskTitle?: string,
+      employeeIdToRemove?: string,
+      scheduleEvt?: ScheduleEvent,
+      requireConfirm = false,
+    ) => {
+      if (requireConfirm) {
+        Modal.confirm({
+          title: '確認將任務移回待排清單？',
+          icon: <ExclamationCircleOutlined style={{ color: '#faad14' }} />,
+          content: (
+            <div style={{ marginTop: 8, fontSize: 13, color: '#595959', lineHeight: 1.6 }}>
+              <div>
+                您正將「<strong>{taskTitle || '此任務'}</strong>」移出日曆至右側待排清單。
+              </div>
+              <div style={{ marginTop: 6, color: '#ff4d4f', fontWeight: 500 }}>
+                ⚠️ 此操作將清除目前排定之時段與人員，並將任務變更為「
+                <strong>未排班 (UNSCHEDULED)</strong>」狀態。
+              </div>
+            </div>
+          ),
+          okText: '確認移回待排',
+          cancelText: '取消',
+          okButtonProps: { danger: true },
+          onOk: () => {
+            return executeRemoveFromSchedule(taskId, taskTitle, employeeIdToRemove, scheduleEvt);
+          },
+        });
+        return;
+      }
+
+      return executeRemoveFromSchedule(taskId, taskTitle, employeeIdToRemove, scheduleEvt);
+    },
+    [executeRemoveFromSchedule],
+  );
+
   const handleUnscheduleTask = useCallback(
     (taskId: string, taskTitle?: string) => {
-      return handleRemoveFromSchedule(taskId, taskTitle);
+      return handleRemoveFromSchedule(taskId, taskTitle, undefined, undefined, false);
     },
     [handleRemoveFromSchedule],
   );
@@ -657,7 +700,8 @@ const SchedulePage: FC = () => {
           const draggedEmpId =
             effectiveDimension === 'employee' ? scheduleEvt?.resourceId : undefined;
 
-          handleRemoveFromSchedule(taskId, info.event.title, draggedEmpId, scheduleEvt);
+          // 拖曳至待排面板時觸發確認警示
+          handleRemoveFromSchedule(taskId, info.event.title, draggedEmpId, scheduleEvt, true);
         }
       }
     },
@@ -1051,7 +1095,7 @@ const SchedulePage: FC = () => {
             height: '100%',
           }}
         >
-          {/* 工具列 */}
+          {/* 工具列：支援橫向平滑滑動，當寬度小於內容時左右滑動不溢位 */}
           <div
             className="schedule-toolbar"
             style={{
@@ -1060,6 +1104,8 @@ const SchedulePage: FC = () => {
               borderRadius: 8,
               marginBottom: 12,
               border: '1px solid #f0f0f0',
+              overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
             }}
           >
             {/* 第一行：班表視圖（日/週/月）、日期導覽按鈕 */}
@@ -1067,14 +1113,15 @@ const SchedulePage: FC = () => {
               className="schedule-toolbar-row schedule-toolbar-row1"
               style={{
                 display: 'flex',
-                flexWrap: 'wrap',
+                flexWrap: 'nowrap',
                 gap: 16,
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 marginBottom: dimension !== 'overview' ? 12 : 0,
+                minWidth: 'max-content',
               }}
             >
-              <Space wrap size="middle" align="center">
+              <Space wrap={false} size="middle" align="center" style={{ flexShrink: 0 }}>
                 <div className="schedule-toolbar-item">
                   <span
                     className="schedule-toolbar-label"
@@ -1101,12 +1148,28 @@ const SchedulePage: FC = () => {
                       onClick={handlePrevDate}
                       aria-label={t('schedule.prevDay')}
                     />
-                    <RangePicker
-                      aria-label={t('schedule.period')}
-                      value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
-                      onChange={handlePeriodChange}
-                      allowClear={false}
-                    />
+                    {currentView === 'day' ? (
+                      <DatePicker
+                        aria-label={t('schedule.period')}
+                        value={dateRange.start ? dayjs(dateRange.start) : dayjs()}
+                        onChange={(d) => {
+                          if (d) {
+                            const dateStr = d.format('YYYY-MM-DD');
+                            setDateRange({ start: dateStr, end: dateStr });
+                          }
+                        }}
+                        allowClear={false}
+                        style={{ width: 140 }}
+                      />
+                    ) : (
+                      <RangePicker
+                        aria-label={t('schedule.period')}
+                        value={[dayjs(dateRange.start), dayjs(dateRange.end)]}
+                        onChange={handlePeriodChange}
+                        allowClear={false}
+                        style={{ width: 230 }}
+                      />
+                    )}
                     <Button
                       icon={<RightOutlined />}
                       onClick={handleNextDate}
@@ -1115,13 +1178,45 @@ const SchedulePage: FC = () => {
                   </Space.Compact>
                 </div>
               </Space>
+
+              {/* 複製班表按鈕：僅具備排班編輯權限者可操作 */}
+              {hasScheduleEdit && (
+                <Button
+                  icon={<CopyOutlined />}
+                  onClick={() => setCopyModalOpen(true)}
+                  aria-label="copy-schedule-btn"
+                  style={{
+                    borderRadius: 6,
+                    fontWeight: 500,
+                    flexShrink: 0,
+                    marginLeft: 16,
+                  }}
+                >
+                  {t('schedule.copySchedule') || '複製班表'}
+                </Button>
+              )}
             </div>
 
             {/* 第二行：依 Tab 維度切換之篩選列（全部具備 allowClear 小叉叉；總覽 Tab 不需 search bar） */}
             {dimension !== 'overview' && !isStaff && (
-              <div className="schedule-toolbar-row schedule-toolbar-row2">
+              <div
+                className="schedule-toolbar-row schedule-toolbar-row2"
+                style={{
+                  display: 'flex',
+                  flexWrap: 'nowrap',
+                  gap: 16,
+                  alignItems: 'center',
+                  minWidth: 'max-content',
+                }}
+              >
                 {dimension === 'customer' && (
-                  <Space wrap size="middle" align="center" className="schedule-filter-group">
+                  <Space
+                    wrap={false}
+                    size="middle"
+                    align="center"
+                    className="schedule-filter-group"
+                    style={{ flexShrink: 0 }}
+                  >
                     <div className="schedule-filter-item">
                       <span className="schedule-filter-label" style={{ marginRight: 6 }}>
                         {t('schedule.groupNameLabel')}
@@ -1158,7 +1253,13 @@ const SchedulePage: FC = () => {
                 )}
 
                 {dimension === 'employee' && (
-                  <Space wrap size="middle" align="center" className="schedule-filter-group">
+                  <Space
+                    wrap={false}
+                    size="middle"
+                    align="center"
+                    className="schedule-filter-group"
+                    style={{ flexShrink: 0 }}
+                  >
                     <div className="schedule-filter-item">
                       <span className="schedule-filter-label" style={{ marginRight: 6 }}>
                         {t('schedule.employeeLabel')}
@@ -1469,6 +1570,13 @@ const SchedulePage: FC = () => {
           />
         )}
       </Modal>
+
+      {/* 快速複製排班 Modal */}
+      <CopyScheduleModal
+        open={copyModalOpen}
+        onCancel={() => setCopyModalOpen(false)}
+        defaultSourceRange={dateRange}
+      />
     </div>
   );
 };
