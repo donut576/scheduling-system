@@ -33,7 +33,6 @@ import {
   useWithdrawRequest,
 } from '@/queries/useApprovalQueries';
 import { useSendNotification } from '@/queries/useNotificationQueries';
-import { usePermissionStore } from '@/stores/usePermissionStore';
 import { useUserStore } from '@/stores/useUserStore';
 import type { ApprovalListParams } from '@/api/approval';
 import { APPROVAL_STATUS_MAP, APPROVAL_TYPE_MAP } from '@/constants/approvalTypes';
@@ -203,24 +202,27 @@ function renderApprovalCard(
 
 /**
  * 異動核准頁面主元件
- * 主管（Admin / Manager）：審核全體申請並進行核准/駁回
- * 組長（Leader）：追蹤自己提出之申請單審核狀態（隱藏申請人欄位，僅顯示本人提出項目）
+ * - 經理／系統管理員（MANAGER / ADMIN）：負責特殊狀況特准放行（ALERT_OVERRIDE）及全域審核
+ * - 排班組長（LEADER）：負責審核日常任務變更（TASK_CHANGE / 調班 / 請假）；特准放行需由經理審核
+ * - 一般員工（STAFF）：追蹤個人提出之申請進度，並可一鍵撤回待審申請
  */
 const ApprovalPage: FC = () => {
   const { t } = useTranslation();
   const user = useUserStore((state) => state.user);
-  const canApprove = usePermissionStore((state) => state.hasPermission('approval:approve'));
-  const isLeader = !canApprove;
+  const userRole = user?.role;
+  const isLeader = userRole === 'LEADER';
+  const isStaff = userRole === 'STAFF';
 
-  const defaultLeaderFilter = useMemo(() => {
-    if (isLeader && user?.name) return user.name;
-    if (isLeader && user?.id) return user.id;
+  // 只有一般員工預設過濾為自己提出的申請
+  const defaultStaffFilter = useMemo(() => {
+    if (isStaff && user?.name) return user.name;
+    if (isStaff && user?.id) return user.id;
     return undefined;
-  }, [isLeader, user?.id, user?.name]);
+  }, [isStaff, user?.id, user?.name]);
 
   const [filters, setFilters] = useState<ApprovalListParams>({
     ...DEFAULT_PARAMS,
-    requestedBy: defaultLeaderFilter,
+    requestedBy: defaultStaffFilter,
   });
 
   const [diffModalOpen, setDiffModalOpen] = useState(false);
@@ -291,8 +293,8 @@ const ApprovalPage: FC = () => {
   }, []);
 
   const handleResetFilters = useCallback(() => {
-    setFilters({ ...DEFAULT_PARAMS, requestedBy: defaultLeaderFilter });
-  }, [defaultLeaderFilter]);
+    setFilters({ ...DEFAULT_PARAMS, requestedBy: defaultStaffFilter });
+  }, [defaultStaffFilter]);
 
   const notifyApprovalResult = useCallback(
     (approval: Approval, approved: boolean, comment?: string) => {
@@ -569,7 +571,7 @@ const ApprovalPage: FC = () => {
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={handleCloseDiffModal}>關閉</Button>
-            {selectedApproval?.status === 'PENDING' && !canApprove && (
+            {selectedApproval?.status === 'PENDING' && isStaff && (
               <Button
                 danger
                 icon={<CloseOutlined />}
@@ -580,8 +582,9 @@ const ApprovalPage: FC = () => {
                 撤回申請
               </Button>
             )}
-            {selectedApproval?.status === 'PENDING' && canApprove && (
+            {selectedApproval?.status === 'PENDING' && !isStaff && (
               <>
+                {/* 駁回按鈕：組長與經理皆可操作 */}
                 <Button
                   danger
                   icon={<CloseOutlined />}
@@ -591,15 +594,27 @@ const ApprovalPage: FC = () => {
                 >
                   {t('approval.reject')}
                 </Button>
-                <Button
-                  type="primary"
-                  icon={<CheckOutlined />}
-                  onClick={() => {
-                    if (selectedApproval) handleApproveClick(selectedApproval);
-                  }}
-                >
-                  {t('approval.approve')}
-                </Button>
+                {/* 核准按鈕：若為 ALERT_OVERRIDE 且為組長則限制不可核准；經理/管理員或日常任務變更可直接核准 */}
+                {selectedApproval.type === 'ALERT_OVERRIDE' && isLeader ? (
+                  <Button
+                    type="primary"
+                    disabled
+                    title="警示特准放行需由營運經理審核"
+                    icon={<CheckOutlined />}
+                  >
+                    {t('approval.approve')}（經理專屬）
+                  </Button>
+                ) : (
+                  <Button
+                    type="primary"
+                    icon={<CheckOutlined />}
+                    onClick={() => {
+                      if (selectedApproval) handleApproveClick(selectedApproval);
+                    }}
+                  >
+                    {t('approval.approve')}
+                  </Button>
+                )}
               </>
             )}
           </div>
@@ -607,6 +622,14 @@ const ApprovalPage: FC = () => {
       >
         {selectedApproval && (
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            {selectedApproval.type === 'ALERT_OVERRIDE' && isLeader && (
+              <Alert
+                type="warning"
+                showIcon
+                message="審核權限提醒"
+                description="此項目為「排班規則 / 工時法規特准放行（OVERRIDE）」，涉及重大合規責任，需由營運經理（MANAGER）或系統管理員（ADMIN）進行審核放行。"
+              />
+            )}
             <Descriptions bordered size="small" column={2}>
               <Descriptions.Item label="申請單編號">
                 <Tag color="geekblue">{selectedApproval.id}</Tag>

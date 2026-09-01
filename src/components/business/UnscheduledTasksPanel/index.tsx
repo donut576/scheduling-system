@@ -4,6 +4,9 @@ import { LeftOutlined, RightOutlined, SearchOutlined } from '@ant-design/icons';
 import { Draggable } from '@fullcalendar/interaction';
 import { useTranslation } from 'react-i18next';
 import { useTaskList } from '@/queries/useTaskQueries';
+import { useCustomerGroups } from '@/queries/useCustomerQueries';
+import { useUserStore } from '@/stores/useUserStore';
+import { isAddressInRegion, normalizeRegion } from '@/utils/regionMapping';
 import type { Task, TaskType } from '@/types/task';
 
 export interface UnscheduledTasksPanelProps {
@@ -98,28 +101,44 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
   };
 
   const [keyword, setKeyword] = useState<string>('');
+  const user = useUserStore((state) => state.user);
+  const isLeader = user?.role === 'LEADER';
+  const leaderArea = useMemo(() => {
+    if (!isLeader) return undefined;
+    return normalizeRegion((user as unknown as { area?: string })?.area || user?.groupId);
+  }, [isLeader, user]);
 
-  // 查詢所有待排任務
+  const { data: customerGroupsData } = useCustomerGroups();
+  const customerGroups = useMemo(() => customerGroupsData ?? [], [customerGroupsData]);
+
+  // 查詢待排任務（組長模式下僅撈取所屬責任轄區）
   const { data: taskData, isLoading } = useTaskList({
     status: 'UNSCHEDULED',
     pageSize: 100,
+    area: isLeader ? leaderArea : undefined,
   });
 
   const rawTasks = useMemo(() => taskData?.list ?? [], [taskData?.list]);
 
-  // 面板標頭顯示資訊（標題、代表色彩與總數量）
-  const contextLabel = useMemo(() => {
-    return {
-      title: t('schedule.unscheduledTasks') || '待排任務清單',
-      badgeColor: '#1677ff',
-      count: rawTasks.length,
-      desc: '拖曳卡片至員工時間軸空檔，即可直接排班',
-    };
-  }, [rawTasks.length, t]);
-
-  // 本地篩選任務清單（支援關鍵字搜尋：集團、分店、備註、路線、指派人員）
+  // 本地篩選任務清單（組長模式下嚴格限定所屬責任轄區，並支援關鍵字搜尋）
   const filteredTasks = useMemo(() => {
     let result = rawTasks;
+
+    // 若為組長，嚴格過濾僅保留所屬責任轄區（或經理跨區指派至該轄區）之任務
+    if (isLeader && leaderArea) {
+      result = result.filter((task) => {
+        const branch = customerGroups
+          .flatMap((g) => g.branches)
+          .find((b) => b.id === task.branchId);
+        const addr = branch?.address || '';
+        const name = branch?.name || task.branchName || task.groupName;
+        const designated =
+          (branch as unknown as { designatedRegion?: string })?.designatedRegion ||
+          (task as unknown as { designatedRegion?: string })?.designatedRegion;
+
+        return isAddressInRegion(addr || name, leaderArea, designated);
+      });
+    }
 
     // 關鍵字搜尋
     if (keyword.trim()) {
@@ -134,7 +153,17 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
       );
     }
     return result;
-  }, [keyword, rawTasks]);
+  }, [customerGroups, isLeader, keyword, leaderArea, rawTasks]);
+
+  // 面板標頭顯示資訊（標題、代表色彩與總數量）
+  const contextLabel = useMemo(() => {
+    return {
+      title: t('schedule.unscheduledTasks') || '待排任務清單',
+      badgeColor: '#1677ff',
+      count: filteredTasks.length,
+      desc: '拖曳卡片至員工時間軸空檔，即可直接排班',
+    };
+  }, [filteredTasks.length, t]);
 
   const onDragStartTaskRef = useRef(onDragStartTask);
   const onDragEndTaskRef = useRef(onDragEndTask);

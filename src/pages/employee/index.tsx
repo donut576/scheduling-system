@@ -35,6 +35,7 @@ import { PERMISSIONS } from '@/constants/permissions';
 import { hasLicenseConflict, hasOnlyPestControlLicense } from '@/utils/licenseValidation';
 import { getGroupColor } from '@/utils/groupColor';
 import { formatPhone } from '@/utils/format';
+import { normalizeRegion } from '@/utils/regionMapping';
 import type { EmployeeFormData, EmployeeListParams } from '@/api/employee';
 import { LEAVE_TYPE_MAP, type Employee } from '@/types/employee';
 import type { LicenseType } from '@/types/alert';
@@ -300,16 +301,52 @@ function renderEmployeeCard(
  */
 const EmployeePage: FC = () => {
   const { t } = useTranslation();
-  const [filters, setFilters] = useState<EmployeeListParams>(DEFAULT_PARAMS);
+  const user = useUserStore((state) => state.user);
+  const isStaff = user?.role === 'STAFF';
+  const isLeader = user?.role === 'LEADER';
+
+  // 組長僅能查看與管理所屬組別（例如：台北組）的組員資料；經理與管理員可查看全體
+  const leaderArea = useMemo(() => {
+    if (!isLeader) return undefined;
+    return normalizeRegion((user as unknown as { area?: string })?.area || user?.groupId);
+  }, [isLeader, user]);
+
+  const [filters, setFilters] = useState<EmployeeListParams>({
+    ...DEFAULT_PARAMS,
+    area: isLeader ? leaderArea : undefined,
+  });
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [form] = Form.useForm<EmployeeFormData>();
   const [datePickerOpen, setDatePickerOpen] = useState(false);
-  // 取得全量員工資料，供 AutoComplete 動態產生姓名與員工編號模糊搜尋下拉選單
-  const allEmployeeQuery = useEmployeeList({ page: 1, pageSize: 200 });
+
+  // 取得員工資料（組長僅撈取所屬組別，經理/管理員撈取全量），供 AutoComplete 動態產生姓名與員工編號模糊搜尋
+  const allEmployeeQuery = useEmployeeList({
+    page: 1,
+    pageSize: 200,
+    area: isLeader ? leaderArea : undefined,
+  });
+
+  // 判斷是否為組長本人（組長管理組員，不應包含組長自己）
+  const isLeaderSelf = useCallback(
+    (e: Employee) => {
+      if (!isLeader) return false;
+      return (
+        e.id === user?.id ||
+        (Boolean(user?.employeeNo) && e.employeeNo === user?.employeeNo) ||
+        (Boolean(user?.name) && e.name === user?.name) ||
+        e.id === 'emp-leader' ||
+        e.employeeNo === 'LDR01'
+      );
+    },
+    [isLeader, user?.employeeNo, user?.id, user?.name],
+  );
 
   const employeeSearchOptions = useMemo(() => {
-    const list = allEmployeeQuery.data?.list ?? [];
+    let list = allEmployeeQuery.data?.list ?? [];
+    if (isLeader) {
+      list = list.filter((e) => !isLeaderSelf(e));
+    }
     const optionsMap = new Map<string, { label: string; value: string }>();
     list.forEach((e) => {
       if (e.name && !optionsMap.has(`name-${e.name}`)) {
@@ -326,7 +363,7 @@ const EmployeePage: FC = () => {
       }
     });
     return Array.from(optionsMap.values());
-  }, [allEmployeeQuery.data?.list]);
+  }, [allEmployeeQuery.data?.list, isLeader, isLeaderSelf]);
 
   const localizedSearchFields: SearchFieldConfig[] = [
     {
@@ -343,9 +380,6 @@ const EmployeePage: FC = () => {
     state.hasPermission(PERMISSIONS.EMPLOYEE_DESIGNATE_LEAVE),
   );
 
-  const user = useUserStore((state) => state.user);
-  const isStaff = user?.role === 'STAFF';
-
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee();
   const deleteMutation = useDeleteEmployee();
@@ -354,7 +388,27 @@ const EmployeePage: FC = () => {
 
   // Wraps useEmployeeList to satisfy BaseTable's queryHook signature
   function useEmployeeListQuery(): QueryResult<PaginatedResponse<Employee>> {
-    return useEmployeeList(filters) as QueryResult<PaginatedResponse<Employee>>;
+    const effectiveParams = {
+      ...filters,
+      area: isLeader ? leaderArea : filters.area,
+    };
+    const query = useEmployeeList(effectiveParams) as QueryResult<PaginatedResponse<Employee>>;
+    if (isLeader && query.data) {
+      const filtered = query.data.list.filter(
+        (e) =>
+          !isLeaderSelf(e) &&
+          (!leaderArea || e.area === leaderArea || e.groupName?.includes(leaderArea)),
+      );
+      return {
+        ...query,
+        data: {
+          ...query.data,
+          list: filtered,
+          total: filtered.length,
+        },
+      };
+    }
+    return query;
   }
 
   const { data: allEmployeesData } = useEmployeeList({ page: 1, pageSize: 100 });

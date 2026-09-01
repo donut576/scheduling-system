@@ -24,6 +24,7 @@ import type {
 import dayjs from 'dayjs';
 import { ROLE_PERMISSIONS } from '@/constants/permissions';
 import { getGroupColor } from '@/utils/groupColor';
+import { isAddressInRegion, normalizeRegion } from '@/utils/regionMapping';
 
 /**
  * MSW request handlers mocking all API endpoints defined in src/api/*.ts.
@@ -86,11 +87,12 @@ const mockManagerUser: UserProfile = {
 // Demo leader account (login: leader / leader123)
 const mockLeaderUser: UserProfile = {
   id: 'emp-leader',
-  name: 'Demo 組長',
+  name: 'Demo 台北組長',
   employeeNo: 'LDR01',
   role: 'LEADER',
   permissions: ROLE_PERMISSIONS.LEADER!,
-  groupId: 'group-001',
+  groupId: 'taipei-morning',
+  area: '台北',
 };
 
 // Demo staff account (login: staff / staff123)
@@ -101,6 +103,7 @@ const mockStaffUser: UserProfile = {
   role: 'STAFF',
   permissions: ROLE_PERMISSIONS.STAFF!,
   groupId: 'taipei-morning',
+  area: '台北',
 };
 
 const mockTask: Task = {
@@ -467,6 +470,45 @@ const demoCustomerGroups: CustomerGroup[] = [
       },
     ],
   },
+  {
+    id: 'group-012',
+    name: '全家便利商店股份有限公司',
+    branches: [
+      {
+        id: 'branch-012-1',
+        groupId: 'group-012',
+        name: '宜蘭礁溪門市',
+        address: '宜蘭縣礁溪鄉礁溪路五段100號',
+        latitude: 24.8272,
+        longitude: 121.7745,
+        contactName: '林店長',
+        contactPhone: '03-9881234',
+        requiredLicenses: ['PEST_CONTROL'],
+      },
+      {
+        id: 'branch-012-2',
+        groupId: 'group-012',
+        name: '基隆海洋門市',
+        address: '基隆市仁愛區忠一路1號',
+        latitude: 25.1312,
+        longitude: 121.7415,
+        contactName: '張店長',
+        contactPhone: '02-24221234',
+        requiredLicenses: ['PEST_CONTROL'],
+      },
+      {
+        id: 'branch-012-3',
+        groupId: 'group-012',
+        name: '花蓮中正門市',
+        address: '花蓮縣花蓮市中正路550號',
+        latitude: 23.9785,
+        longitude: 121.6065,
+        contactName: '陳店長',
+        contactPhone: '03-8321234',
+        requiredLicenses: ['PEST_CONTROL'],
+      },
+    ],
+  },
 ];
 
 // 合併基本測試用集團與額外的 demo 集團，供各端點共用
@@ -496,6 +538,21 @@ let mockCustomers: Customer[] = [mockCustomer, ...demoCustomers];
 // 額外的員工假資料，分散於不同集團／職位／證照，供指派員工下拉選單使用
 const demoEmployees: Employee[] = [
   // 台北組 - Demo 員工
+  {
+    id: 'emp-leader',
+    name: 'Demo 台北組長',
+    phone: '0912-345-678',
+    employeeNo: 'LDR01',
+    position: 'LEADER',
+    groupId: 'taipei-morning',
+    groupName: '台北 早班',
+    area: '台北',
+    shift: '早班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
+    isActive: true,
+  },
   {
     id: 'emp-staff',
     name: 'Demo 員工',
@@ -1524,31 +1581,193 @@ const demoTasks: Task[] = [
     createdAt: '2026-08-14T08:00:00+08:00',
     updatedAt: '2026-08-14T08:00:00+08:00',
   },
+  {
+    id: 'task-demo-tpe-01',
+    groupId: 'group-005',
+    groupName: '鼎泰豐餐飲股份有限公司',
+    branchId: 'branch-005-1',
+    branchName: '信義旗艦店',
+    taskType: 'CONTRACT',
+    date: '2026-09-02',
+    startTime: '08:30',
+    endTime: '12:30',
+    isOvernight: false,
+    headcount: 2,
+    shift: '早班',
+    route: '第一路',
+    contents: ['P', 'R'],
+    assignees: [
+      { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+      { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
+    ],
+    remarks: '台北信義旗艦店早班例行清消作業',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-leader',
+    createdAt: '2026-09-01T09:00:00+08:00',
+    updatedAt: '2026-09-01T09:00:00+08:00',
+  },
+  {
+    id: 'task-demo-tpe-02',
+    groupId: 'group-010',
+    groupName: '誠品生活股份有限公司',
+    branchId: 'branch-010-1',
+    branchName: '松菸店',
+    taskType: 'CONTRACT',
+    date: '2026-09-03',
+    startTime: '13:00',
+    endTime: '17:00',
+    isOvernight: false,
+    headcount: 2,
+    shift: '午班',
+    route: '第二路',
+    contents: ['P', 'S'],
+    assignees: [
+      { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
+      { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
+    ],
+    remarks: '台北松菸商場例行病媒防治',
+    status: 'CONFIRMED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-leader',
+    createdAt: '2026-09-01T09:00:00+08:00',
+    updatedAt: '2026-09-01T09:00:00+08:00',
+  },
+  {
+    id: 'task-demo-tpe-03',
+    groupId: 'group-004',
+    groupName: '綠地物業管理顧問',
+    branchId: 'branch-004-1',
+    branchName: '板橋大樓管理處',
+    taskType: 'CONTRACT',
+    date: '2026-09-04',
+    startTime: '08:00',
+    endTime: '14:00',
+    isOvernight: false,
+    headcount: 2,
+    shift: '早班',
+    route: '第一路',
+    contents: ['P', 'R'],
+    assignees: [
+      { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+      { employeeId: 'emp-002', employeeName: '林志豪', licenses: ['PROFESSIONAL', 'SAFETY_6HR'] },
+    ],
+    remarks: '新北市板橋社區大樓公共空間消毒',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-leader',
+    createdAt: '2026-09-01T09:00:00+08:00',
+    updatedAt: '2026-09-01T09:00:00+08:00',
+  },
+  {
+    id: 'task-demo-tpe-04',
+    groupId: 'group-012',
+    groupName: '全家便利商店股份有限公司',
+    branchId: 'branch-012-1',
+    branchName: '宜蘭礁溪門市',
+    taskType: 'CONTRACT',
+    date: '2026-09-05',
+    startTime: '09:00',
+    endTime: '13:00',
+    isOvernight: false,
+    headcount: 1,
+    shift: '早班',
+    route: '第三路',
+    contents: ['P'],
+    assignees: [{ employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] }],
+    remarks: '宜蘭責任轄區定期合約清消任務',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-leader',
+    createdAt: '2026-09-01T09:00:00+08:00',
+    updatedAt: '2026-09-01T09:00:00+08:00',
+  },
+  {
+    id: 'task-demo-tpe-05',
+    groupId: 'group-012',
+    groupName: '全家便利商店股份有限公司',
+    branchId: 'branch-012-2',
+    branchName: '基隆海洋門市',
+    taskType: 'CONTRACT',
+    date: '2026-09-06',
+    startTime: '14:00',
+    endTime: '18:00',
+    isOvernight: false,
+    headcount: 1,
+    shift: '午班',
+    route: '第二路',
+    contents: ['P', 'R'],
+    assignees: [{ employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] }],
+    remarks: '基隆責任轄區門市定期防蟲投藥',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-leader',
+    createdAt: '2026-09-01T09:00:00+08:00',
+    updatedAt: '2026-09-01T09:00:00+08:00',
+  },
+  {
+    id: 'task-demo-tpe-06',
+    groupId: 'group-012',
+    groupName: '全家便利商店股份有限公司',
+    branchId: 'branch-012-3',
+    branchName: '花蓮中正門市',
+    taskType: 'CONTRACT',
+    date: '2026-09-08',
+    startTime: '09:30',
+    endTime: '15:30',
+    isOvernight: false,
+    headcount: 2,
+    shift: '早班',
+    route: '第三路',
+    contents: ['P', 'TERMITE'],
+    assignees: [
+      { employeeId: 'emp-001', employeeName: '測試使用者', licenses: ['PROFESSIONAL'] },
+      { employeeId: 'emp-004', employeeName: '吳建宏', licenses: ['SAFETY_MANAGER_B'] },
+    ],
+    remarks: '花蓮責任轄區白蟻與綜合害蟲防治特派',
+    status: 'SCHEDULED',
+    alertStatus: 'CLEAN',
+    createdBy: 'emp-leader',
+    createdAt: '2026-09-01T09:00:00+08:00',
+    updatedAt: '2026-09-01T09:00:00+08:00',
+  },
 ];
 
 const STORAGE_KEYS = {
-  TASKS: 'ecolab_mock_tasks_v4',
-  SCHEDULE_EVENTS: 'ecolab_mock_schedule_events_v4',
-  PENDING_CUSTOMERS: 'ecolab_mock_pending_customers_v4',
-  EMPLOYEES: 'ecolab_mock_employees_v4',
+  TASKS: 'ecolab_mock_tasks_v7',
+  SCHEDULE_EVENTS: 'ecolab_mock_schedule_events_v7',
+  PENDING_CUSTOMERS: 'ecolab_mock_pending_customers_v7',
+  EMPLOYEES: 'ecolab_mock_employees_v7',
 };
 
-// 清除舊版本可能殘留非標準「晚班」的 localStorage 快取
+// 清除舊版本的 localStorage 快取
 if (typeof window !== 'undefined' && window.localStorage) {
   try {
     const legacyKeys = [
       'ecolab_mock_tasks',
       'ecolab_mock_tasks_v2',
       'ecolab_mock_tasks_v3',
+      'ecolab_mock_tasks_v4',
+      'ecolab_mock_tasks_v5',
+      'ecolab_mock_tasks_v6',
       'ecolab_mock_schedule_events',
       'ecolab_mock_schedule_events_v2',
       'ecolab_mock_schedule_events_v3',
+      'ecolab_mock_schedule_events_v4',
+      'ecolab_mock_schedule_events_v5',
+      'ecolab_mock_schedule_events_v6',
       'ecolab_mock_pending_customers',
       'ecolab_mock_pending_customers_v2',
       'ecolab_mock_pending_customers_v3',
+      'ecolab_mock_pending_customers_v4',
+      'ecolab_mock_pending_customers_v5',
+      'ecolab_mock_pending_customers_v6',
       'ecolab_mock_employees',
       'ecolab_mock_employees_v2',
       'ecolab_mock_employees_v3',
+      'ecolab_mock_employees_v4',
+      'ecolab_mock_employees_v5',
+      'ecolab_mock_employees_v6',
     ];
     legacyKeys.forEach((k) => window.localStorage.removeItem(k));
   } catch (e) {
@@ -2486,11 +2705,11 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     id: 'event-014',
     taskId: 'task-006',
     resourceId: 'branch-008-1',
-    title: '遠東生技園區 - 台南南科生醫館',
+    title: '遠東百貨 - 信義A13',
     start: '2026-08-17T14:00:00+08:00',
     end: '2026-08-17T18:30:00+08:00',
-    groupName: '遠東生技園區',
-    branchName: '台南南科生醫館',
+    groupName: '遠東百貨股份有限公司',
+    branchName: '信義A13',
     alertStatus: 'OVERRIDDEN',
     isRecurring: false,
     isOvernight: false,
@@ -2498,11 +2717,16 @@ const defaultScheduleEvents: ScheduleEvent[] = [
       taskType: 'ONETIME',
       shift: '午班',
       assignees: [
-        { employeeId: 'emp-010', employeeName: '劉美玲', licenses: ['PROFESSIONAL'], area: '台南' },
+        {
+          employeeId: 'emp-001',
+          employeeName: '測試使用者',
+          licenses: ['PROFESSIONAL'],
+          area: '台北',
+        },
       ],
       contents: ['S', 'OTHER'],
       violationReason: '連續排班第 7 日',
-      overrideReason: '主管已簽核特許覆蓋（南科專案緊急支援）',
+      overrideReason: '主管已簽核特許覆蓋（信義專案緊急支援）',
     },
   },
   {
@@ -3021,65 +3245,52 @@ let mockScheduleEvents: ScheduleEvent[] = loadStorage(
   defaultScheduleEvents,
 );
 
-const mockScheduleData: ScheduleData = {
+const getCustomerScheduleResources = (
+  targetArea?: string,
+  targetGroupId?: string,
+  targetBranchId?: string,
+): ScheduleResource[] => {
+  let groups = mockCustomerGroups;
+  if (targetArea) {
+    groups = groups
+      .map((g) => ({
+        ...g,
+        branches: g.branches.filter((b) =>
+          isAddressInRegion(
+            b.address || b.name,
+            targetArea,
+            (b as unknown as { designatedRegion?: string })?.designatedRegion,
+          ),
+        ),
+      }))
+      .filter((g) => g.branches.length > 0);
+  }
+  if (targetGroupId) {
+    groups = groups.filter((g) => g.id === targetGroupId);
+  }
+  if (targetBranchId) {
+    groups = groups
+      .map((g) => ({
+        ...g,
+        branches: g.branches.filter((b) => b.id === targetBranchId),
+      }))
+      .filter((g) => g.branches.length > 0);
+  }
+  return groups.map((g) => ({
+    id: g.id,
+    title: g.name,
+    groupColor: getGroupColor(g.name),
+    children: g.branches.map((b) => ({
+      id: b.id,
+      title: b.name,
+      groupColor: getGroupColor(g.name),
+    })),
+  }));
+};
+
+export const mockScheduleData: ScheduleData = {
   events: mockScheduleEvents,
-  resources: [
-    {
-      id: 'group-001',
-      title: '測試集團',
-      groupColor: '#1677ff',
-      children: [{ id: 'branch-001', title: '測試分店', groupColor: '#1677ff' }],
-    },
-    {
-      id: 'group-002',
-      title: '星耀科技股份有限公司',
-      groupColor: '#0067a0',
-      children: [
-        { id: 'branch-002-1', title: '內湖三期辦公室', groupColor: '#0067a0' },
-        { id: 'branch-002-2', title: '新竹科學園區廠', groupColor: '#0067a0' },
-        { id: 'branch-002-3', title: '台南南科二廠', groupColor: '#0067a0' },
-      ],
-    },
-    {
-      id: 'group-003',
-      title: '陽光連鎖餐飲集團',
-      groupColor: '#c09569',
-      children: [
-        { id: 'branch-003-1', title: '台中西屯門市', groupColor: '#c09569' },
-        { id: 'branch-003-2', title: '台南永康門市', groupColor: '#c06984' },
-      ],
-    },
-    {
-      id: 'group-004',
-      title: '綠地物業管理顧問',
-      groupColor: '#722ed1',
-      children: [{ id: 'branch-004-1', title: '板橋大樓管理處', groupColor: '#722ed1' }],
-    },
-    {
-      id: 'group-006',
-      title: '晶圓精密工業',
-      groupColor: '#52c41a',
-      children: [
-        { id: 'branch-006-1', title: '竹科總部一廠', groupColor: '#52c41a' },
-        { id: 'branch-006-2', title: '中科研發大樓', groupColor: '#52c41a' },
-      ],
-    },
-    {
-      id: 'group-008',
-      title: '遠東生技園區',
-      groupColor: '#faad14',
-      children: [{ id: 'branch-008-1', title: '台南南科生醫館', groupColor: '#faad14' }],
-    },
-    {
-      id: 'group-010',
-      title: '鼎泰美食王國',
-      groupColor: '#eb2f96',
-      children: [
-        { id: 'branch-010-1', title: '台北101旗艦店', groupColor: '#eb2f96' },
-        { id: 'branch-010-2', title: '新竹巨城店', groupColor: '#eb2f96' },
-      ],
-    },
-  ],
+  resources: getCustomerScheduleResources(),
 };
 
 // --- Handlers -----------------------------------------------------------
@@ -3236,6 +3447,20 @@ export const handlers = [
     }
     if (endDate) {
       list = list.filter((t) => t.date && t.date <= endDate);
+    }
+    const area = url.searchParams.get('area');
+    if (area) {
+      list = list.filter((t) => {
+        const branch = mockCustomerGroups
+          .flatMap((g) => g.branches)
+          .find((b) => b.id === t.branchId);
+        const addr = branch?.address || '';
+        return isAddressInRegion(
+          addr || t.branchName || t.groupName,
+          area,
+          (t as unknown as { designatedRegion?: string }).designatedRegion,
+        );
+      });
     }
 
     return HttpResponse.json(ok(paginated<Task>(list, page, pageSize)));
@@ -3642,8 +3867,23 @@ export const handlers = [
         e.extendedProps.assignees.some((a) => a.employeeId === employeeId),
       );
     }
-    if (area && dim !== 'employee') {
-      events = events.filter((e) => e.extendedProps.assignees.some((a) => a.area === area));
+    if (area) {
+      events = events.filter((e) => {
+        const matchingBranch = mockCustomerGroups
+          .flatMap((cg) => cg.branches)
+          .find((cb) => cb.id === e.resourceId);
+        const matchingTask = mockTasks.find((t) => t.id === e.taskId);
+        const addr = matchingBranch?.address || '';
+        const name = matchingBranch?.name || e.branchName || e.title;
+        const designated =
+          (matchingBranch as unknown as { designatedRegion?: string })?.designatedRegion ||
+          (matchingTask as unknown as { designatedRegion?: string })?.designatedRegion;
+
+        return (
+          isAddressInRegion(addr || name, area, designated) ||
+          e.extendedProps.assignees.some((a) => normalizeRegion(a.area) === normalizeRegion(area))
+        );
+      });
     }
     if (shift && dim !== 'employee') {
       events = events.filter((e) => e.extendedProps.shift === shift);
@@ -3651,25 +3891,30 @@ export const handlers = [
 
     let resources: ScheduleResource[] = [];
     if (dim === 'customer') {
-      let groups = mockScheduleData.resources;
-      if (groupId) {
-        groups = groups.filter((g) => g.id === groupId || g.title.includes(groupId));
-      }
-      if (branchId) {
-        groups = groups
-          .map((g) => ({
-            ...g,
-            children: g.children?.filter((b) => b.id === branchId),
-          }))
-          .filter((g) => g.children && g.children.length > 0);
-      }
-      resources = groups;
+      resources = getCustomerScheduleResources(
+        area || undefined,
+        groupId || undefined,
+        branchId || undefined,
+      );
+
+      // 客戶維度：篩選事件使其與畫面上顯示的分店資源（Resources）精準匹配
+      const validResourceIds = new Set<string>();
+      resources.forEach((g) => {
+        g.children?.forEach((b) => validResourceIds.add(b.id));
+      });
+      events = events.filter((e) => validResourceIds.has(e.resourceId));
     } else if (dim === 'employee') {
       let emps = mockEmployees;
       if (employeeId) {
         emps = emps.filter((e) => e.id === employeeId);
       }
-      if (area) emps = emps.filter((e) => e.area === area || e.groupName?.includes(area));
+      if (area) {
+        emps = emps.filter(
+          (e) =>
+            isAddressInRegion(e.area || e.groupName || '', area) ||
+            normalizeRegion(e.area) === normalizeRegion(area),
+        );
+      }
       if (shift) emps = emps.filter((e) => e.shift === shift || e.groupName?.includes(shift));
       resources = emps.map((e) => ({
         id: e.id,
@@ -3850,7 +4095,34 @@ export const handlers = [
   }),
 
   // employee.ts
-  http.get('*/api/v1/employees', () => HttpResponse.json(ok(paginated<Employee>(mockEmployees)))),
+  http.get('*/api/v1/employees', ({ request }) => {
+    const url = new URL(request.url);
+    const area = url.searchParams.get('area');
+    const shift = url.searchParams.get('shift');
+    const keyword = url.searchParams.get('keyword');
+    const page = Number(url.searchParams.get('page') || 1);
+    const pageSize = Number(url.searchParams.get('pageSize') || 20);
+
+    let list = mockEmployees;
+    if (area) {
+      list = list.filter(
+        (e) => e.area === area || e.groupName?.includes(area) || e.groupId?.includes(area),
+      );
+    }
+    if (shift) {
+      list = list.filter((e) => e.shift === shift || e.groupName?.includes(shift));
+    }
+    if (keyword) {
+      const kw = keyword.toLowerCase().trim();
+      list = list.filter(
+        (e) =>
+          e.name.toLowerCase().includes(kw) ||
+          e.employeeNo.toLowerCase().includes(kw) ||
+          (e.phone && e.phone.includes(kw)),
+      );
+    }
+    return HttpResponse.json(ok(paginated<Employee>(list, page, pageSize)));
+  }),
   http.get('*/api/v1/employees/:id', ({ params }) => {
     const emp = mockEmployees.find((e) => e.id === params.id) || mockEmployees[0]!;
     return HttpResponse.json(ok<Employee>(emp));

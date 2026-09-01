@@ -18,8 +18,11 @@ import { useTaskList, useCreateTask, useUpdateTask } from '@/queries/useTaskQuer
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useTaskStore } from '@/stores/useTaskStore';
 import { usePermissionStore } from '@/stores/usePermissionStore';
+import { useUserStore } from '@/stores/useUserStore';
+import { isAddressInRegion, REGION_NAMES_MAP, normalizeRegion } from '@/utils/regionMapping';
 import { TASK_STATUS_MAP, formatTaskContents } from '@/constants/taskStatus';
 import { exportToExcel, type ExcelColumn } from '@/utils/excel';
+import { Alert } from 'antd';
 import type { Task, TaskFormData, TaskStatus } from '@/types/task';
 import type { CustomerGroup } from '@/types/customer';
 import type { PaginatedResponse } from '@/types/common';
@@ -382,8 +385,22 @@ function TaskPage() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const hasPermission = usePermissionStore((state) => state.hasPermission);
+  const user = useUserStore((state) => state.user);
+  const isLeader = user?.role === 'LEADER';
+  const leaderArea = useMemo(() => {
+    if (!isLeader) return undefined;
+    return normalizeRegion((user as unknown as { area?: string })?.area || user?.groupId);
+  }, [isLeader, user]);
+
   const { filters, setFilters, resetFilters } = useTaskStore();
-  const taskListQuery = useTaskList(filters) as QueryResult<PaginatedResponse<Task>>;
+  const effectiveTaskFilters = useMemo(
+    () => ({
+      ...filters,
+      area: isLeader ? leaderArea : undefined,
+    }),
+    [filters, isLeader, leaderArea],
+  );
+  const taskListQuery = useTaskList(effectiveTaskFilters) as QueryResult<PaginatedResponse<Task>>;
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -393,20 +410,34 @@ function TaskPage() {
   // 集團／分店篩選選項，來源與任務建立表單之集團／分店連動下拉一致
   const { data: customerGroups = [] } = useCustomerGroups();
 
-  const groupOptions = useMemo(
-    () => customerGroups.map((g: CustomerGroup) => ({ label: g.name, value: g.id })),
-    [customerGroups],
+  const isBranchInLeaderArea = useCallback(
+    (b: { address?: string; name?: string; designatedRegion?: string }) => {
+      if (!isLeader || !leaderArea) return true;
+      return isAddressInRegion(b.address || b.name, leaderArea, b.designatedRegion);
+    },
+    [isLeader, leaderArea],
   );
 
+  const groupOptions = useMemo(() => {
+    let list = customerGroups;
+    if (isLeader) {
+      list = list.filter((g) => g.branches.some(isBranchInLeaderArea));
+    }
+    return list.map((g: CustomerGroup) => ({ label: g.name, value: g.id }));
+  }, [customerGroups, isBranchInLeaderArea, isLeader]);
+
   const branchOptions = useMemo(() => {
-    const groups = filters.groupId
+    let groups = filters.groupId
       ? customerGroups.filter((g: CustomerGroup) => g.id === filters.groupId)
       : customerGroups;
+    if (isLeader) {
+      groups = groups.filter((g) => g.branches.some(isBranchInLeaderArea));
+    }
 
     return groups.flatMap((g: CustomerGroup) =>
-      g.branches.map((b) => ({ label: b.name, value: b.id })),
+      g.branches.filter(isBranchInLeaderArea).map((b) => ({ label: b.name, value: b.id })),
     );
-  }, [customerGroups, filters.groupId]);
+  }, [customerGroups, filters.groupId, isBranchInLeaderArea, isLeader]);
 
   // 依狀態欄位篩選（表格欄位標題內建之下拉篩選）
   const handleStatusFilter = useCallback(
@@ -607,6 +638,16 @@ function TaskPage() {
 
   const taskListContent = (
     <>
+      {isLeader && leaderArea && (
+        <Alert
+          type="info"
+          showIcon
+          message={`【${REGION_NAMES_MAP[leaderArea as keyof typeof REGION_NAMES_MAP] || `${leaderArea}組`}】責任轄區任務管理`}
+          description={`您目前為「${leaderArea}組」組長，此頁面僅顯示所屬責任分區之客戶任務（含轄區內各縣市客戶與經理指派跨區支援任務）。`}
+          style={{ marginBottom: 16, borderRadius: 8 }}
+        />
+      )}
+
       <div
         style={{
           display: 'flex',

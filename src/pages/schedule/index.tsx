@@ -38,6 +38,7 @@ import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useEmployeeList } from '@/queries/useEmployeeQueries';
 import { useTaskDetail, useUpdateTask, useTaskList } from '@/queries/useTaskQueries';
 import { AREA_OPTIONS, EMPLOYEE_SHIFT_OPTIONS } from '@/constants/groups';
+import { isAddressInRegion, normalizeRegion } from '@/utils/regionMapping';
 import { formatTaskContents } from '@/constants/taskStatus';
 import type {
   ScheduleDimension,
@@ -69,6 +70,13 @@ const SchedulePage: FC = () => {
   const hasScheduleEdit = usePermissionStore((state) => state.hasPermission('schedule:edit'));
   const user = useUserStore((state) => state.user);
   const isStaff = user?.role === 'STAFF';
+  const isLeader = user?.role === 'LEADER';
+
+  // 組長模式：鎖定所屬責任轄區（例如：台北組）
+  const leaderArea = useMemo(() => {
+    if (!isLeader) return undefined;
+    return normalizeRegion((user as unknown as { area?: string })?.area || user?.groupId);
+  }, [isLeader, user]);
 
   // 篩選器狀態（全部支援清除）
   const [groupId, setGroupId] = useState<string | undefined>(undefined);
@@ -77,9 +85,9 @@ const SchedulePage: FC = () => {
   const [selectedArea, setSelectedArea] = useState<string | undefined>(undefined);
   const [selectedShift, setSelectedShift] = useState<string | undefined>(undefined);
 
-  // 員工模式下，鎖定為 'employee' 維度，並依員工所屬組別（例如：台北 早班）呈現同組同仁與集團之服務班表
+  // 員工模式下鎖定為 'employee' 維度；組長與員工模式下依所屬組別（例如：台北）呈現同組班表
   const effectiveDimension: ScheduleDimension = isStaff ? 'employee' : dimension;
-  const effectiveArea = isStaff ? selectedArea || '台北' : selectedArea;
+  const effectiveArea = isStaff || isLeader ? selectedArea || leaderArea || '台北' : selectedArea;
 
   // 彈出詳情小框與編輯狀態
   const [selectedEvent, setSelectedEvent] = useState<ScheduleEvent | null>(null);
@@ -100,43 +108,61 @@ const SchedulePage: FC = () => {
   const { data: taskDetail } = useTaskDetail(selectedEvent?.taskId ?? '');
   const updateTaskMutation = useUpdateTask();
 
-  // 查詢未排班任務數量（用於頂部工具列徽章提示）
-  const { data: unscheduledData } = useTaskList({ status: 'UNSCHEDULED', pageSize: 100 });
+  // 查詢未排班任務數量（用於頂部工具列徽章提示，組長模式下僅算所屬轄區）
+  const { data: unscheduledData } = useTaskList({
+    status: 'UNSCHEDULED',
+    pageSize: 100,
+    area: isLeader ? leaderArea : undefined,
+  });
   const unscheduledCount = unscheduledData?.total ?? unscheduledData?.list?.length ?? 0;
 
-  // 集團下拉選單選項
+  // 判斷分店是否屬於該組長所屬責任轄區（支援全台22縣市自動歸屬，台北組管轄北基宜花）
+  const isBranchInLeaderArea = useCallback(
+    (b: { address?: string; name?: string; designatedRegion?: string }) => {
+      if (!isLeader || !leaderArea) return true;
+      return isAddressInRegion(b.address || b.name, leaderArea, b.designatedRegion);
+    },
+    [isLeader, leaderArea],
+  );
+
+  // 集團下拉選單選項（組長模式下僅列出所屬地區含有分店之集團）
   const groupOptions = useMemo(() => {
     if (!customerGroups) return [];
-    return customerGroups.map((g) => ({
+    let list = customerGroups;
+    if (isLeader) {
+      list = list.filter((g) => g.branches.some(isBranchInLeaderArea));
+    }
+    return list.map((g) => ({
       label: g.name,
       value: g.id,
     }));
-  }, [customerGroups]);
+  }, [customerGroups, isBranchInLeaderArea, isLeader]);
 
-  // 分店下拉選單選項（預設全選，未選特定分店即代表全選）
+  // 分店下拉選單選項（預設全選，組長模式下僅列出所屬地區之分店）
   const branchOptions = useMemo(() => {
     if (!customerGroups) return [];
     if (groupId) {
       const group = customerGroups.find((g) => g.id === groupId);
       if (!group) return [];
-      return group.branches.map((b) => ({
+      return group.branches.filter(isBranchInLeaderArea).map((b) => ({
         label: b.name,
         value: b.id,
       }));
     }
     return customerGroups.flatMap((g) =>
-      g.branches.map((b) => ({
+      g.branches.filter(isBranchInLeaderArea).map((b) => ({
         label: `${g.name} - ${b.name}`,
         value: b.id,
       })),
     );
-  }, [customerGroups, groupId]);
+  }, [customerGroups, groupId, isBranchInLeaderArea]);
 
-  // 員工模糊搜尋下拉選項（支援姓名與員工編號搜尋，依所選地區與班別即時篩選）
+  // 員工模糊搜尋下拉選項（支援姓名與員工編號搜尋，組長僅限所屬組別，依所選地區與班別即時篩選）
   const employeeOptions = useMemo(() => {
     let list = employees;
-    if (selectedArea) {
-      list = list.filter((e) => e.area === selectedArea || e.groupName?.includes(selectedArea));
+    const activeArea = isLeader ? leaderArea : selectedArea;
+    if (activeArea) {
+      list = list.filter((e) => e.area === activeArea || e.groupName?.includes(activeArea));
     }
     if (selectedShift) {
       list = list.filter((e) => e.shift === selectedShift || e.groupName?.includes(selectedShift));
@@ -146,7 +172,7 @@ const SchedulePage: FC = () => {
       value: e.id,
       searchValue: `${e.name} ${e.employeeNo}`,
     }));
-  }, [employees, selectedArea, selectedShift]);
+  }, [employees, isLeader, leaderArea, selectedArea, selectedShift]);
 
   // 當集團切換時，自動檢查分店是否有效
   const handleGroupChange = useCallback(
@@ -299,6 +325,28 @@ const SchedulePage: FC = () => {
       };
     }
 
+    if (isLeader) {
+      // 組長模式：鎖定僅看所屬組別（例如：台北組）的相關排班任務
+      if (dimension === 'overview') {
+        return {
+          area: leaderArea || '台北',
+        };
+      }
+      if (dimension === 'customer') {
+        return {
+          groupId: groupId || undefined,
+          branchId: branchId || undefined,
+          area: leaderArea || '台北',
+        };
+      }
+      // employee dimension
+      return {
+        employeeId: employeeId || undefined,
+        area: leaderArea || '台北',
+        shift: selectedShift || undefined,
+      };
+    }
+
     if (dimension === 'overview') {
       return {};
     }
@@ -332,7 +380,9 @@ const SchedulePage: FC = () => {
     employeeId,
     employees,
     groupId,
+    isLeader,
     isStaff,
+    leaderArea,
     selectedArea,
     selectedShift,
   ]);
@@ -1290,11 +1340,13 @@ const SchedulePage: FC = () => {
                       <Select
                         aria-label="地區篩選"
                         placeholder={t('schedule.selectAreaPlaceholder')}
-                        allowClear
+                        allowClear={!isLeader}
+                        disabled={isLeader}
                         style={{ width: 140 }}
                         options={AREA_OPTIONS}
-                        value={selectedArea}
+                        value={isLeader ? leaderArea : selectedArea}
                         onChange={setSelectedArea}
+                        title={isLeader ? `組長僅限檢視所屬【${leaderArea}組】之班表` : undefined}
                       />
                     </div>
                     <div className="schedule-filter-item">

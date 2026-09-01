@@ -21,6 +21,7 @@ import {
   Row,
   Col,
   Card,
+  Tag,
 } from 'antd';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -43,6 +44,7 @@ import { useTaskList } from '@/queries/useTaskQueries';
 import { runAlertChecks } from '@/utils/alertRules';
 import { isHoliday } from '@/utils/date';
 import { HOLIDAYS_2026 } from '@/constants/holidays';
+import { getRegionByAddress, REGION_NAMES_MAP } from '@/utils/regionMapping';
 import EmployeeSelect from '@/components/business/EmployeeSelect';
 import TimeSelect from '@/components/business/TimeSelect';
 import RecurrenceEditor from '@/components/business/RecurrenceEditor';
@@ -230,13 +232,21 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     }));
   }, [customerGroups]);
 
+  const selectedBranch = useMemo(() => {
+    if (!selectedGroupId || !watchBranchId) return undefined;
+    const group = customerGroups.find((g: CustomerGroup) => g.id === selectedGroupId);
+    return group?.branches.find((b) => b.id === watchBranchId);
+  }, [selectedGroupId, watchBranchId, customerGroups]);
+
+  const detectedRegion = useMemo(() => {
+    if (!selectedBranch) return undefined;
+    return getRegionByAddress(selectedBranch.address || selectedBranch.name);
+  }, [selectedBranch]);
+
   // Compute required licenses from selected branch
   const requiredLicenses = useMemo(() => {
-    if (!selectedGroupId || !watchBranchId) return [];
-    const group = customerGroups.find((g: CustomerGroup) => g.id === selectedGroupId);
-    const branch = group?.branches.find((b) => b.id === watchBranchId);
-    return branch?.requiredLicenses ?? [];
-  }, [selectedGroupId, watchBranchId, customerGroups]);
+    return selectedBranch?.requiredLicenses ?? [];
+  }, [selectedBranch]);
 
   // Form initial values
   const defaultFormValues = useMemo(() => {
@@ -494,6 +504,25 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                   </Form.Item>
                 </Col>
               </Row>
+
+              {selectedBranch && detectedRegion && (
+                <div
+                  style={{
+                    marginTop: -8,
+                    marginBottom: 12,
+                    padding: '4px 8px',
+                    background: '#f8fafc',
+                    borderRadius: 6,
+                  }}
+                >
+                  <Text type="secondary" style={{ fontSize: 13 }}>
+                    責任轄區歸屬：
+                    <Tag color="geekblue" style={{ marginLeft: 6 }}>
+                      {REGION_NAMES_MAP[detectedRegion]}
+                    </Tag>
+                  </Text>
+                </div>
+              )}
 
               <Form.Item
                 name="taskType"

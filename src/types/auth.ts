@@ -28,6 +28,7 @@ export interface UserProfile {
   role: RoleType;
   permissions: string[];
   groupId?: string;
+  area?: string;
 }
 
 /** 使用者角色類型：管理員／行政／經理／組長／一般員工 */

@@ -80,6 +80,7 @@ export interface TaskListParams {
   status?: TaskStatus;
   startDate?: string;
   endDate?: string;
+  area?: string;
 }
 
 /** 任務類型：合約／單次／ESR */
