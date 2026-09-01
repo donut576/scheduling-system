@@ -174,6 +174,54 @@ tr.row-confirmed .ant-tag * {
   font-weight: 600;
 }
 
+/* 任務已取消資料列（整行反灰 + 淺灰底色 + 低飽和度） */
+.ant-table-wrapper tr.row-task-cancelled td,
+.ant-table-wrapper tr.row-task-cancelled td *,
+tr.row-task-cancelled td,
+tr.row-task-cancelled td * {
+  color: #8c8c8c !important;
+  opacity: 0.8;
+}
+
+.ant-table-wrapper tr.row-task-cancelled > td,
+tr.row-task-cancelled > td {
+  background-color: #fafafa !important;
+}
+
+.ant-table-wrapper tr.row-task-cancelled:hover > td,
+tr.row-task-cancelled:hover > td {
+  background-color: #f0f0f0 !important;
+}
+
+.ant-table-wrapper tr.row-task-cancelled .ant-tag,
+tr.row-task-cancelled .ant-tag {
+  background-color: #d9d9d9 !important;
+  border-color: #d9d9d9 !important;
+  color: #595959 !important;
+  opacity: 0.9;
+}
+
+/* 行動端/卡片檢視：已取消任務卡片反灰 */
+.ant-card.row-task-cancelled,
+.row-task-cancelled.base-table-mobile-card {
+  background-color: #fafafa !important;
+  border: 1px solid #d9d9d9 !important;
+  border-radius: 8px;
+  opacity: 0.8;
+}
+
+.ant-card.row-task-cancelled *,
+.row-task-cancelled.base-table-mobile-card * {
+  color: #8c8c8c !important;
+}
+
+.ant-card.row-task-cancelled .ant-tag,
+.row-task-cancelled.base-table-mobile-card .ant-tag {
+  background-color: #d9d9d9 !important;
+  border-color: #d9d9d9 !important;
+  color: #595959 !important;
+}
+
 .base-table .ant-table-pagination.ant-pagination,
 .base-table-mobile .ant-list-pagination .ant-pagination {
   justify-content: center;

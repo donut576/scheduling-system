@@ -19,10 +19,9 @@ import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useTaskStore } from '@/stores/useTaskStore';
 import { usePermissionStore } from '@/stores/usePermissionStore';
 import { useUserStore } from '@/stores/useUserStore';
-import { isAddressInRegion, REGION_NAMES_MAP, normalizeRegion } from '@/utils/regionMapping';
+import { isAddressInRegion, normalizeRegion } from '@/utils/regionMapping';
 import { TASK_STATUS_MAP, formatTaskContents } from '@/constants/taskStatus';
 import { exportToExcel, type ExcelColumn } from '@/utils/excel';
-import { Alert } from 'antd';
 import type { Task, TaskFormData, TaskStatus } from '@/types/task';
 import type { CustomerGroup } from '@/types/customer';
 import type { PaginatedResponse } from '@/types/common';
@@ -292,11 +291,13 @@ function baseColumns(
 function renderTaskCard(record: Task, t: (key: string) => string) {
   const isApproved = Boolean(record.isApproved);
   const cardClassName =
-    record.status === 'MODIFIED'
-      ? isApproved
-        ? 'row-modified-approved'
-        : 'row-modified-pending'
-      : '';
+    record.status === 'CANCELLED'
+      ? 'row-task-cancelled'
+      : record.status === 'MODIFIED'
+        ? isApproved
+          ? 'row-modified-approved'
+          : 'row-modified-pending'
+        : '';
   const tagColor =
     record.status === 'MODIFIED'
       ? isApproved
@@ -619,6 +620,9 @@ function TaskPage() {
   ]);
 
   const rowClassName = useCallback((record: Task) => {
+    if (record.status === 'CANCELLED') {
+      return 'row-task-cancelled';
+    }
     if (record.status === 'MODIFIED') {
       return record.isApproved ? 'row-modified-approved' : 'row-modified-pending';
     }
@@ -638,16 +642,6 @@ function TaskPage() {
 
   const taskListContent = (
     <>
-      {isLeader && leaderArea && (
-        <Alert
-          type="info"
-          showIcon
-          message={`【${REGION_NAMES_MAP[leaderArea as keyof typeof REGION_NAMES_MAP] || `${leaderArea}組`}】責任轄區任務管理`}
-          description={`您目前為「${leaderArea}組」組長，此頁面僅顯示所屬責任分區之客戶任務（含轄區內各縣市客戶與經理指派跨區支援任務）。`}
-          style={{ marginBottom: 16, borderRadius: 8 }}
-        />
-      )}
-
       <div
         style={{
           display: 'flex',
