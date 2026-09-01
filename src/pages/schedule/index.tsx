@@ -1333,22 +1333,22 @@ const SchedulePage: FC = () => {
                         onChange={setEmployeeId}
                       />
                     </div>
-                    <div className="schedule-filter-item">
-                      <span className="schedule-filter-label" style={{ marginRight: 6 }}>
-                        {t('schedule.areaLabel')}
-                      </span>
-                      <Select
-                        aria-label="地區篩選"
-                        placeholder={t('schedule.selectAreaPlaceholder')}
-                        allowClear={!isLeader}
-                        disabled={isLeader}
-                        style={{ width: 140 }}
-                        options={AREA_OPTIONS}
-                        value={isLeader ? leaderArea : selectedArea}
-                        onChange={setSelectedArea}
-                        title={isLeader ? `組長僅限檢視所屬【${leaderArea}組】之班表` : undefined}
-                      />
-                    </div>
+                    {!isLeader && (
+                      <div className="schedule-filter-item">
+                        <span className="schedule-filter-label" style={{ marginRight: 6 }}>
+                          {t('schedule.areaLabel')}
+                        </span>
+                        <Select
+                          aria-label="地區篩選"
+                          placeholder={t('schedule.selectAreaPlaceholder')}
+                          allowClear
+                          style={{ width: 140 }}
+                          options={AREA_OPTIONS}
+                          value={selectedArea}
+                          onChange={setSelectedArea}
+                        />
+                      </div>
+                    )}
                     <div className="schedule-filter-item">
                       <span className="schedule-filter-label" style={{ marginRight: 6 }}>
                         {t('schedule.shiftLabel')}
