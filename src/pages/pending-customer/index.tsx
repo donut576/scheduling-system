@@ -1038,6 +1038,9 @@ const PendingCustomerPage: FC = () => {
                     <DatePicker
                       style={{ width: '100%' }}
                       placeholder="未定案可留空"
+                      disabledDate={(current) =>
+                        Boolean(current && current.isBefore(dayjs().startOf('day')))
+                      }
                       cellRender={(current, info) => {
                         if (info.type !== 'date') return info.originNode;
                         const d = current as Dayjs;
@@ -1294,6 +1297,9 @@ const PendingCustomerPage: FC = () => {
                     <DatePicker
                       style={{ width: '100%' }}
                       placeholder={t('pendingCustomer.serviceDateRequired')}
+                      disabledDate={(current) =>
+                        Boolean(current && current.isBefore(dayjs().startOf('day')))
+                      }
                       cellRender={(current, info) => {
                         if (info.type !== 'date') return info.originNode;
                         const d = current as Dayjs;

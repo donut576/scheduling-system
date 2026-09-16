@@ -22,7 +22,12 @@ import {
   Col,
   Card,
   Tag,
+  Switch,
+  Upload,
+  message,
 } from 'antd';
+import type { UploadFile } from 'antd/es/upload';
+import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -114,6 +119,18 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
   const [showModifyScope, setShowModifyScope] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<TaskFormData | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | undefined>(initialData?.groupId);
+  const [fileList, setFileList] = useState<UploadFile[]>(() => {
+    if (initialData?.photos && initialData.photos.length > 0) {
+      return initialData.photos.map((url, idx) => ({
+        uid: `photo-${idx}`,
+        name: `photo-${idx + 1}.jpg`,
+        status: 'done',
+        url,
+        thumbUrl: url,
+      }));
+    }
+    return [];
+  });
 
   // 判斷目前是否為編輯週期任務之某一實例，若是則送出前需詢問修改範圍
   const isRecurringTask = mode === 'edit' && !!initialData?.recurrenceId;
@@ -121,6 +138,16 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
   // Store references
   const { taskTypes, shifts, routes, contents } = useDictStore();
   const { setAlertResults: setStoreAlertResults } = useTaskStore();
+
+  const reportTypeOptions = useMemo(
+    () => [
+      { label: t('task.reportTypeApp'), value: 'APP' },
+      { label: t('task.reportTypeEdm'), value: 'EDM' },
+      { label: t('task.reportTypePaper'), value: 'PAPER' },
+      { label: t('task.reportTypePhoto'), value: 'PHOTO' },
+    ],
+    [t],
+  );
 
   const localizedTaskTypes = useMemo(
     () =>
@@ -248,23 +275,65 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     return selectedBranch?.requiredLicenses ?? [];
   }, [selectedBranch]);
 
+  interface RawTaskData extends Partial<Task> {
+    customer?: { id: string; groupId?: string };
+    assignedEmployees?: { id: string; name?: string }[];
+    content?: string;
+    shiftType?: Task['shift'];
+    reportRemarks?: string;
+    uploadedPhotos?: { id: string; filename?: string; url?: string; size?: number }[];
+  }
+
   // Form initial values
   const defaultFormValues = useMemo(() => {
     if (initialData) {
+      const raw = initialData as unknown as RawTaskData;
+      const assigneesList: string[] = Array.isArray(raw.assignees)
+        ? raw.assignees.map((a) => (typeof a === 'string' ? a : a.employeeId))
+        : Array.isArray(raw.assignedEmployees)
+          ? raw.assignedEmployees.map((a) => a.id)
+          : [];
+
+      const contentsList = Array.isArray(raw.contents)
+        ? raw.contents
+        : raw.content
+          ? [raw.content]
+          : [];
+
       return {
-        groupId: initialData.groupId,
-        branchId: initialData.branchId,
-        taskType: initialData.taskType,
-        date: initialData.date ? dayjs(initialData.date) : undefined,
-        startTime: initialData.startTime,
-        endTime: initialData.endTime,
-        headcount: initialData.headcount,
-        shift: initialData.shift,
-        route: initialData.route,
-        contents: initialData.contents,
-        otherContentNote: initialData.otherContentNote,
-        assignees: initialData.assignees.map((a) => a.employeeId),
-        remarks: initialData.remarks,
+        groupId: raw.groupId ?? raw.customer?.groupId,
+        branchId: raw.branchId ?? raw.customer?.id,
+        taskType: raw.taskType,
+        date: raw.date ? dayjs(raw.date) : undefined,
+        startTime: raw.startTime,
+        endTime: raw.endTime,
+        headcount: raw.headcount,
+        shift: raw.shift ?? raw.shiftType,
+        route: raw.route,
+        contents: contentsList,
+        otherContentNote: raw.otherContentNote,
+        assignees: assigneesList,
+        remarks: raw.remarks,
+        isMakeup: Boolean(raw.isMakeup),
+        originalDate: raw.originalDate ? dayjs(raw.originalDate) : undefined,
+        makeupReason: raw.makeupReason,
+        photoCount: raw.photoCount,
+        reportTypes:
+          raw.reportTypes && raw.reportTypes.length > 0
+            ? raw.reportTypes
+            : raw.requirePhotos
+              ? ['PHOTO']
+              : [],
+        photos:
+          raw.photos ??
+          raw.uploadedPhotos?.map((p) => ({
+            uid: p.id,
+            name: p.filename || p.id,
+            url: p.url,
+            size: p.size,
+          })) ??
+          [],
+        reportNotes: raw.reportNotes ?? raw.reportRemarks ?? '',
       };
     }
     return {
@@ -273,6 +342,11 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
       shift: shifts[0]?.value as string,
       route: routes[0]?.value as string,
       contents: [],
+      isMakeup: false,
+      photoCount: undefined,
+      reportTypes: [],
+      photos: [],
+      reportNotes: '',
     };
   }, [initialData, shifts, routes]);
 
@@ -308,11 +382,21 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
 
       const isOther = values.contents?.includes('OTHER') || values.contents?.includes('其他');
 
-      const isFullyStaffed = (values.assignees?.length ?? 0) >= (values.headcount ?? 1);
+      const isFullyStaffed =
+        Array.isArray(values.assignees) &&
+        values.assignees.length > 0 &&
+        values.assignees.length >= (values.headcount ?? 1);
       const hasDate = Boolean(values.date);
       const hasTime = Boolean(values.startTime && values.endTime);
       const computedStatus: TaskStatus =
         isFullyStaffed && hasDate && hasTime ? 'SCHEDULED' : 'UNSCHEDULED';
+
+      const photoUrlsFromList = fileList
+        .map((f) => f.url || f.thumbUrl || (f.response ? (f.response as { url?: string }).url : ''))
+        .filter(Boolean) as string[];
+
+      const isPhotoChecked =
+        Array.isArray(values.reportTypes) && values.reportTypes.includes('PHOTO');
 
       return {
         groupId: values.groupId,
@@ -328,12 +412,27 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         otherContentNote: isOther ? values.otherContentNote : undefined,
         assignees: values.assignees ?? [],
         remarks: values.remarks,
+        isMakeup: Boolean(values.isMakeup),
+        originalDate:
+          values.isMakeup && values.originalDate
+            ? dayjs(values.originalDate).format('YYYY-MM-DD')
+            : undefined,
+        makeupReason: values.isMakeup ? values.makeupReason : undefined,
+        requirePhotos: isPhotoChecked,
+        photoCount: undefined,
+        reportTypes: values.reportTypes ?? [],
+        photos: isPhotoChecked
+          ? photoUrlsFromList.length > 0
+            ? photoUrlsFromList
+            : (values.photos ?? [])
+          : [],
+        reportNotes: values.reportNotes,
         recurrence: enableRecurrence ? recurrenceRule : undefined,
         overrideRemark: overrideRemark || values.overrideRemark,
         status: computedStatus,
       };
     },
-    [form, enableRecurrence, recurrenceRule, shifts],
+    [form, enableRecurrence, recurrenceRule, shifts, fileList],
   );
 
   // 處理 ConflictPanel 之覆蓋操作：使用者確認覆蓋違規並輸入備註後呼叫
@@ -403,6 +502,27 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     const formData = buildFormData();
     if (!formData) return;
 
+    // 新增模式下禁止排定過去時間之任務
+    if (mode === 'create' && formData.date) {
+      const selectedDate = dayjs(formData.date).startOf('day');
+      const today = dayjs().startOf('day');
+      if (selectedDate.isBefore(today)) {
+        message.error(t('task.pastDateError'));
+        return;
+      }
+      if (selectedDate.isSame(today) && formData.startTime) {
+        const [h, m] = formData.startTime.split(':').map(Number);
+        const taskStartTime = dayjs()
+          .hour(h ?? 0)
+          .minute(m ?? 0)
+          .second(0);
+        if (taskStartTime.isBefore(dayjs())) {
+          message.error(t('task.pastTimeError'));
+          return;
+        }
+      }
+    }
+
     // 當已填寫日期與時間時，執行排班預檢（含人數不足、證照不符、連續上班等）
     if (formData.date && formData.startTime && formData.endTime) {
       const alertContext: AlertContext = {
@@ -432,6 +552,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     await submitFormData(formData);
   }, [
     buildFormData,
+    mode,
+    t,
     employees,
     existingTasks,
     requiredLicenses,
@@ -449,6 +571,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     setRecurrenceRule(DEFAULT_RECURRENCE_RULE);
     setAlertResults(null);
     setStoreAlertResults(null);
+    setFileList([]);
   }, [form, setStoreAlertResults]);
 
   const showOtherContentNote =
@@ -566,11 +689,34 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                 </Col>
               </Row>
 
-              <Form.Item name="date" label={t('task.date')} extra={t('task.dateExtra')}>
+              <Form.Item
+                name="date"
+                label={t('task.date')}
+                extra={t('task.dateExtra')}
+                rules={[
+                  {
+                    validator: (_, value) => {
+                      if (mode === 'create' && value) {
+                        const selectedDate = dayjs(value).startOf('day');
+                        const today = dayjs().startOf('day');
+                        if (selectedDate.isBefore(today)) {
+                          return Promise.reject(new Error(t('task.pastDateError')));
+                        }
+                      }
+                      return Promise.resolve();
+                    },
+                  },
+                ]}
+              >
                 <DatePicker
                   style={{ width: '100%' }}
                   format="YYYY-MM-DD"
                   placeholder={t('task.selectDatePlaceholder')}
+                  disabledDate={(current) =>
+                    mode === 'create'
+                      ? Boolean(current && current.isBefore(dayjs().startOf('day')))
+                      : false
+                  }
                   cellRender={(current) => {
                     if (typeof current === 'number' || typeof current === 'string') {
                       return <div className="ant-picker-cell-inner">{current}</div>;
@@ -583,7 +729,31 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
 
               <Row gutter={12}>
                 <Col span={12}>
-                  <Form.Item name="startTime" label={t('task.startTime')}>
+                  <Form.Item
+                    name="startTime"
+                    label={t('task.startTime')}
+                    dependencies={['date']}
+                    rules={[
+                      {
+                        validator: (_, value) => {
+                          if (mode === 'create' && value) {
+                            const dateVal = form.getFieldValue('date');
+                            if (dateVal && dayjs(dateVal).isSame(dayjs(), 'day')) {
+                              const [h, m] = value.split(':').map(Number);
+                              const taskStartTime = dayjs()
+                                .hour(h ?? 0)
+                                .minute(m ?? 0)
+                                .second(0);
+                              if (taskStartTime.isBefore(dayjs())) {
+                                return Promise.reject(new Error(t('task.pastTimeError')));
+                              }
+                            }
+                          }
+                          return Promise.resolve();
+                        },
+                      },
+                    ]}
+                  >
                     <TimeSelect aria-label={t('task.startTime')} />
                   </Form.Item>
                 </Col>
@@ -601,6 +771,79 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
               </Text>
 
               <Divider style={{ margin: '12px 0' }} />
+
+              {/* 改期補做設定 */}
+              <div
+                style={{
+                  marginBottom: 16,
+                  padding: '10px 12px',
+                  background: '#fffbe6',
+                  borderRadius: 6,
+                  border: '1px solid #ffe58f',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 8,
+                  }}
+                >
+                  <Space size={6} align="center">
+                    <span style={{ fontWeight: 600, fontSize: 13, color: '#d48806' }}>
+                      {t('task.isMakeup')}
+                    </span>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      ({t('task.isMakeupHint')})
+                    </Text>
+                  </Space>
+                  <Form.Item name="isMakeup" valuePropName="checked" noStyle>
+                    <Switch size="small" aria-label={t('task.isMakeup')} />
+                  </Form.Item>
+                </div>
+
+                <Form.Item
+                  noStyle
+                  shouldUpdate={(prevValues, currentValues) =>
+                    prevValues.isMakeup !== currentValues.isMakeup
+                  }
+                >
+                  {({ getFieldValue }) =>
+                    getFieldValue('isMakeup') ? (
+                      <Row gutter={10} style={{ marginTop: 10 }}>
+                        <Col span={12}>
+                          <Form.Item
+                            name="originalDate"
+                            label={t('task.originalDate')}
+                            rules={[{ required: true, message: t('task.originalDatePlaceholder') }]}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <DatePicker
+                              style={{ width: '100%' }}
+                              format="YYYY-MM-DD"
+                              placeholder={t('task.originalDatePlaceholder')}
+                              aria-label={t('task.originalDate')}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item
+                            name="makeupReason"
+                            label={t('task.makeupReason')}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Input
+                              placeholder={t('task.makeupReasonPlaceholder')}
+                              aria-label={t('task.makeupReason')}
+                            />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    ) : null
+                  }
+                </Form.Item>
+              </div>
 
               <Form.Item label={t('task.recurrence')} required style={{ marginBottom: 8 }}>
                 <Radio.Group
@@ -678,7 +921,87 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
               </Form.Item>
             </Card>
 
-            {/* 區塊 4: 備註說明 */}
+            {/* 區塊 4: 施作回報與照片要求 */}
+            <Card
+              size="small"
+              title={t('task.reportSection')}
+              style={{ marginBottom: 16, borderRadius: 8 }}
+            >
+              <Form.Item name="reportTypes" label={t('task.reportTypes')}>
+                <Checkbox.Group options={reportTypeOptions} />
+              </Form.Item>
+
+              <Form.Item
+                noStyle
+                shouldUpdate={(prevValues, currentValues) =>
+                  prevValues.reportTypes !== currentValues.reportTypes
+                }
+              >
+                {({ getFieldValue }) => {
+                  const currentReportTypes: string[] = getFieldValue('reportTypes') || [];
+                  const isPhotoChecked = currentReportTypes.includes('PHOTO');
+
+                  if (!isPhotoChecked) return null;
+
+                  return (
+                    <Form.Item label={t('task.photos')} extra="支援預覽、上傳施作現場/回報照片">
+                      <Upload
+                        listType="picture-card"
+                        fileList={fileList}
+                        beforeUpload={(file) => {
+                          const reader = new FileReader();
+                          reader.onload = (e) => {
+                            const url = (e.target?.result as string) || '';
+                            const newFile: UploadFile = {
+                              uid: `photo-${Date.now()}-${Math.random()}`,
+                              name: file.name,
+                              status: 'done',
+                              url,
+                              thumbUrl: url,
+                            };
+                            setFileList((prev) => [...prev, newFile]);
+                            const currentPhotos = form.getFieldValue('photos') || [];
+                            form.setFieldValue('photos', [...currentPhotos, url]);
+                          };
+                          reader.readAsDataURL(file);
+                          return false;
+                        }}
+                        onRemove={(file) => {
+                          setFileList((prev) => {
+                            const next = prev.filter((item) => item.uid !== file.uid);
+                            const urls = next.map((f) => f.url || f.thumbUrl || '').filter(Boolean);
+                            form.setFieldValue('photos', urls);
+                            return next;
+                          });
+                        }}
+                      >
+                        {fileList.length >= 20 ? null : (
+                          <div style={{ textAlign: 'center' }}>
+                            <PlusOutlined />
+                            <div style={{ marginTop: 6, fontSize: 12 }}>
+                              {t('task.photosUpload')}
+                            </div>
+                          </div>
+                        )}
+                      </Upload>
+                    </Form.Item>
+                  );
+                }}
+              </Form.Item>
+
+              <Form.Item
+                name="reportNotes"
+                label={t('task.reportNotes')}
+                style={{ marginBottom: 0 }}
+              >
+                <Input
+                  placeholder={t('task.reportNotesPlaceholder')}
+                  aria-label={t('task.reportNotes')}
+                />
+              </Form.Item>
+            </Card>
+
+            {/* 區塊 5: 備註說明 */}
             <Card size="small" title={t('task.remarksSection')} style={{ borderRadius: 8 }}>
               <Form.Item name="remarks" style={{ marginBottom: 0 }}>
                 <TextArea

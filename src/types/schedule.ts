@@ -4,7 +4,15 @@
  * 定義排班日曆事件（ScheduleEvent）、資源（ScheduleResource，如客戶或員工列）、
  * 查詢參數/篩選條件，以及排班變更、檢視模式與檢視維度等型別。
  */
-import type { Task, TaskType, ShiftType, TaskContent, TaskAssignee, AlertStatus } from './task';
+import type {
+  Task,
+  TaskType,
+  ShiftType,
+  TaskContent,
+  TaskAssignee,
+  AlertStatus,
+  ReportType,
+} from './task';
 
 /** 排班日曆上的單一事件（對應一筆任務排班） */
 export interface ScheduleEvent {
@@ -19,6 +27,9 @@ export interface ScheduleEvent {
   alertStatus: AlertStatus;
   isRecurring: boolean;
   isOvernight: boolean;
+  isMakeup?: boolean;
+  originalDate?: string;
+  isInternalEvent?: boolean;
   backgroundColor?: string;
   borderColor?: string;
   extendedProps: {
@@ -26,7 +37,16 @@ export interface ScheduleEvent {
     shift: ShiftType;
     assignees: TaskAssignee[];
     contents: TaskContent[];
+    requirePhotos?: boolean;
+    photoCount?: number;
+    reportTypes?: ReportType[];
+    photos?: string[];
+    reportNotes?: string;
     isFromPending?: boolean;
+    isMakeup?: boolean;
+    originalDate?: string;
+    makeupReason?: string;
+    isInternalEvent?: boolean;
     violationReason?: string;
     overrideReason?: string;
     headcount?: number;

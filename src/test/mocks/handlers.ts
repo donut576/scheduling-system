@@ -7,6 +7,7 @@ import type {
   ShiftType,
   TaskContent,
   TaskType,
+  TaskStatus,
 } from '@/types/task';
 import type { Employee } from '@/types/employee';
 import type { Customer, CustomerGroup, PendingCustomer } from '@/types/customer';
@@ -1851,10 +1852,16 @@ const resolveGroupBranchNames = (groupId: string, branchId: string) => {
   return { groupName: group?.name ?? groupId, branchName: branch?.name ?? branchId };
 };
 
-/** 依表單資料建立新任務（狀態預設為 SCHEDULED） */
+/** 依表單資料建立新任務（依日期、時間與指派人員判定 SCHEDULED 或 UNSCHEDULED） */
 const buildNewTask = (data: TaskFormData): Task => {
   const { groupName, branchName } = resolveGroupBranchNames(data.groupId, data.branchId);
   const now = new Date().toISOString();
+  const assignees = resolveAssignees(data.assignees);
+  const isFullyStaffed = assignees.length > 0 && assignees.length >= (data.headcount || 1);
+  const hasDate = Boolean(data.date);
+  const hasTime = Boolean(data.startTime && data.endTime);
+  const computedStatus: TaskStatus =
+    data.status || (isFullyStaffed && hasDate && hasTime ? 'SCHEDULED' : 'UNSCHEDULED');
   return {
     id: `task-${Date.now()}`,
     groupId: data.groupId,
@@ -1871,10 +1878,18 @@ const buildNewTask = (data: TaskFormData): Task => {
     route: data.route,
     contents: data.contents,
     otherContentNote: data.otherContentNote,
-    assignees: resolveAssignees(data.assignees),
+    assignees,
     remarks: data.remarks,
+    isMakeup: data.isMakeup,
+    originalDate: data.originalDate,
+    makeupReason: data.makeupReason,
+    requirePhotos: data.requirePhotos,
+    photoCount: data.photoCount,
+    reportTypes: data.reportTypes,
+    photos: data.photos,
+    reportNotes: data.reportNotes,
     recurrenceRule: data.recurrence,
-    status: 'SCHEDULED',
+    status: computedStatus,
     alertStatus: 'CLEAN',
     createdBy: 'emp-001',
     createdAt: now,
@@ -1882,13 +1897,31 @@ const buildNewTask = (data: TaskFormData): Task => {
   };
 };
 
-/** 依表單資料更新既有任務，並將狀態強制標記為「更改」(MODIFIED)，模擬後端行為 */
+/** 依表單資料更新既有任務，並依日期、時間與指派人員判定狀態 */
 const applyTaskUpdate = (existing: Task, data: Partial<TaskFormData>): Task => {
   const groupId = data.groupId ?? existing.groupId;
   const branchId = data.branchId ?? existing.branchId;
   const { groupName, branchName } = resolveGroupBranchNames(groupId, branchId);
   const startTime = data.startTime ?? existing.startTime;
   const endTime = data.endTime ?? existing.endTime;
+  const date = data.date ?? existing.date;
+  const headcount = data.headcount ?? existing.headcount;
+  const assignees =
+    data.assignees !== undefined ? resolveAssignees(data.assignees) : existing.assignees;
+  const isFullyStaffed = assignees.length > 0 && assignees.length >= (headcount || 1);
+  const hasDate = Boolean(date);
+  const hasTime = Boolean(startTime && endTime);
+
+  let newStatus: TaskStatus;
+  if (data.status) {
+    newStatus = data.status;
+  } else if (!isFullyStaffed || !hasDate || !hasTime) {
+    newStatus = 'UNSCHEDULED';
+  } else if (existing.status === 'UNSCHEDULED') {
+    newStatus = 'SCHEDULED';
+  } else {
+    newStatus = 'MODIFIED';
+  }
 
   return {
     ...existing,
@@ -1897,12 +1930,19 @@ const applyTaskUpdate = (existing: Task, data: Partial<TaskFormData>): Task => {
     branchId,
     groupName,
     branchName,
+    date,
     startTime,
     endTime,
+    headcount,
     isOvernight: isOvernightRange(startTime, endTime),
-    assignees: data.assignees ? resolveAssignees(data.assignees) : existing.assignees,
+    assignees,
+    requirePhotos: data.requirePhotos !== undefined ? data.requirePhotos : existing.requirePhotos,
+    photoCount: data.photoCount !== undefined ? data.photoCount : existing.photoCount,
+    reportTypes: data.reportTypes !== undefined ? data.reportTypes : existing.reportTypes,
+    photos: data.photos !== undefined ? data.photos : existing.photos,
+    reportNotes: data.reportNotes !== undefined ? data.reportNotes : existing.reportNotes,
     recurrenceRule: data.recurrence ?? existing.recurrenceRule,
-    status: 'MODIFIED',
+    status: newStatus,
     updatedAt: new Date().toISOString(),
   };
 };
@@ -3407,15 +3447,16 @@ export const handlers = [
       }));
 
     let list = [
-      ...pendingAsTasks,
-      ...mockTasks.filter(
-        (t) =>
-          !pendingAsTasks.some(
-            (pt) =>
-              pt.id === t.id ||
-              pt.id === `task-${t.id}` ||
+      ...mockTasks,
+      ...pendingAsTasks.filter(
+        (pt) =>
+          !mockTasks.some(
+            (t) =>
+              t.id === pt.id ||
               t.id === `task-${pt.id}` ||
-              t.id === pt.id.replace('task-', ''),
+              pt.id === `task-${t.id}` ||
+              pt.id === t.id.replace('task-', '') ||
+              t.id.replace('task-', '') === pt.id.replace('task-', ''),
           ),
       ),
     ];
@@ -3466,10 +3507,19 @@ export const handlers = [
     return HttpResponse.json(ok(paginated<Task>(list, page, pageSize)));
   }),
   http.get('*/api/v1/tasks/:id', ({ params }) => {
-    let task = mockTasks.find((t) => t.id === params.id || `task-${t.id}` === params.id);
+    let task = mockTasks.find(
+      (t) =>
+        t.id === params.id ||
+        `task-${t.id}` === params.id ||
+        t.id === `task-${params.id}` ||
+        t.id.replace('task-', '') === (params.id as string).replace('task-', ''),
+    );
     if (!task) {
       const pending = mockPendingCustomers.find(
-        (p) => p.id === params.id || `task-${p.id}` === params.id,
+        (p) =>
+          p.id === params.id ||
+          `task-${p.id}` === params.id ||
+          p.id === (params.id as string).replace('task-', ''),
       );
       if (pending) {
         task = {
@@ -3496,6 +3546,7 @@ export const handlers = [
           recurrenceRule: pending.recurrenceRule,
           remarks: pending.remarks || '',
           status: 'UNSCHEDULED',
+          isFromPending: true,
           alertStatus: 'CLEAN',
           createdBy: 'emp-001',
           createdAt: pending.createdAt,
@@ -3514,10 +3565,19 @@ export const handlers = [
   }),
   http.patch('*/api/v1/tasks/:id', async ({ params, request }) => {
     const data = (await request.json()) as Partial<TaskFormData>;
-    let existing = mockTasks.find((t) => t.id === params.id || `task-${t.id}` === params.id);
+    let existing = mockTasks.find(
+      (t) =>
+        t.id === params.id ||
+        `task-${t.id}` === params.id ||
+        t.id === `task-${params.id}` ||
+        t.id.replace('task-', '') === (params.id as string).replace('task-', ''),
+    );
     if (!existing) {
       const pending = mockPendingCustomers.find(
-        (p) => p.id === params.id || `task-${p.id}` === params.id,
+        (p) =>
+          p.id === params.id ||
+          `task-${p.id}` === params.id ||
+          p.id === (params.id as string).replace('task-', ''),
       );
       if (pending) {
         existing = {
@@ -3556,15 +3616,6 @@ export const handlers = [
       return HttpResponse.json(ok<Task>(mockTask));
     }
     const updated = applyTaskUpdate(existing, data);
-    if (data.status) {
-      updated.status = data.status;
-    } else if (existing.status === 'UNSCHEDULED') {
-      updated.status = 'SCHEDULED';
-      updated.isApproved = true;
-    } else {
-      updated.status = 'MODIFIED';
-      updated.isApproved = false;
-    }
 
     if (data.assignees !== undefined) {
       if (Array.isArray(data.assignees)) {
@@ -3587,15 +3638,46 @@ export const handlers = [
       }
     }
 
+    const isFullyStaffed =
+      (updated.assignees?.length || 0) > 0 &&
+      (updated.assignees?.length || 0) >= (updated.headcount || 1);
+    const hasDate = Boolean(updated.date);
+    const hasTime = Boolean(updated.startTime && updated.endTime);
+
+    if (data.status) {
+      updated.status = data.status;
+    } else if (!isFullyStaffed || !hasDate || !hasTime) {
+      updated.status = 'UNSCHEDULED';
+      updated.isApproved = false;
+    } else if (existing.status === 'UNSCHEDULED') {
+      updated.status = 'SCHEDULED';
+      updated.isApproved = true;
+    } else {
+      updated.status = 'MODIFIED';
+      updated.isApproved = false;
+    }
+
     updated.updatedAt = new Date().toISOString();
-    mockTasks = mockTasks.map((t) => (t.id === updated.id ? updated : t));
+    mockTasks = mockTasks.map((t) =>
+      t.id === updated.id ||
+      t.id === existing?.id ||
+      t.id === params.id ||
+      `task-${t.id}` === params.id ||
+      t.id.replace('task-', '') === (params.id as string).replace('task-', '')
+        ? updated
+        : t,
+    );
+    if (!mockTasks.some((t) => t.id === updated.id)) {
+      mockTasks = [updated, ...mockTasks];
+    }
 
     // 同步更新至 mockScheduleEvents 與 mockPendingCustomers
     mockPendingCustomers = mockPendingCustomers.map((p) => {
       if (
         p.id === updated.id ||
         `task-${p.id}` === updated.id ||
-        p.id === updated.id.replace('task-', '')
+        p.id === updated.id.replace('task-', '') ||
+        p.id === (params.id as string).replace('task-', '')
       ) {
         const isFullyStaffed =
           (updated.assignees?.length || 0) >= (updated.headcount || 1) &&
@@ -3617,6 +3699,7 @@ export const handlers = [
           shift: updated.shift,
           route: updated.route,
           contents: updated.contents,
+          otherContentNote: updated.otherContentNote,
           assignees:
             updated.assignees?.map((a) => ({
               employeeId: a.employeeId,
@@ -3642,7 +3725,10 @@ export const handlers = [
           e.taskId !== `task-${params.id}`,
       );
     } else if (updated.date && updated.startTime && updated.endTime) {
-      const existingIdx = mockScheduleEvents.findIndex((e) => e.taskId === updated.id);
+      const existingIdx = mockScheduleEvents.findIndex(
+        (e) =>
+          e.taskId === updated.id || e.taskId === params.id || e.taskId === `task-${params.id}`,
+      );
       const scheduleEvt: ScheduleEvent = {
         id:
           existingIdx >= 0 && mockScheduleEvents[existingIdx]
@@ -3672,6 +3758,11 @@ export const handlers = [
           })),
           contents: updated.contents,
           isFromPending: true,
+          requirePhotos: updated.requirePhotos,
+          photoCount: updated.photoCount,
+          reportTypes: updated.reportTypes,
+          photos: updated.photos,
+          reportNotes: updated.reportNotes,
         },
       };
       if (existingIdx >= 0) {
@@ -4515,11 +4606,24 @@ export const handlers = [
         shift: (data.shift || '早班') as ShiftType,
         route: data.route ?? pending.route ?? '路線A',
         contents: (data.contents ?? pending.contents ?? ['定期環境清潔']) as TaskContent[],
-        assignees: [],
+        assignees: (data.assignees || []).map((a) => {
+          const emp = mockEmployees.find((e) => e.id === a.employeeId);
+          return {
+            employeeId: a.employeeId,
+            employeeName: emp?.name || a.employeeName || a.employeeId,
+            licenses: emp?.licenses || [],
+          };
+        }),
         recurrenceRule,
         remarks: data.remarks ?? pending.remarks,
         taskType: 'CONTRACT',
-        status: 'SCHEDULED',
+        status:
+          (data.assignees?.length || 0) > 0 &&
+          (data.assignees?.length || 0) >= (data.headcount || 1) &&
+          Boolean(data.date) &&
+          Boolean(data.startTime && data.endTime)
+            ? 'SCHEDULED'
+            : 'UNSCHEDULED',
         alertStatus: 'CLEAN',
         isApproved: true,
         createdBy: 'emp-admin',

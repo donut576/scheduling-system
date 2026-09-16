@@ -235,4 +235,81 @@ export const getDayOfMonth = (date?: string): number => {
   return dayjs(date).tz(DEFAULT_TIMEZONE).date();
 };
 
+/**
+ * 取得指定日期的全區內部重點行程列表。
+ * 規則：
+ * - 每週二 (day === 2): 幹部會議 08:30
+ * - 每月 15 日 (date === 15): 上課培訓
+ * - 每週五 (day === 5): 全區對班表 17:00
+ *
+ * @param date 日期字串、Date 或 Dayjs 物件
+ * @returns 該日期的內部行程描述陣列
+ */
+export const getInternalEventsForDate = (date: string | Date | dayjs.Dayjs): string[] => {
+  const d = dayjs(date).tz(DEFAULT_TIMEZONE);
+  const events: string[] = [];
+  if (d.day() === 2) {
+    events.push('幹部會議 08:30');
+  }
+  if (d.date() === 15) {
+    events.push('上課培訓');
+  }
+  if (d.day() === 5) {
+    events.push('全區對班表 17:00');
+  }
+  return events;
+};
+
+export interface InternalCalendarEvent {
+  key: string;
+  title: string; // 如 '幹部會議 (08:30-09:30)'、'上課培訓'、'全區對班表 (17:00-18:00)'
+  shortTitle: string; // 如 '幹部會議'、'上課培訓'、'全區對班表'
+  tooltip: string; // 完整懸浮提示
+  startTime?: string;
+  endTime?: string;
+  allDay?: boolean;
+}
+
+/**
+ * 取得指定日期的內部重點行程物件清單（含簡稱與完整 Tooltip 資訊，純淨無 emoji）。
+ */
+export const getInternalEventDetailsForDate = (
+  date: string | Date | dayjs.Dayjs,
+): InternalCalendarEvent[] => {
+  const d = dayjs(date).tz(DEFAULT_TIMEZONE);
+  const events: InternalCalendarEvent[] = [];
+  if (d.day() === 2) {
+    events.push({
+      key: 'executive-meeting',
+      title: '幹部會議 (08:30-09:30)',
+      shortTitle: '幹部會議',
+      tooltip: '全區重點行程：每週二 08:30-09:30 幹部會議',
+      startTime: '08:30',
+      endTime: '09:30',
+    });
+  }
+  if (d.date() === 15) {
+    events.push({
+      key: 'training-session',
+      title: '上課培訓 (全天)',
+      shortTitle: '上課培訓',
+      tooltip: '全區重點行程：每月 15 日 上課培訓',
+      startTime: '09:00',
+      endTime: '17:00',
+      allDay: true,
+    });
+  }
+  if (d.day() === 5) {
+    events.push({
+      key: 'schedule-alignment',
+      title: '全區對班表 (17:00-18:00)',
+      shortTitle: '全區對班表',
+      tooltip: '全區重點行程：每週五 17:00-18:00 全區對班表',
+      startTime: '17:00',
+      endTime: '18:00',
+    });
+  }
+  return events;
+};
+
 export { dayjs };

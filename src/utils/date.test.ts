@@ -16,6 +16,7 @@ import {
   formatDateTime,
   formatTime,
   getDayOfMonth,
+  getInternalEventsForDate,
 } from './date';
 
 describe('isOvernight', () => {
@@ -316,5 +317,35 @@ describe('Property 30: ISO 8601 日期格式', () => {
       }),
       { numRuns: 200 },
     );
+  });
+});
+
+describe('getInternalEventsForDate', () => {
+  it('returns Tuesday internal event (幹部會議 08:30)', () => {
+    // 2026-09-08 is Tuesday
+    const events = getInternalEventsForDate('2026-09-08');
+    expect(events).toContain('幹部會議 08:30');
+    expect(events).not.toContain('上課培訓');
+    expect(events).not.toContain('全區對班表 17:00');
+  });
+
+  it('returns 15th internal event (上課培訓)', () => {
+    // 2026-09-15 is Tuesday AND 15th
+    const events = getInternalEventsForDate('2026-09-15');
+    expect(events).toContain('幹部會議 08:30');
+    expect(events).toContain('上課培訓');
+  });
+
+  it('returns Friday internal event (全區對班表 17:00)', () => {
+    // 2026-09-18 is Friday
+    const events = getInternalEventsForDate('2026-09-18');
+    expect(events).toContain('全區對班表 17:00');
+    expect(events).not.toContain('幹部會議 08:30');
+  });
+
+  it('returns empty array for dates without internal events', () => {
+    // 2026-09-17 is Thursday and not 15th
+    const events = getInternalEventsForDate('2026-09-17');
+    expect(events).toEqual([]);
   });
 });

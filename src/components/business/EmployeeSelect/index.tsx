@@ -200,6 +200,7 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
           return (
             <Tag.CheckableTag
               key={employee.id}
+              data-testid={`employee-tag-${employee.id}`}
               checked={selected}
               onChange={(checked) => handleToggle(employee, checked)}
               aria-label={employee.name}

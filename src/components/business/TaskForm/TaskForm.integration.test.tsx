@@ -10,6 +10,7 @@ import type { ApiResponse, PaginatedResponse } from '@/types/common';
 import type { CustomerGroup } from '@/types/customer';
 import type { Employee } from '@/types/employee';
 import type { Task } from '@/types/task';
+import dayjs from 'dayjs';
 
 /**
  * Integration test for the full task creation flow:
@@ -163,7 +164,8 @@ describe('TaskForm integration - 完整任務建立流程', () => {
     await user.click(await screen.findByTitle('測試分店X'));
 
     // 填寫欄位：日期、起訖時間
-    setPickerValue('任務日期', '2026-02-10');
+    const futureDate = dayjs().add(7, 'day').format('YYYY-MM-DD');
+    setPickerValue('任務日期', futureDate);
 
     // 選擇起訖時間（24小時制，15分鐘一段）
     const startHourSelect = screen.getByRole('combobox', { name: '開始時間 (小時)' });
@@ -215,7 +217,7 @@ describe('TaskForm integration - 完整任務建立流程', () => {
       groupId: 'test-group-1',
       branchId: 'test-branch-1',
       taskType: 'CONTRACT',
-      date: '2026-02-10',
+      date: futureDate,
       startTime: '09:00',
       endTime: '17:00',
       headcount: 2,

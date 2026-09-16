@@ -484,6 +484,12 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
       const eventColor = scheduleEvent.backgroundColor || arg.event.backgroundColor || '#7a69c0';
       const isMonthGrid = effectiveView === 'dayGridMonth';
 
+      const isMakeup = scheduleEvent.isMakeup || scheduleEvent.extendedProps?.isMakeup;
+      const isInternal =
+        scheduleEvent.isInternalEvent ||
+        scheduleEvent.extendedProps?.isInternalEvent ||
+        scheduleEvent.extendedProps?.contents?.includes('TRAINING');
+
       const eventCard = isMonthGrid ? (
         <div
           data-testid={`schedule-event-${scheduleEvent.id}`}
@@ -510,10 +516,23 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
               {dayjs(scheduleEvent.start).format('HH:mm')}
             </span>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {isMakeup ? '【補】' : ''}
               {scheduleEvent.groupName} · {scheduleEvent.branchName}
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+            {isInternal && (
+              <span
+                style={{
+                  fontSize: 10,
+                  backgroundColor: 'rgba(255,255,255,0.25)',
+                  padding: '0 3px',
+                  borderRadius: 2,
+                }}
+              >
+                內
+              </span>
+            )}
             {scheduleEvent.isRecurring && <span style={{ fontSize: 12, lineHeight: 1 }}>∞</span>}
           </div>
         </div>
@@ -533,34 +552,70 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             color: '#ffffff',
           }}
         >
-          {scheduleEvent.isRecurring && (
-            <span
-              data-testid={`schedule-recurring-corner-${scheduleEvent.id}`}
-              aria-label={t('alert.recurring')}
-              style={{
-                position: 'absolute',
-                top: 2,
-                right: 4,
-                fontWeight: 700,
-                fontSize: 14,
-                lineHeight: 1,
-              }}
-            >
-              ∞
-            </span>
-          )}
-          <span
+          <div
             style={{
-              fontWeight: 700,
-              fontSize: 12,
-              lineHeight: 1.2,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              position: 'absolute',
+              top: 2,
+              right: 4,
+              display: 'flex',
+              gap: 2,
+              alignItems: 'center',
             }}
           >
-            {scheduleEvent.groupName}
-          </span>
+            {isInternal && (
+              <span
+                style={{
+                  fontSize: 10,
+                  backgroundColor: 'rgba(255,255,255,0.25)',
+                  padding: '1px 4px',
+                  borderRadius: 3,
+                }}
+              >
+                內部
+              </span>
+            )}
+            {scheduleEvent.isRecurring && (
+              <span
+                data-testid={`schedule-recurring-corner-${scheduleEvent.id}`}
+                aria-label={t('alert.recurring')}
+                style={{
+                  fontWeight: 700,
+                  fontSize: 14,
+                  lineHeight: 1,
+                }}
+              >
+                ∞
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {isMakeup && (
+              <span
+                style={{
+                  backgroundColor: '#fa8c16',
+                  color: '#ffffff',
+                  fontSize: 10,
+                  padding: '0 4px',
+                  borderRadius: 3,
+                  fontWeight: 700,
+                }}
+              >
+                補做
+              </span>
+            )}
+            <span
+              style={{
+                fontWeight: 700,
+                fontSize: 12,
+                lineHeight: 1.2,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {scheduleEvent.groupName}
+            </span>
+          </div>
           <span
             style={{
               fontWeight: 600,
@@ -838,6 +893,58 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
     [holidays],
   );
 
+  // 渲染日期標頭（日/週檢視）：國定假日以紅色標示
+  const renderDayHeaderContent = useCallback(
+    (arg: { date: Date; text: string; isToday?: boolean }) => {
+      const dateStr = dayjs(arg.date).format('YYYY-MM-DD');
+      const isHol = isHoliday(dateStr, holidays);
+      return <span style={{ color: isHol ? '#f5222d' : undefined }}>{arg.text}</span>;
+    },
+    [holidays],
+  );
+
+  // 渲染時間軸 Slot 標頭（日/週/月時間軸檢視）：國定假日以紅色標示
+  const renderSlotLabelContent = useCallback(
+    (arg: { date: Date; text: string }) => {
+      const dateStr = dayjs(arg.date).format('YYYY-MM-DD');
+      const isHol = isHoliday(dateStr, holidays);
+      return <span style={{ color: isHol ? '#f5222d' : undefined }}>{arg.text}</span>;
+    },
+    [holidays],
+  );
+
+  // 渲染月檢視日期格子（總覽月檢視）：國定假日以紅色標示
+  const renderDayCellContent = useCallback(
+    (arg: { date: Date; dayNumberText: string }) => {
+      const dateStr = dayjs(arg.date).format('YYYY-MM-DD');
+      const isHol = isHoliday(dateStr, holidays);
+      return (
+        <span style={{ color: isHol ? '#f5222d' : undefined, padding: '2px 4px' }}>
+          {arg.dayNumberText}
+        </span>
+      );
+    },
+    [holidays],
+  );
+
+  const handleEventDidMount = useCallback(
+    (info: {
+      el: HTMLElement;
+      event: {
+        extendedProps?: Record<string, unknown>;
+      };
+    }) => {
+      const scheduleEvent = info.event.extendedProps?.scheduleEvent as ScheduleEvent | undefined;
+      if (scheduleEvent) {
+        info.el.setAttribute(
+          'aria-label',
+          `${scheduleEvent.groupName} ${scheduleEvent.branchName}`,
+        );
+      }
+    },
+    [],
+  );
+
   return (
     <div
       ref={containerRef}
@@ -901,25 +1008,66 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         .fc-timeline-lane {
           min-height: 64px !important;
           height: 64px !important;
+          box-sizing: border-box !important;
         }
         .fc-timeline-lane-frame {
           min-height: 64px !important;
           height: 64px !important;
-          display: flex !important;
-          align-items: center !important;
         }
+        /* 避免時間軸內的事件被撐開超出 64px 高度 */
         .fc-timeline-event-harness {
-          top: 50% !important;
-          transform: translateY(-50%) !important;
+          top: 8px !important;
+          bottom: 8px !important;
+          height: 48px !important;
         }
         .fc-timeline-event {
-          min-height: 46px !important;
-          height: 46px !important;
+          height: 100% !important;
           border-radius: 6px !important;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12) !important;
           overflow: hidden !important;
+          padding: 0 !important;
+          cursor: pointer;
+        }
+        .fc-timeline-event .fc-event-main {
+          height: 100% !important;
+          padding: 0 !important;
+        }
+
+        /* 全區內部重點行程（背景時段帶）樣式：柔和淺紅漸層與左邊框 */
+        .internal-focus-bg-event,
+        .fc-bg-event.internal-focus-bg-event,
+        .fc-timeline-event.internal-focus-bg-event,
+        .fc-timegrid-event.internal-focus-bg-event {
+          background: linear-gradient(135deg, rgba(255, 77, 79, 0.10) 0%, rgba(255, 120, 117, 0.22) 100%) !important;
+          border-left: 3px solid #ff4d4f !important;
+          border-right: 1px dashed rgba(255, 77, 79, 0.35) !important;
+          opacity: 0.95 !important;
           display: flex !important;
           align-items: center !important;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+          justify-content: center !important;
+          color: #cf1322 !important;
+          font-size: 11px !important;
+          font-weight: 600 !important;
+          pointer-events: auto !important;
+          cursor: default !important;
+          z-index: 2 !important;
+          transition: background 0.2s ease;
+        }
+        .internal-focus-bg-event:hover {
+          background: linear-gradient(135deg, rgba(255, 77, 79, 0.18) 0%, rgba(255, 120, 117, 0.30) 100%) !important;
+        }
+
+        /* 左側標頭欄位與時間軸分割線（支援滑鼠 hover 與拖曳指示） */
+        .fc-resource-timeline-divider {
+          position: relative;
+          width: 8px !important;
+          cursor: col-resize !important;
+          background-color: #f0f4f8 !important;
+          border-left: 1px solid #d9e2ec !important;
+          border-right: 1px solid #d9e2ec !important;
+          transition: background-color 0.15s ease, border-color 0.15s ease;
+          user-select: none;
+          box-sizing: border-box !important;
         }
         /* 總覽月視圖事件卡片樣式 */
         .fc-daygrid-event-harness {
@@ -958,18 +1106,6 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           background-color: #1677ff !important;
           border-left-color: #1677ff !important;
           border-right-color: #1677ff !important;
-        }
-        .fc-resource-timeline-divider {
-          width: 6px !important;
-          min-width: 6px !important;
-          max-width: 6px !important;
-          cursor: col-resize !important;
-          background-color: #f0f2f5 !important;
-          border-left: 1px solid #d9e2ec !important;
-          border-right: 1px solid #d9e2ec !important;
-          transition: background-color 0.15s ease, border-color 0.15s ease;
-          user-select: none;
-          box-sizing: border-box !important;
         }
         /* 支援觸控板與觸控螢幕原生雙向平滑滑動 */
         .schedule-calendar-container .fc-scroller {
@@ -1041,7 +1177,11 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         resources={resources}
         events={events}
         eventContent={renderEventContent}
+        eventDidMount={handleEventDidMount}
         resourceLabelContent={renderResourceLabelContent}
+        dayHeaderContent={renderDayHeaderContent}
+        slotLabelContent={renderSlotLabelContent}
+        dayCellContent={renderDayCellContent}
         dayHeaderClassNames={dayHeaderClassNames}
         slotLabelClassNames={slotLabelClassNames}
         eventClick={handleEventClick}
@@ -1160,15 +1300,6 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         }}
         lazyFetching
         loading={() => isLoading}
-        eventDidMount={(arg) => {
-          const scheduleEvent = arg.event.extendedProps.scheduleEvent as ScheduleEvent | undefined;
-          if (scheduleEvent) {
-            arg.el.setAttribute(
-              'aria-label',
-              `${scheduleEvent.groupName} ${scheduleEvent.branchName}`,
-            );
-          }
-        }}
       />
     </div>
   );

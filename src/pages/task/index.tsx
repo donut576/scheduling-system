@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Button, Modal, Card, Space, Tag, Dropdown, Select, DatePicker, Tabs } from 'antd';
+import { Button, Modal, Card, Space, Tag, Dropdown, Select, DatePicker, Tabs, message } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
@@ -108,6 +108,17 @@ const getTaskExportColumns = (t: (key: string) => string): ExcelColumn<Task>[] =
         : '',
     width: 24,
   },
+  {
+    header: t('task.reportSection'),
+    key: (record) => {
+      const parts: string[] = [];
+      if (record.reportTypes?.length) parts.push(record.reportTypes.join(', '));
+      if (record.requirePhotos)
+        parts.push(`需照片${record.photoCount ? `(${record.photoCount}張)` : ''}`);
+      return parts.join(' / ') || '-';
+    },
+    width: 20,
+  },
 ];
 
 interface ColumnFilterTitleProps {
@@ -204,10 +215,21 @@ function baseColumns(
       title: dateTitle,
       dataIndex: 'date',
       key: 'date',
-      width: 110,
+      width: 140,
       sorter: true,
+      render: (value, record) => (
+        <Space direction="vertical" size={2}>
+          <span>{(value as string) || '-'}</span>
+          {record.isMakeup && (
+            <Tag color="orange" style={{ margin: 0, fontSize: 11 }}>
+              補做{record.originalDate ? ` (原 ${record.originalDate.slice(5)})` : ''}
+            </Tag>
+          )}
+        </Space>
+      ),
       exportHeader: t('task.date'),
-      exportKey: 'date',
+      exportKey: (record) =>
+        `${record.date || ''}${record.isMakeup ? ` (補做 原${record.originalDate || ''})` : ''}`,
     },
     {
       title: t('task.startTime'),
@@ -318,9 +340,16 @@ function renderTaskCard(record: Task, t: (key: string) => string) {
           <strong>
             {record.groupName} {record.branchName}
           </strong>
-          <Tag color={tagColor} style={{ color: '#ffffff', fontWeight: 600 }}>
-            {tagLabel}
-          </Tag>
+          <Space size={4}>
+            {record.isMakeup && (
+              <Tag color="orange" style={{ margin: 0, fontSize: 11 }}>
+                補做{record.originalDate ? ` (原 ${record.originalDate.slice(5)})` : ''}
+              </Tag>
+            )}
+            <Tag color={tagColor} style={{ color: '#ffffff', fontWeight: 600, margin: 0 }}>
+              {tagLabel}
+            </Tag>
+          </Space>
         </Space>
         <span>
           {record.date} {record.startTime} - {record.endTime}
@@ -339,6 +368,28 @@ function renderTaskCard(record: Task, t: (key: string) => string) {
           <span>
             {t('task.assignees')}：{record.assignees.map((a) => a.employeeName).join('、')}
           </span>
+        )}
+        {(Boolean(record.requirePhotos) ||
+          (record.reportTypes && record.reportTypes.length > 0)) && (
+          <Space size={4} wrap>
+            <span style={{ fontSize: 12, color: '#8c8c8c' }}>{t('task.reportSection')}：</span>
+            {record.reportTypes?.map((type) => (
+              <Tag key={type} style={{ fontSize: 11, margin: 0 }}>
+                {type === 'APP'
+                  ? 'APP'
+                  : type === 'EDM'
+                    ? 'EDM'
+                    : type === 'PAPER'
+                      ? '紙本'
+                      : '拍照'}
+              </Tag>
+            ))}
+            {record.requirePhotos && (
+              <Tag color="cyan" style={{ fontSize: 11, margin: 0 }}>
+                {record.photoCount ? `${record.photoCount}張照` : '需照片'}
+              </Tag>
+            )}
+          </Space>
         )}
       </Space>
     </Card>
@@ -526,13 +577,15 @@ function TaskPage() {
     async (data: TaskFormData) => {
       if (editingTask) {
         await updateMutation.mutateAsync({ id: editingTask.id, data });
+        message.success(t('common.saveSuccess') || '儲存成功');
       } else {
         await createMutation.mutateAsync(data);
+        message.success(t('common.createSuccess') || '新增成功');
       }
       setModalOpen(false);
       setEditingTask(null);
     },
-    [editingTask, createMutation, updateMutation],
+    [editingTask, createMutation, updateMutation, t],
   );
 
   // 組合表格欄位定義，將狀態/集團/分店/日期篩選 UI 注入對應欄位標題
@@ -676,7 +729,7 @@ function TaskPage() {
         columns={tableColumns}
         queryHook={useCurrentTaskListQuery}
         onRowClick={handleRowClick}
-        scroll={{ x: 1500 }}
+        scroll={{ x: 1350 }}
         cardRender={(record) => renderTaskCard(record, t)}
         rowKey="id"
         rowClassName={rowClassName}

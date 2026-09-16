@@ -889,6 +889,86 @@ const SchedulePage: FC = () => {
             <div>{`${t('task.shift')}: ${detailRows.shift}`}</div>
             <div>{`${t('task.assignees')}: ${detailRows.assignees}`}</div>
             <div>{`${t('schedule.detailContent')}: ${detailRows.contents}`}</div>
+            {event.extendedProps?.isMakeup && (
+              <div style={{ color: '#ffe58f', fontWeight: 600 }}>
+                改期補做（原預定日期：{event.extendedProps.originalDate || '未指定'}）
+                {event.extendedProps.makeupReason ? ` - ${event.extendedProps.makeupReason}` : ''}
+              </div>
+            )}
+            {event.extendedProps?.reportTypes && event.extendedProps.reportTypes.length > 0 && (
+              <div>
+                <span>{t('task.reportTypes')}: </span>
+                {event.extendedProps.reportTypes.map((type) => {
+                  const label =
+                    type === 'APP'
+                      ? t('task.reportTypeApp')
+                      : type === 'EDM'
+                        ? t('task.reportTypeEdm')
+                        : type === 'PAPER'
+                          ? t('task.reportTypePaper')
+                          : t('task.reportTypePhoto');
+                  return (
+                    <Tag
+                      key={type}
+                      style={{
+                        marginRight: 4,
+                        fontSize: 11,
+                        background: 'rgba(255, 255, 255, 0.25)',
+                        color: '#ffffff',
+                        borderColor: 'rgba(255, 255, 255, 0.4)',
+                      }}
+                    >
+                      {label}
+                    </Tag>
+                  );
+                })}
+              </div>
+            )}
+            {event.extendedProps?.requirePhotos && (
+              <div>
+                <span>{t('task.requirePhotos')}: </span>
+                <Tag
+                  color="cyan"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                  }}
+                >
+                  {event.extendedProps.photoCount
+                    ? `${event.extendedProps.photoCount} 張照片需求`
+                    : '需照片存證'}
+                </Tag>
+              </div>
+            )}
+            {event.extendedProps?.photos && event.extendedProps.photos.length > 0 && (
+              <div style={{ marginTop: 4 }}>
+                <div style={{ marginBottom: 4, opacity: 0.9 }}>
+                  {t('task.photos')} ({event.extendedProps.photos.length}):
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {event.extendedProps.photos.map((photoUrl, idx) => (
+                    <img
+                      key={idx}
+                      src={photoUrl}
+                      alt={`report-photo-${idx + 1}`}
+                      style={{
+                        width: 44,
+                        height: 44,
+                        objectFit: 'cover',
+                        borderRadius: 4,
+                        border: '1px solid rgba(255, 255, 255, 0.5)',
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            {event.extendedProps?.reportNotes && (
+              <div style={{ opacity: 0.9, fontSize: 12 }}>
+                <span>{t('task.reportNotes')}: </span>
+                <span>{event.extendedProps.reportNotes}</span>
+              </div>
+            )}
           </div>
 
           {event.alertStatus === 'OVERRIDDEN' && (

@@ -25,6 +25,14 @@ export interface Task {
   otherContentNote?: string;
   assignees: TaskAssignee[];
   remarks?: string;
+  isMakeup?: boolean;
+  originalDate?: string;
+  makeupReason?: string;
+  requirePhotos?: boolean;
+  photoCount?: number;
+  reportTypes?: ReportType[];
+  photos?: string[];
+  reportNotes?: string;
   recurrenceId?: string;
   recurrenceRule?: RecurrenceRule;
   status: TaskStatus;
@@ -52,6 +60,14 @@ export interface TaskFormData {
   otherContentNote?: string;
   assignees: string[];
   remarks?: string;
+  isMakeup?: boolean;
+  originalDate?: string;
+  makeupReason?: string;
+  requirePhotos?: boolean;
+  photoCount?: number;
+  reportTypes?: ReportType[];
+  photos?: string[];
+  reportNotes?: string;
   recurrence?: RecurrenceRule;
   status?: TaskStatus;
   isFromPending?: boolean;
@@ -90,9 +106,11 @@ export type TaskStatus =
   'UNSCHEDULED' | 'SCHEDULED' | 'MODIFIED' | 'CONFIRMED' | 'PENDING_APPROVAL' | 'CANCELLED';
 /** 警示狀態：無警示／有違規／已覆蓋 */
 export type AlertStatus = 'CLEAN' | 'VIOLATED' | 'OVERRIDDEN';
+/** 回報方式：APP 填寫／EDM 電子郵件／紙本回報／拍照存證 */
+export type ReportType = 'APP' | 'EDM' | 'PAPER' | 'PHOTO';
 /** 班次類型（由後端動態提供，例如 '台北早班'、'台北晚班'） */
 export type ShiftType = string; // Dynamic from backend (e.g., '台北早班', '台北晚班')
-/** 任務內容項目（服務項目代碼） */
+/** 任務內容項目（服務項目代碼，相容預設列舉與未來任意動態代碼擴充） */
 export type TaskContent =
   | 'P'
   | 'R'
@@ -102,7 +120,8 @@ export type TaskContent =
   | 'BED_BUG'
   | 'VEHICLE_MAINTENANCE'
   | 'TRAINING'
-  | 'OTHER';
+  | 'OTHER'
+  | (string & {});
 
 /** 重複規則（用於定期任務，如每日/每週/每月/自訂重複） */
 export interface RecurrenceRule {

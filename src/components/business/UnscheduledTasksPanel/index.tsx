@@ -550,18 +550,32 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                   >
                     {task.groupName} · {task.branchName}
                   </div>
-                  <Tag
-                    color={taskTypeColor}
-                    style={{
-                      margin: 0,
-                      fontWeight: 600,
-                      fontSize: 11,
-                      borderRadius: 4,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {taskTypeLabel}
-                  </Tag>
+                  <Space size={4} style={{ flexShrink: 0 }}>
+                    {task.isMakeup && (
+                      <Tag
+                        color="warning"
+                        style={{
+                          margin: 0,
+                          fontWeight: 600,
+                          fontSize: 11,
+                          borderRadius: 4,
+                        }}
+                      >
+                        補做{task.originalDate ? ` (原 ${task.originalDate.slice(5)})` : ''}
+                      </Tag>
+                    )}
+                    <Tag
+                      color={taskTypeColor}
+                      style={{
+                        margin: 0,
+                        fontWeight: 600,
+                        fontSize: 11,
+                        borderRadius: 4,
+                      }}
+                    >
+                      {taskTypeLabel}
+                    </Tag>
+                  </Space>
                 </div>
 
                 {/* 第 2 行：缺項 Labels（缺日期 / 缺時段 / 缺人員） */}

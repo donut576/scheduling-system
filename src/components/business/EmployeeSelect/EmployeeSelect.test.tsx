@@ -92,9 +92,9 @@ describe('EmployeeSelect', () => {
     expect(screen.getByText('證照')).toBeInTheDocument();
 
     expect(screen.getByRole('group', { name: '指派員工' })).toBeInTheDocument();
-    expect(screen.getByText(/王大明/)).toBeInTheDocument();
-    expect(screen.getByText(/李小華/)).toBeInTheDocument();
-    expect(screen.getByText(/陳志成/)).toBeInTheDocument();
+    expect(screen.getByTestId('employee-tag-emp-1')).toBeInTheDocument();
+    expect(screen.getByTestId('employee-tag-emp-2')).toBeInTheDocument();
+    expect(screen.getByTestId('employee-tag-emp-3')).toBeInTheDocument();
   });
 
   it('marks employees on leave with a tag when date is provided', () => {
@@ -126,7 +126,7 @@ describe('EmployeeSelect', () => {
     const user = userEvent.setup();
     renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} />);
 
-    await user.click(screen.getByText(/李小華/));
+    await user.click(screen.getByTestId('employee-tag-emp-2'));
     expect(onChange).toHaveBeenCalledWith(['emp-2']);
   });
 
@@ -134,7 +134,7 @@ describe('EmployeeSelect', () => {
     const user = userEvent.setup();
     renderWithProvider(<EmployeeSelect value={['emp-1', 'emp-2']} onChange={onChange} />);
 
-    await user.click(screen.getByText(/李小華/));
+    await user.click(screen.getByTestId('employee-tag-emp-2'));
     expect(onChange).toHaveBeenCalledWith(['emp-1']);
   });
 
@@ -142,7 +142,7 @@ describe('EmployeeSelect', () => {
     const user = userEvent.setup();
     renderWithProvider(<EmployeeSelect value={[]} onChange={onChange} date="2024-12-25" />);
 
-    await user.click(screen.getByText(/王大明/));
+    await user.click(screen.getByTestId('employee-tag-emp-1'));
     expect(onChange).toHaveBeenCalledWith(['emp-1']);
   });
 
@@ -154,15 +154,15 @@ describe('EmployeeSelect', () => {
     await user.click(areaFilter);
     await user.click(await screen.findByTitle('台北'));
 
-    expect(screen.getByText(/王大明/)).toBeInTheDocument();
-    expect(screen.getByText(/陳志成/)).toBeInTheDocument();
-    expect(screen.queryByText(/李小華/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('employee-tag-emp-1')).toBeInTheDocument();
+    expect(screen.getByTestId('employee-tag-emp-3')).toBeInTheDocument();
+    expect(screen.queryByTestId('employee-tag-emp-2')).not.toBeInTheDocument();
 
     const shiftFilter = screen.getByRole('combobox', { name: '篩選班別' });
     await user.click(shiftFilter);
     await user.click(await screen.findByTitle('早班'));
 
-    expect(screen.getByText(/王大明/)).toBeInTheDocument();
-    expect(screen.getByText(/陳志成/)).toBeInTheDocument();
+    expect(screen.getByTestId('employee-tag-emp-1')).toBeInTheDocument();
+    expect(screen.getByTestId('employee-tag-emp-3')).toBeInTheDocument();
   });
 });
