@@ -211,7 +211,7 @@ function renderApprovalCard(
 /**
  * 異動核准 / 申請進度追蹤頁面元件
  * - 經理／系統管理員（MANAGER / ADMIN）：負責全域案件（任務變更與警示特許）之審核與駁回
- * - 排班組長／一般員工（LEADER / STAFF）：負責提出申請與追蹤自己組別/個人的申請進度，並可一鍵撤回待審申請
+ * - 排班組長（LEADER）：負責提出申請與追蹤自己組別的申請進度，並可一鍵撤回待審申請
  */
 const ApprovalPage: FC = () => {
   const { t } = useTranslation();
@@ -220,10 +220,9 @@ const ApprovalPage: FC = () => {
   const user = useUserStore((state) => state.user);
   const userRole = user?.role;
   const isLeader = userRole === 'LEADER';
-  const isStaff = userRole === 'STAFF';
-  const isApplicantRole = !canApprove || isLeader || isStaff;
+  const isApplicantRole = !canApprove || isLeader;
 
-  // 申請發起者（組長與員工）預設過濾為自己提出的申請，經理與管理員可綜觀全台待審核案件
+  // 申請發起者（組長）預設過濾為自己提出的申請，經理與管理員可綜觀全台待審核案件
   const defaultRequesterFilter = useMemo(() => {
     if (isApplicantRole && (user?.id || user?.name)) {
       return user.id || user.name;
