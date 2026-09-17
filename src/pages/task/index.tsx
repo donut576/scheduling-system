@@ -244,10 +244,12 @@ function baseColumns(
       key: 'endTime',
       width: 90,
       render: (value, record) =>
-        `${value as string}${record.isOvernight ? ` (${t('task.overnight')})` : ''}`,
+        value ? `${value as string}${record.isOvernight ? ` (${t('task.overnight')})` : ''}` : '-',
       exportHeader: t('task.endTime'),
       exportKey: (record) =>
-        `${record.endTime}${record.isOvernight ? ` (${t('task.overnight')})` : ''}`,
+        record.endTime
+          ? `${record.endTime}${record.isOvernight ? ` (${t('task.overnight')})` : ''}`
+          : '-',
     },
     {
       title: t('task.headcount'),
@@ -288,12 +290,30 @@ function baseColumns(
     {
       title: t('task.assignees'),
       key: 'assignees',
-      width: 150,
+      width: 160,
       ellipsis: true,
-      render: (_value, record) =>
-        Array.isArray(record.assignees)
-          ? record.assignees.map((a) => a.employeeName).join(', ')
-          : '',
+      render: (_value, record) => {
+        const assignees = Array.isArray(record.assignees) ? record.assignees : [];
+        const required = record.headcount || 1;
+        if (assignees.length === 0) {
+          return (
+            <Tag color="red" style={{ margin: 0, fontSize: 11 }}>
+              未指派 (0/{required})
+            </Tag>
+          );
+        }
+        if (assignees.length < required) {
+          return (
+            <Space size={4} wrap>
+              <span>{assignees.map((a) => a.employeeName).join(', ')}</span>
+              <Tag color="orange" style={{ margin: 0, fontSize: 11 }}>
+                缺 {required - assignees.length} 人
+              </Tag>
+            </Space>
+          );
+        }
+        return assignees.map((a) => a.employeeName).join(', ');
+      },
       exportHeader: t('task.assignees'),
       exportKey: (record) =>
         Array.isArray(record.assignees)
@@ -351,8 +371,19 @@ function renderTaskCard(record: Task, t: (key: string) => string) {
           </Space>
         </Space>
         <span>
-          {record.date} {record.startTime} - {record.endTime}
-          {record.isOvernight ? ` (${t('task.overnight')})` : ''}
+          {record.date || record.startTime || record.endTime ? (
+            <>
+              {record.date ? `${record.date} ` : ''}
+              {record.startTime && record.endTime
+                ? `${record.startTime} ~ ${record.endTime}`
+                : record.startTime || record.endTime || ''}
+              {record.isOvernight ? ` (${t('task.overnight')})` : ''}
+            </>
+          ) : (
+            <Tag color="warning" style={{ margin: 0, fontSize: 11 }}>
+              待排日期與時段
+            </Tag>
+          )}
         </span>
         <span>
           {t('task.shift')}：{getShiftLabel(record.shift, t)} ／ {t('task.headcount')}：
@@ -363,29 +394,57 @@ function renderTaskCard(record: Task, t: (key: string) => string) {
             {t('task.content')}：{formatTaskContents(record.contents, ', ', t)}
           </span>
         )}
-        {Array.isArray(record.assignees) && record.assignees.length > 0 && (
-          <span>
-            {t('task.assignees')}：{record.assignees.map((a) => a.employeeName).join('、')}
-          </span>
-        )}
+        {(() => {
+          const assignees = Array.isArray(record.assignees) ? record.assignees : [];
+          const required = record.headcount || 1;
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span>{t('task.assignees')}：</span>
+              {assignees.length === 0 ? (
+                <Tag color="red" style={{ margin: 0, fontSize: 11 }}>
+                  ⚠️ 未指派 (0/{required} 人)
+                </Tag>
+              ) : assignees.length < required ? (
+                <>
+                  <span>{assignees.map((a) => a.employeeName).join('、')}</span>
+                  <Tag color="orange" style={{ margin: 0, fontSize: 11 }}>
+                    ⚠️ 缺 {required - assignees.length} 人 ({assignees.length}/{required})
+                  </Tag>
+                </>
+              ) : (
+                <>
+                  <span>{assignees.map((a) => a.employeeName).join('、')}</span>
+                  <Tag color="green" style={{ margin: 0, fontSize: 11 }}>
+                    ✓ 人員已齊
+                  </Tag>
+                </>
+              )}
+            </div>
+          );
+        })()}
         {(Boolean(record.requirePhotos) ||
           (record.reportTypes && record.reportTypes.length > 0)) && (
           <Space size={4} wrap>
             <span style={{ fontSize: 12, color: '#8c8c8c' }}>{t('task.reportSection')}：</span>
-            {record.reportTypes?.map((type) => (
-              <Tag key={type} style={{ fontSize: 11, margin: 0 }}>
-                {type === 'APP'
-                  ? 'APP'
-                  : type === 'EDM'
-                    ? 'EDM'
-                    : type === 'PAPER'
-                      ? '紙本'
-                      : '拍照'}
-              </Tag>
-            ))}
+            {record.reportTypes
+              ?.filter(
+                (type) =>
+                  !(record.requirePhotos && (type === 'PHOTO' || (type as string) === '拍照')),
+              )
+              .map((type) => (
+                <Tag key={type} style={{ fontSize: 11, margin: 0 }}>
+                  {type === 'APP'
+                    ? 'APP'
+                    : type === 'EDM'
+                      ? 'EDM'
+                      : type === 'PAPER'
+                        ? '紙本'
+                        : '拍照'}
+                </Tag>
+              ))}
             {record.requirePhotos && (
               <Tag color="cyan" style={{ fontSize: 11, margin: 0 }}>
-                需照片
+                拍照存證
               </Tag>
             )}
           </Space>

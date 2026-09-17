@@ -40,7 +40,7 @@ import type {
   TaskStatus,
 } from '@/types/task';
 import type { AlertValidationResult, AlertContext } from '@/types/alert';
-import type { CustomerGroup } from '@/types/customer';
+import type { Customer, CustomerGroup } from '@/types/customer';
 import { useDictStore } from '@/stores/useDictStore';
 import { useTaskStore } from '@/stores/useTaskStore';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
@@ -56,6 +56,7 @@ import RecurrenceEditor from '@/components/business/RecurrenceEditor';
 import ConflictPanel from '@/components/business/ConflictPanel';
 import RecurrenceModifyScopeDialog from './RecurrenceModifyScope';
 import type { RecurrenceModifyScope } from './RecurrenceModifyScope';
+import QuickCreateCustomerModal from './QuickCreateCustomerModal';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -119,6 +120,10 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
   const [showModifyScope, setShowModifyScope] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<TaskFormData | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | undefined>(initialData?.groupId);
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [quickCreateIsNewGroup, setQuickCreateIsNewGroup] = useState(true);
+  const [groupSearchText, setGroupSearchText] = useState('');
+  const [branchSearchText, setBranchSearchText] = useState('');
   const [fileList, setFileList] = useState<UploadFile[]>(() => {
     if (initialData?.photos && initialData.photos.length > 0) {
       return initialData.photos.map((url, idx) => ({
@@ -274,6 +279,25 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
   const requiredLicenses = useMemo(() => {
     return selectedBranch?.requiredLicenses ?? [];
   }, [selectedBranch]);
+
+  const currentGroupName = useMemo(() => {
+    if (!selectedGroupId) return '';
+    const group = customerGroups.find((g: CustomerGroup) => g.id === selectedGroupId);
+    return group?.name || '';
+  }, [selectedGroupId, customerGroups]);
+
+  const handleQuickCreateSuccess = useCallback(
+    (createdCustomer: Customer) => {
+      setSelectedGroupId(createdCustomer.groupId);
+      form.setFieldsValue({
+        groupId: createdCustomer.groupId,
+        branchId: createdCustomer.id,
+      });
+      setGroupSearchText('');
+      setBranchSearchText('');
+    },
+    [form],
+  );
 
   interface RawTaskData extends Partial<Task> {
     customer?: { id: string; groupId?: string };
@@ -601,8 +625,37 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                       options={groupOptions}
                       onChange={handleGroupChange}
                       showSearch
-                      optionFilterProp="label"
+                      searchValue={groupSearchText}
+                      onSearch={setGroupSearchText}
+                      filterOption={(input, option) =>
+                        String(option?.label ?? '')
+                          .toLowerCase()
+                          .includes(input.toLowerCase())
+                      }
                       aria-label={t('task.group')}
+                      popupRender={(menu) => (
+                        <>
+                          {menu}
+                          <Divider style={{ margin: '8px 0' }} />
+                          <div style={{ padding: '0 8px 4px' }}>
+                            <Button
+                              type="dashed"
+                              icon={<PlusOutlined />}
+                              block
+                              onClick={() => {
+                                setQuickCreateIsNewGroup(true);
+                                setQuickCreateOpen(true);
+                              }}
+                              data-testid="quick-create-group-btn"
+                              style={{ textAlign: 'left', display: 'flex', alignItems: 'center' }}
+                            >
+                              {groupSearchText?.trim()
+                                ? `建立新集團「${groupSearchText.trim()}」`
+                                : '建立新客戶集團與分店'}
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     />
                   </Form.Item>
                 </Col>
@@ -621,8 +674,38 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                       options={branchOptions}
                       disabled={!selectedGroupId}
                       showSearch
-                      optionFilterProp="label"
+                      searchValue={branchSearchText}
+                      onSearch={setBranchSearchText}
+                      filterOption={(input, option) =>
+                        String(option?.label ?? '')
+                          .toLowerCase()
+                          .includes(input.toLowerCase())
+                      }
                       aria-label={t('task.branch')}
+                      popupRender={(menu) => (
+                        <>
+                          {menu}
+                          <Divider style={{ margin: '8px 0' }} />
+                          <div style={{ padding: '0 8px 4px' }}>
+                            <Button
+                              type="dashed"
+                              icon={<PlusOutlined />}
+                              block
+                              disabled={!selectedGroupId}
+                              onClick={() => {
+                                setQuickCreateIsNewGroup(false);
+                                setQuickCreateOpen(true);
+                              }}
+                              data-testid="quick-create-branch-btn"
+                              style={{ textAlign: 'left', display: 'flex', alignItems: 'center' }}
+                            >
+                              {branchSearchText?.trim()
+                                ? `為「${currentGroupName}」新增分店「${branchSearchText.trim()}」`
+                                : `為「${currentGroupName}」新增分店`}
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     />
                   </Form.Item>
                 </Col>
@@ -1055,6 +1138,16 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         open={showModifyScope}
         onConfirm={handleModifyScopeConfirm}
         onCancel={handleModifyScopeCancel}
+      />
+
+      {/* Quick Create Customer Group & Branch Dialog */}
+      <QuickCreateCustomerModal
+        open={quickCreateOpen}
+        initialGroupName={quickCreateIsNewGroup ? groupSearchText.trim() : currentGroupName}
+        initialBranchName={branchSearchText.trim()}
+        isNewGroup={quickCreateIsNewGroup}
+        onClose={() => setQuickCreateOpen(false)}
+        onSuccess={handleQuickCreateSuccess}
       />
     </div>
   );

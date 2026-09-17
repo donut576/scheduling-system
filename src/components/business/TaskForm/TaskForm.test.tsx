@@ -73,6 +73,15 @@ vi.mock('@/queries/useCustomerQueries', () => ({
     ],
     isLoading: false,
   }),
+  useCreateCustomer: () => ({
+    mutateAsync: vi.fn().mockResolvedValue({
+      id: 'branch-new',
+      groupId: 'group-new',
+      groupName: '新集團',
+      branchName: '新分店',
+    }),
+    isPending: false,
+  }),
 }));
 
 vi.mock('@/queries/useEmployeeQueries', () => ({
