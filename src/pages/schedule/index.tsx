@@ -1639,9 +1639,7 @@ const SchedulePage: FC = () => {
                     {viewingTask.assignees?.length || 0}/{viewingTask.headcount || 1})
                   </Tag>
                 ) : (
-                  <Tag color="green" style={{ margin: 0, fontWeight: 600 }}>
-                    ✓ 人員已齊 ({viewingTask.assignees?.length || 0}/{viewingTask.headcount || 1})
-                  </Tag>
+                  <span>{viewingTask.headcount || 1} 人</span>
                 )}
               </span>
             </div>

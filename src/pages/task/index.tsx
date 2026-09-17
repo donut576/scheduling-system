@@ -412,12 +412,7 @@ function renderTaskCard(record: Task, t: (key: string) => string) {
                   </Tag>
                 </>
               ) : (
-                <>
-                  <span>{assignees.map((a) => a.employeeName).join('、')}</span>
-                  <Tag color="green" style={{ margin: 0, fontSize: 11 }}>
-                    ✓ 人員已齊
-                  </Tag>
-                </>
+                <span>{assignees.map((a) => a.employeeName).join('、')}</span>
               )}
             </div>
           );

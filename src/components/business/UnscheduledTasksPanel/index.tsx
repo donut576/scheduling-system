@@ -627,7 +627,7 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                     </span>
                   )}
 
-                  {isMissingAssignees ? (
+                  {isMissingAssignees && (
                     <Tag
                       color="red"
                       style={{
@@ -640,20 +640,6 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                       }}
                     >
                       ⚠️ 缺 {missingCount} 人 ({currentAssigneeCount}/{requiredHeadcount})
-                    </Tag>
-                  ) : (
-                    <Tag
-                      color="green"
-                      style={{
-                        margin: 0,
-                        fontWeight: 600,
-                        fontSize: 11,
-                        lineHeight: '20px',
-                        padding: '0 6px',
-                        borderRadius: 4,
-                      }}
-                    >
-                      ✓ 人員已齊 ({currentAssigneeCount}/{requiredHeadcount})
                     </Tag>
                   )}
                 </div>
