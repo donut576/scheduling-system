@@ -352,4 +352,36 @@ describe('TaskForm', () => {
     await user.click(photoCheckbox);
     expect(await screen.findByText('上傳照片')).toBeInTheDocument();
   });
+
+  it('renders Chinese group and branch names correctly in edit mode when task belongs to custom/new group', async () => {
+    const customTask: Task = {
+      id: 'task-hualien-1',
+      groupId: 'group-1789630691312',
+      groupName: '花蓮集團',
+      branchId: 'branch-1789630691312',
+      branchName: '花蓮分店',
+      taskType: 'CONTRACT',
+      date: '2026-09-20',
+      startTime: '09:00',
+      endTime: '12:00',
+      isOvernight: false,
+      headcount: 1,
+      shift: '早班',
+      route: '第一路',
+      contents: ['P'],
+      assignees: [],
+      status: 'UNSCHEDULED',
+      alertStatus: 'CLEAN',
+      createdBy: 'emp-001',
+      createdAt: '2026-09-17T00:00:00Z',
+      updatedAt: '2026-09-17T00:00:00Z',
+    };
+
+    renderWithProviders(
+      <TaskForm mode="edit" initialData={customTask} onSubmit={onSubmit} onCancel={onCancel} />,
+    );
+
+    expect(await screen.findByText('花蓮集團')).toBeInTheDocument();
+    expect(await screen.findByText('花蓮分店')).toBeInTheDocument();
+  });
 });

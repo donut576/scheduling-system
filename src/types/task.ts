@@ -48,7 +48,9 @@ export interface Task {
 /** 任務表單資料（建立/編輯任務時使用，指派人員以 ID 陣列表示） */
 export interface TaskFormData {
   groupId: string;
+  groupName?: string;
   branchId: string;
+  branchName?: string;
   taskType: TaskType;
   date: string;
   startTime: string;

@@ -10,7 +10,7 @@ import type {
   TaskStatus,
 } from '@/types/task';
 import type { Employee } from '@/types/employee';
-import type { Customer, CustomerGroup, PendingCustomer } from '@/types/customer';
+import type { Customer, CustomerGroup, CustomerBranch, PendingCustomer } from '@/types/customer';
 import type { PendingCustomerFormData, ConvertToTaskData } from '@/api/pending-customer';
 import type { Notification, NotificationTemplate, Approval } from '@/types/notification';
 import type { UserProfile, LoginResponse } from '@/types/auth';
@@ -513,7 +513,7 @@ const demoCustomerGroups: CustomerGroup[] = [
 ];
 
 // 合併基本測試用集團與額外的 demo 集團，供各端點共用
-const mockCustomerGroups: CustomerGroup[] = [mockCustomerGroup, ...demoCustomerGroups];
+let mockCustomerGroups: CustomerGroup[] = [mockCustomerGroup, ...demoCustomerGroups];
 
 // 將額外集團之分店攤平為 Customer 記錄，供客戶列表／地圖檢視等端點使用
 const demoCustomers: Customer[] = demoCustomerGroups.flatMap((group) =>
@@ -538,7 +538,7 @@ let mockCustomers: Customer[] = [mockCustomer, ...demoCustomers];
 
 // 額外的員工假資料，分散於不同集團／職位／證照，供指派員工下拉選單使用
 const demoEmployees: Employee[] = [
-  // 台北組 - Demo 員工
+  // ===================== 台北 早班 (06:00 ~ 18:00) =====================
   {
     id: 'emp-leader',
     name: 'Demo 台北組長',
@@ -569,22 +569,6 @@ const demoEmployees: Employee[] = [
     licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
     isActive: true,
   },
-  // 台北組
-  {
-    id: 'emp-002',
-    name: '林志豪',
-    phone: '0922334455',
-    employeeNo: 'E0002',
-    position: 'LEADER',
-    groupId: 'taipei-night',
-    groupName: '台北 大夜班',
-    area: '台北',
-    shift: '大夜班',
-    groupColor: '#7a69c0',
-    designatedLeaves: [],
-    licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
-    isActive: true,
-  },
   {
     id: 'emp-003',
     name: '黃俊傑',
@@ -601,6 +585,98 @@ const demoEmployees: Employee[] = [
     isActive: true,
   },
   {
+    id: 'emp-tp-m01',
+    name: '陳建志',
+    phone: '0911223344',
+    employeeNo: 'TPM01',
+    position: 'STAFF',
+    groupId: 'taipei-morning',
+    groupName: '台北 早班',
+    area: '台北',
+    shift: '早班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-m02',
+    name: '楊雅雯',
+    phone: '0912334455',
+    employeeNo: 'TPM02',
+    position: 'STAFF',
+    groupId: 'taipei-morning',
+    groupName: '台北 早班',
+    area: '台北',
+    shift: '早班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PEST_CONTROL', 'SAFETY_6HR'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-m03',
+    name: '張育誠',
+    phone: '0913445566',
+    employeeNo: 'TPM03',
+    position: 'STAFF',
+    groupId: 'taipei-morning',
+    groupName: '台北 早班',
+    area: '台北',
+    shift: '早班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'FIRE_ANT'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-m04',
+    name: '劉冠廷',
+    phone: '0914556677',
+    employeeNo: 'TPM04',
+    position: 'STAFF',
+    groupId: 'taipei-morning',
+    groupName: '台北 早班',
+    area: '台北',
+    shift: '早班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['SAFETY_6HR', 'PEST_CONTROL'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-m05',
+    name: '謝佳穎',
+    phone: '0915667788',
+    employeeNo: 'TPM05',
+    position: 'STAFF',
+    groupId: 'taipei-morning',
+    groupName: '台北 早班',
+    area: '台北',
+    shift: '早班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-m06',
+    name: '吳佩璇',
+    phone: '0916778899',
+    employeeNo: 'TPM06',
+    position: 'STAFF',
+    groupId: 'taipei-morning',
+    groupName: '台北 早班',
+    area: '台北',
+    shift: '早班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PEST_CONTROL', 'SAFETY_6HR'],
+    isActive: true,
+  },
+
+  // ===================== 台北 午班 (12:00 ~ 24:00) =====================
+  {
     id: 'emp-004',
     name: '吳建宏',
     phone: '0944556677',
@@ -613,6 +689,203 @@ const demoEmployees: Employee[] = [
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['SAFETY_MANAGER_B'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-a01',
+    name: '柯志強',
+    phone: '0921223344',
+    employeeNo: 'TPA01',
+    position: 'LEADER',
+    groupId: 'taipei-afternoon',
+    groupName: '台北 午班',
+    area: '台北',
+    shift: '午班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-a02',
+    name: '蔡孟潔',
+    phone: '0922334466',
+    employeeNo: 'TPA02',
+    position: 'STAFF',
+    groupId: 'taipei-afternoon',
+    groupName: '台北 午班',
+    area: '台北',
+    shift: '午班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PEST_CONTROL', 'SAFETY_6HR'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-a03',
+    name: '鄭宇軒',
+    phone: '0923445577',
+    employeeNo: 'TPA03',
+    position: 'STAFF',
+    groupId: 'taipei-afternoon',
+    groupName: '台北 午班',
+    area: '台北',
+    shift: '午班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-a04',
+    name: '許博翔',
+    phone: '0924556688',
+    employeeNo: 'TPA04',
+    position: 'STAFF',
+    groupId: 'taipei-afternoon',
+    groupName: '台北 午班',
+    area: '台北',
+    shift: '午班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'PEST_CONTROL'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-a05',
+    name: '賴怡君',
+    phone: '0925667799',
+    employeeNo: 'TPA05',
+    position: 'STAFF',
+    groupId: 'taipei-afternoon',
+    groupName: '台北 午班',
+    area: '台北',
+    shift: '午班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['SAFETY_6HR', 'PEST_CONTROL'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-a06',
+    name: '曾品睿',
+    phone: '0926778800',
+    employeeNo: 'TPA06',
+    position: 'STAFF',
+    groupId: 'taipei-afternoon',
+    groupName: '台北 午班',
+    area: '台北',
+    shift: '午班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'FIRE_ANT'],
+    isActive: true,
+  },
+
+  // ===================== 台北 大夜班 (18:00 ~ 06:00 隔夜) =====================
+  {
+    id: 'emp-002',
+    name: '林志豪',
+    phone: '0922334455',
+    employeeNo: 'E0002',
+    position: 'LEADER',
+    groupId: 'taipei-night',
+    groupName: '台北 大夜班',
+    area: '台北',
+    shift: '大夜班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-n01',
+    name: '洪大為',
+    phone: '0931223344',
+    employeeNo: 'TPN01',
+    position: 'LEADER',
+    groupId: 'taipei-night',
+    groupName: '台北 大夜班',
+    area: '台北',
+    shift: '大夜班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_B'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-n02',
+    name: '郭俊廷',
+    phone: '0932334466',
+    employeeNo: 'TPN02',
+    position: 'STAFF',
+    groupId: 'taipei-night',
+    groupName: '台北 大夜班',
+    area: '台北',
+    shift: '大夜班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'PEST_CONTROL'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-n03',
+    name: '蕭凱文',
+    phone: '0933445577',
+    employeeNo: 'TPN03',
+    position: 'STAFF',
+    groupId: 'taipei-night',
+    groupName: '台北 大夜班',
+    area: '台北',
+    shift: '大夜班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-n04',
+    name: '廖士豪',
+    phone: '0934556688',
+    employeeNo: 'TPN04',
+    position: 'STAFF',
+    groupId: 'taipei-night',
+    groupName: '台北 大夜班',
+    area: '台北',
+    shift: '大夜班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['FIRE_ANT', 'SAFETY_6HR'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-n05',
+    name: '曾冠宇',
+    phone: '0935667799',
+    employeeNo: 'TPN05',
+    position: 'STAFF',
+    groupId: 'taipei-night',
+    groupName: '台北 大夜班',
+    area: '台北',
+    shift: '大夜班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
+    isActive: true,
+  },
+  {
+    id: 'emp-tp-n06',
+    name: '蘇柏翰',
+    phone: '0936778800',
+    employeeNo: 'TPN06',
+    position: 'STAFF',
+    groupId: 'taipei-night',
+    groupName: '台北 大夜班',
+    area: '台北',
+    shift: '大夜班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
     isActive: true,
   },
   // 新竹組
@@ -719,21 +992,6 @@ const demoEmployees: Employee[] = [
     area: '台南',
     shift: '午班',
     groupColor: '#c06984',
-    designatedLeaves: [],
-    licenses: ['PEST_CONTROL'],
-    isActive: true,
-  },
-  {
-    id: 'emp-staff',
-    name: 'Demo 員工',
-    phone: '0912345678',
-    employeeNo: 'staff',
-    position: 'STAFF',
-    groupId: 'taipei-morning',
-    groupName: '台北 早班',
-    area: '台北',
-    shift: '早班',
-    groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['PEST_CONTROL'],
     isActive: true,
@@ -1739,6 +1997,8 @@ const STORAGE_KEYS = {
   SCHEDULE_EVENTS: 'ecolab_mock_schedule_events_v7',
   PENDING_CUSTOMERS: 'ecolab_mock_pending_customers_v7',
   EMPLOYEES: 'ecolab_mock_employees_v7',
+  CUSTOMERS: 'ecolab_mock_customers_v7',
+  CUSTOMER_GROUPS: 'ecolab_mock_customer_groups_v7',
 };
 
 // 清除舊版本的 localStorage 快取
@@ -1822,11 +2082,22 @@ function persistStorage<T>(key: string, data: T): void {
   }
 }
 
-// 合併基本測試用員工與額外的 demo 員工，供指派員工下拉選單等端點使用
-let mockEmployees: Employee[] = loadStorage(STORAGE_KEYS.EMPLOYEES, [
-  mockEmployee,
-  ...demoEmployees,
-]);
+mockCustomerGroups = loadStorage(STORAGE_KEYS.CUSTOMER_GROUPS, mockCustomerGroups);
+mockCustomers = loadStorage(STORAGE_KEYS.CUSTOMERS, mockCustomers);
+
+// 合併基本測試用員工與額外的 demo 員工，供指派員工下拉選單等端點使用（並補齊新增的員工資料）
+let mockEmployees: Employee[] = (() => {
+  const base = [mockEmployee, ...demoEmployees];
+  const loaded = loadStorage<Employee[]>(STORAGE_KEYS.EMPLOYEES, []);
+  if (!loaded || loaded.length === 0) return base;
+  const map = new Map(loaded.map((e) => [e.id, e]));
+  for (const b of base) {
+    if (!map.has(b.id)) {
+      map.set(b.id, b);
+    }
+  }
+  return Array.from(map.values());
+})();
 
 // 任務清單改為可變狀態，包含 30 筆示範任務（task-001 到 task-030）
 let mockTasks: Task[] = loadStorage(STORAGE_KEYS.TASKS, [mockTask, ...demoTasks]);
@@ -1845,21 +2116,100 @@ const resolveAssignees = (employeeIds: string[]): TaskAssignee[] =>
     .filter((emp): emp is Employee => !!emp)
     .map((emp) => ({ employeeId: emp.id, employeeName: emp.name, licenses: emp.licenses }));
 
-/** 依集團/分店 id 查出對應的名稱；找不到時退回使用 id 本身作為顯示名稱 */
+/** 依集團/分店 id 查出對應的名稱；優先比對集團/分店資料庫，若缺少則嘗試由客戶記錄修復 */
 const resolveGroupBranchNames = (groupId: string, branchId: string) => {
   const group = mockCustomerGroups.find((g) => g.id === groupId);
   const branch = group?.branches.find((b) => b.id === branchId);
-  return { groupName: group?.name ?? groupId, branchName: branch?.name ?? branchId };
+  const groupHasValidName = group?.name && !group.name.startsWith('group-');
+  const branchHasValidName = branch?.name && !branch.name.startsWith('branch-');
+
+  if (groupHasValidName && branchHasValidName) {
+    return { groupName: group.name, branchName: branch.name };
+  }
+
+  const cust = mockCustomers.find(
+    (c) =>
+      c.groupId === groupId ||
+      c.branchId === branchId ||
+      c.id === branchId ||
+      c.id === `cust-${branchId}`,
+  );
+
+  const groupName = groupHasValidName
+    ? group.name
+    : cust?.groupName && !cust.groupName.startsWith('group-')
+      ? cust.groupName
+      : (group?.name ?? groupId);
+
+  const branchName = branchHasValidName
+    ? branch.name
+    : cust?.branchName && !cust.branchName.startsWith('branch-')
+      ? cust.branchName
+      : (branch?.name ?? branchId);
+
+  // 若發現新集團/分店，動態補入 mockCustomerGroups 以確保前端所有下拉選單一致
+  if (groupId && !group && (groupName !== groupId || cust)) {
+    const newG: CustomerGroup = {
+      id: groupId,
+      name: groupName,
+      branches: branchId
+        ? [
+            {
+              id: branchId,
+              groupId,
+              name: branchName,
+              address: cust?.address || '',
+              contactName: cust?.contactName || '現場負責人',
+              contactPhone: cust?.contactPhone || '02-12345678',
+              requiredLicenses: cust?.requiredLicenses || [],
+            },
+          ]
+        : [],
+    };
+    mockCustomerGroups = [newG, ...mockCustomerGroups];
+    persistStorage(STORAGE_KEYS.CUSTOMER_GROUPS, mockCustomerGroups);
+  } else if (group && branchId && !branch && branchName !== branchId) {
+    group.branches.push({
+      id: branchId,
+      groupId,
+      name: branchName,
+      address: cust?.address || '',
+      contactName: cust?.contactName || '現場負責人',
+      contactPhone: cust?.contactPhone || '02-12345678',
+      requiredLicenses: cust?.requiredLicenses || [],
+    });
+    persistStorage(STORAGE_KEYS.CUSTOMER_GROUPS, mockCustomerGroups);
+  }
+
+  return { groupName, branchName };
 };
+
+// 修復既有快取任務中若有流水號名稱的情況
+mockTasks = mockTasks.map((t) => {
+  if (
+    (t.groupName && t.groupName.startsWith('group-')) ||
+    (t.branchName && t.branchName.startsWith('branch-'))
+  ) {
+    const { groupName, branchName } = resolveGroupBranchNames(t.groupId, t.branchId);
+    return { ...t, groupName, branchName };
+  }
+  return t;
+});
 
 /** 依表單資料建立新任務（依日期、時間與指派人員判定 SCHEDULED 或 UNSCHEDULED） */
 const buildNewTask = (data: TaskFormData): Task => {
-  const { groupName, branchName } = resolveGroupBranchNames(data.groupId, data.branchId);
+  const resolved = resolveGroupBranchNames(data.groupId, data.branchId);
+  const groupName =
+    data.groupName && !data.groupName.startsWith('group-') ? data.groupName : resolved.groupName;
+  const branchName =
+    data.branchName && !data.branchName.startsWith('branch-')
+      ? data.branchName
+      : resolved.branchName;
   const now = new Date().toISOString();
   const assignees = resolveAssignees(data.assignees);
   const isFullyStaffed = assignees.length > 0 && assignees.length >= (data.headcount || 1);
   const hasDate = Boolean(data.date);
-  const hasTime = Boolean(data.startTime && data.endTime);
+  const hasTime = Boolean(data.startTime || data.endTime);
   const computedStatus: TaskStatus =
     data.status || (isFullyStaffed && hasDate && hasTime ? 'SCHEDULED' : 'UNSCHEDULED');
   return {
@@ -1901,7 +2251,19 @@ const buildNewTask = (data: TaskFormData): Task => {
 const applyTaskUpdate = (existing: Task, data: Partial<TaskFormData>): Task => {
   const groupId = data.groupId ?? existing.groupId;
   const branchId = data.branchId ?? existing.branchId;
-  const { groupName, branchName } = resolveGroupBranchNames(groupId, branchId);
+  const resolved = resolveGroupBranchNames(groupId, branchId);
+  const groupName =
+    data.groupName && !data.groupName.startsWith('group-')
+      ? data.groupName
+      : existing.groupName && !existing.groupName.startsWith('group-')
+        ? existing.groupName
+        : resolved.groupName;
+  const branchName =
+    data.branchName && !data.branchName.startsWith('branch-')
+      ? data.branchName
+      : existing.branchName && !existing.branchName.startsWith('branch-')
+        ? existing.branchName
+        : resolved.branchName;
   const startTime = data.startTime ?? existing.startTime;
   const endTime = data.endTime ?? existing.endTime;
   const date = data.date ?? existing.date;
@@ -1910,7 +2272,7 @@ const applyTaskUpdate = (existing: Task, data: Partial<TaskFormData>): Task => {
     data.assignees !== undefined ? resolveAssignees(data.assignees) : existing.assignees;
   const isFullyStaffed = assignees.length > 0 && assignees.length >= (headcount || 1);
   const hasDate = Boolean(date);
-  const hasTime = Boolean(startTime && endTime);
+  const hasTime = Boolean(startTime || endTime);
 
   let newStatus: TaskStatus;
   if (data.status) {
@@ -3559,7 +3921,7 @@ export const handlers = [
   http.post('*/api/v1/tasks', async ({ request }) => {
     const data = (await request.json()) as TaskFormData;
     const created = buildNewTask(data);
-    mockTasks = [...mockTasks, created];
+    mockTasks = [created, ...mockTasks];
     persistStorage(STORAGE_KEYS.TASKS, mockTasks);
     return HttpResponse.json(ok<Task>(created));
   }),
@@ -3642,7 +4004,7 @@ export const handlers = [
       (updated.assignees?.length || 0) > 0 &&
       (updated.assignees?.length || 0) >= (updated.headcount || 1);
     const hasDate = Boolean(updated.date);
-    const hasTime = Boolean(updated.startTime && updated.endTime);
+    const hasTime = Boolean(updated.startTime || updated.endTime);
 
     if (data.status) {
       updated.status = data.status;
@@ -4154,20 +4516,55 @@ export const handlers = [
   ),
   http.post('*/api/v1/customers', async ({ request }) => {
     const data = (await request.json()) as Record<string, unknown>;
-    const newCust: Customer = {
-      id: `cust-${Date.now()}`,
-      groupId: (data.groupId as string) || 'group-001',
-      groupName: (data.groupName as string) || '測試集團',
-      branchId: `branch-${Date.now()}`,
-      branchName: (data.branchName as string) || '測試分店',
+    const groupName = ((data.groupName as string) || '未命名集團').trim();
+    const branchName = ((data.branchName as string) || '總部').trim();
+
+    // 尋找既有集團或新建集團
+    let targetGroup = mockCustomerGroups.find(
+      (g) => (data.groupId && g.id === data.groupId) || g.name === groupName,
+    );
+
+    const groupId = (data.groupId as string) || targetGroup?.id || `group-${Date.now()}`;
+    const branchId = (data.branchId as string) || `branch-${Date.now()}`;
+
+    const newBranch: CustomerBranch = {
+      id: branchId,
+      groupId,
+      name: branchName,
       address: (data.address as string) || '',
-      contactName: (data.contactName as string) || '',
-      contactPhone: (data.contactPhone as string) || '',
+      contactName: (data.contactName as string) || '現場負責人',
+      contactPhone: (data.contactPhone as string) || '02-12345678',
       requiredLicenses: (data.requiredLicenses as LicenseType[]) || [],
       licenseRestrictionNote: data.licenseRestrictionNote as string,
+    };
+
+    if (targetGroup) {
+      targetGroup.branches = [...targetGroup.branches, newBranch];
+    } else {
+      targetGroup = {
+        id: groupId,
+        name: groupName,
+        branches: [newBranch],
+      };
+      mockCustomerGroups = [targetGroup, ...mockCustomerGroups];
+    }
+
+    const newCust: Customer = {
+      id: branchId,
+      groupId: targetGroup.id,
+      groupName: targetGroup.name,
+      branchId: newBranch.id,
+      branchName: newBranch.name,
+      address: newBranch.address,
+      contactName: newBranch.contactName,
+      contactPhone: newBranch.contactPhone,
+      requiredLicenses: newBranch.requiredLicenses,
+      licenseRestrictionNote: newBranch.licenseRestrictionNote,
       remarks: (data.remarks as string) || '',
     };
     mockCustomers.unshift(newCust);
+    persistStorage(STORAGE_KEYS.CUSTOMER_GROUPS, mockCustomerGroups);
+    persistStorage(STORAGE_KEYS.CUSTOMERS, mockCustomers);
     return HttpResponse.json(ok<Customer>(newCust));
   }),
   http.patch('*/api/v1/customers/:id', async ({ params, request }) => {
@@ -4180,12 +4577,14 @@ export const handlers = [
         ...data,
       };
       mockCustomers[index] = updated;
+      persistStorage(STORAGE_KEYS.CUSTOMERS, mockCustomers);
       return HttpResponse.json(ok<Customer>(updated));
     }
     return HttpResponse.json(ok<Customer>(mockCustomers[0]!));
   }),
   http.delete('*/api/v1/customers/:id', ({ params }) => {
     mockCustomers = mockCustomers.filter((c) => c.id !== params.id);
+    persistStorage(STORAGE_KEYS.CUSTOMERS, mockCustomers);
     return HttpResponse.json(ok(null));
   }),
 
@@ -4652,7 +5051,7 @@ export const handlers = [
           (data.assignees?.length || 0) > 0 &&
           (data.assignees?.length || 0) >= (data.headcount || 1) &&
           Boolean(data.date) &&
-          Boolean(data.startTime && data.endTime)
+          Boolean(data.startTime || data.endTime)
             ? 'SCHEDULED'
             : 'UNSCHEDULED',
         alertStatus: 'CLEAN',

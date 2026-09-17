@@ -497,20 +497,20 @@ const SchedulePage: FC = () => {
       // 判斷人數與時段需求：必須有具體時段且達到 headcount，才正式轉為 SCHEDULED，否則保持 UNSCHEDULED
       const requiredHeadcount = task.headcount || 1;
       const isFullyStaffed = newAssigneeIds.length >= requiredHeadcount;
-      const hasTime = Boolean(targetStartTime && targetEndTime);
+      const hasTime = Boolean(targetStartTime || targetEndTime);
       const newStatus = isFullyStaffed && hasTime ? 'SCHEDULED' : 'UNSCHEDULED';
 
       // 根據開始時間自動判定標準班次：
-      // - 早班（日班）：08:00 – 16:00 (或 07:00 – 15:00)
-      // - 午班（中班／小夜班）：16:00 – 00:00 (或 15:00 – 23:00)
-      // - 大夜班（晚班）：00:00 – 08:00 (或 23:00 – 07:00)
+      // - 早班：06:00 – 18:00
+      // - 午班：12:00 – 24:00 (00:00)
+      // - 大夜班：18:00 – 06:00 (隔夜)
       let computedShift = task.shift || '早班';
       if (targetStartTime) {
         const targetStartHour = Number(targetStartTime.split(':')[0]) || 8;
         computedShift =
-          targetStartHour >= 7 && targetStartHour < 15
+          targetStartHour >= 6 && targetStartHour < 12
             ? '早班'
-            : targetStartHour >= 15 && targetStartHour < 23
+            : targetStartHour >= 12 && targetStartHour < 18
               ? '午班'
               : '大夜班';
       }

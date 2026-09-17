@@ -10,6 +10,7 @@ const { Text } = Typography;
 
 export interface QuickCreateCustomerModalProps {
   open: boolean;
+  initialGroupId?: string;
   initialGroupName?: string;
   initialBranchName?: string;
   /** 是否為建立新集團（true: 新建集團+分店；false: 為既有集團新增分店） */
@@ -28,6 +29,7 @@ interface QuickCreateFormValues {
 
 export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> = ({
   open,
+  initialGroupId,
   initialGroupName = '',
   initialBranchName = '',
   isNewGroup = true,
@@ -61,6 +63,7 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
     try {
       const values = await form.validateFields();
       const payload = {
+        groupId: !isNewGroup ? initialGroupId : undefined,
         groupName: values.groupName.trim(),
         branchName: values.branchName.trim(),
         address: values.address.trim(),
@@ -72,7 +75,7 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
       const result = await createCustomerMutation.mutateAsync(payload);
       message.success(
         t('task.quickCreateSuccess', {
-          defaultValue: `已成功建立客戶「${payload.groupName} - ${payload.branchName}」並帶入表單！`,
+          defaultValue: `已成功建立客戶「${payload.groupName} - ${payload.branchName}」並代入表單！`,
           group: payload.groupName,
           branch: payload.branchName,
         }),
@@ -99,7 +102,7 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
       onOk={handleOk}
       onCancel={onClose}
       confirmLoading={createCustomerMutation.isPending}
-      okText="確定建立並帶入"
+      okText="確定建立並代入"
       cancelText="取消"
       width={520}
       destroyOnHidden

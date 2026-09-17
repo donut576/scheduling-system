@@ -222,6 +222,85 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
 
   // Fetch customer groups for cascading group → branch
   const { data: customerGroups = [] } = useCustomerGroups();
+  const [localCustomerGroups, setLocalCustomerGroups] = useState<CustomerGroup[]>([]);
+
+  const mergedCustomerGroups = useMemo(() => {
+    const map = new Map<string, CustomerGroup>();
+    for (const g of customerGroups) {
+      map.set(g.id, { ...g, branches: [...g.branches] });
+    }
+    for (const lg of localCustomerGroups) {
+      if (map.has(lg.id)) {
+        const existing = map.get(lg.id)!;
+        const branchMap = new Map(existing.branches.map((b) => [b.id, b]));
+        for (const b of lg.branches) {
+          branchMap.set(b.id, b);
+        }
+        existing.branches = Array.from(branchMap.values());
+      } else {
+        map.set(lg.id, lg);
+      }
+    }
+
+    // 確保編輯時 initialData 帶有的集團與分店名稱能正確代入選項，避免顯示流水號 ID
+    if (initialData?.groupId) {
+      const gName =
+        initialData.groupName && !initialData.groupName.startsWith('group-')
+          ? initialData.groupName
+          : undefined;
+      const bName =
+        initialData.branchName && !initialData.branchName.startsWith('branch-')
+          ? initialData.branchName
+          : undefined;
+
+      if (map.has(initialData.groupId)) {
+        const existing = map.get(initialData.groupId)!;
+        if (gName && (!existing.name || existing.name.startsWith('group-'))) {
+          existing.name = gName;
+        }
+        if (initialData.branchId) {
+          const bIndex = existing.branches.findIndex((b) => b.id === initialData.branchId);
+          if (bIndex === -1) {
+            existing.branches.push({
+              id: initialData.branchId,
+              groupId: initialData.groupId,
+              name: bName || initialData.branchName || initialData.branchId,
+              address: '',
+              contactName: '',
+              contactPhone: '',
+              requiredLicenses: [],
+            });
+          } else if (
+            bName &&
+            (!existing.branches[bIndex]!.name ||
+              existing.branches[bIndex]!.name.startsWith('branch-'))
+          ) {
+            existing.branches[bIndex]!.name = bName;
+          }
+        }
+      } else {
+        map.set(initialData.groupId, {
+          id: initialData.groupId,
+          name: gName || initialData.groupName || initialData.groupId,
+          branches: initialData.branchId
+            ? [
+                {
+                  id: initialData.branchId,
+                  groupId: initialData.groupId,
+                  name: bName || initialData.branchName || initialData.branchId,
+                  address: '',
+                  contactName: '',
+                  contactPhone: '',
+                  requiredLicenses: [],
+                },
+              ]
+            : [],
+        });
+      }
+    }
+
+    return Array.from(map.values());
+  }, [customerGroups, initialData, localCustomerGroups]);
 
   // Fetch employees for alert context
   const { data: employeeData } = useEmployeeList({ page: 1, pageSize: 500 });
@@ -229,10 +308,12 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
 
   // Fetch existing tasks for alert context (same date)
   const watchDate = Form.useWatch('date', form);
+  const watchGroupId = Form.useWatch('groupId', form);
   const watchBranchId = Form.useWatch('branchId', form);
   const assigneesValue: string[] = Form.useWatch('assignees', form) ?? [];
   const contentsValue: TaskContent[] = Form.useWatch('contents', form) ?? [];
   const currentDate = watchDate ? dayjs(watchDate).format('YYYY-MM-DD') : undefined;
+  const activeGroupId = watchGroupId || selectedGroupId;
 
   const { data: existingTaskData } = useTaskList({
     page: 1,
@@ -247,28 +328,28 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
 
   // Compute branches based on selected group
   const branchOptions = useMemo(() => {
-    if (!selectedGroupId) return [];
-    const group = customerGroups.find((g: CustomerGroup) => g.id === selectedGroupId);
+    if (!activeGroupId) return [];
+    const group = mergedCustomerGroups.find((g: CustomerGroup) => g.id === activeGroupId);
     if (!group) return [];
     return group.branches.map((b) => ({
       label: b.name,
       value: b.id,
     }));
-  }, [selectedGroupId, customerGroups]);
+  }, [activeGroupId, mergedCustomerGroups]);
 
   // Group options from customer groups
   const groupOptions = useMemo(() => {
-    return customerGroups.map((g: CustomerGroup) => ({
+    return mergedCustomerGroups.map((g: CustomerGroup) => ({
       label: g.name,
       value: g.id,
     }));
-  }, [customerGroups]);
+  }, [mergedCustomerGroups]);
 
   const selectedBranch = useMemo(() => {
-    if (!selectedGroupId || !watchBranchId) return undefined;
-    const group = customerGroups.find((g: CustomerGroup) => g.id === selectedGroupId);
+    if (!activeGroupId || !watchBranchId) return undefined;
+    const group = mergedCustomerGroups.find((g: CustomerGroup) => g.id === activeGroupId);
     return group?.branches.find((b) => b.id === watchBranchId);
-  }, [selectedGroupId, watchBranchId, customerGroups]);
+  }, [activeGroupId, watchBranchId, mergedCustomerGroups]);
 
   const detectedRegion = useMemo(() => {
     if (!selectedBranch) return undefined;
@@ -281,17 +362,50 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
   }, [selectedBranch]);
 
   const currentGroupName = useMemo(() => {
-    if (!selectedGroupId) return '';
-    const group = customerGroups.find((g: CustomerGroup) => g.id === selectedGroupId);
+    if (!activeGroupId) return '';
+    const group = mergedCustomerGroups.find((g: CustomerGroup) => g.id === activeGroupId);
     return group?.name || '';
-  }, [selectedGroupId, customerGroups]);
+  }, [activeGroupId, mergedCustomerGroups]);
 
   const handleQuickCreateSuccess = useCallback(
     (createdCustomer: Customer) => {
+      const targetBranchId = createdCustomer.branchId || createdCustomer.id;
+      const newBranch = {
+        id: targetBranchId,
+        groupId: createdCustomer.groupId,
+        name: createdCustomer.branchName,
+        address: createdCustomer.address,
+        contactName: createdCustomer.contactName,
+        contactPhone: createdCustomer.contactPhone,
+        requiredLicenses: createdCustomer.requiredLicenses || [],
+      };
+      setLocalCustomerGroups((prev) => {
+        const idx = prev.findIndex(
+          (g) => g.id === createdCustomer.groupId || g.name === createdCustomer.groupName,
+        );
+        if (idx !== -1) {
+          const updated = [...prev];
+          const existing = updated[idx]!;
+          updated[idx] = {
+            ...existing,
+            branches: [...existing.branches.filter((b) => b.id !== targetBranchId), newBranch],
+          };
+          return updated;
+        }
+        return [
+          {
+            id: createdCustomer.groupId,
+            name: createdCustomer.groupName,
+            branches: [newBranch],
+          },
+          ...prev,
+        ];
+      });
+
       setSelectedGroupId(createdCustomer.groupId);
       form.setFieldsValue({
         groupId: createdCustomer.groupId,
-        branchId: createdCustomer.id,
+        branchId: targetBranchId,
       });
       setGroupSearchText('');
       setBranchSearchText('');
@@ -411,7 +525,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         values.assignees.length > 0 &&
         values.assignees.length >= (values.headcount ?? 1);
       const hasDate = Boolean(values.date);
-      const hasTime = Boolean(values.startTime && values.endTime);
+      const hasTime = Boolean(values.startTime || values.endTime);
       const computedStatus: TaskStatus =
         isFullyStaffed && hasDate && hasTime ? 'SCHEDULED' : 'UNSCHEDULED';
 
@@ -422,9 +536,22 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
       const isPhotoChecked =
         Array.isArray(values.reportTypes) && values.reportTypes.includes('PHOTO');
 
+      const selectedGroup = mergedCustomerGroups.find((g) => g.id === values.groupId);
+      const selectedBranchObj = selectedGroup?.branches.find((b) => b.id === values.branchId);
+      const groupName =
+        selectedGroup?.name ||
+        (initialData && initialData.groupId === values.groupId ? initialData.groupName : undefined);
+      const branchName =
+        selectedBranchObj?.name ||
+        (initialData && initialData.branchId === values.branchId
+          ? initialData.branchName
+          : undefined);
+
       return {
         groupId: values.groupId,
+        groupName,
         branchId: values.branchId,
+        branchName,
         taskType: values.taskType || 'CONTRACT',
         date: values.date ? dayjs(values.date).format('YYYY-MM-DD') : '',
         startTime: values.startTime || '',
@@ -548,7 +675,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     }
 
     // 當已填寫日期與時間時，執行排班預檢（含人數不足、證照不符、連續上班等）
-    if (formData.date && formData.startTime && formData.endTime) {
+    if (formData.date && (formData.startTime || formData.endTime)) {
       const alertContext: AlertContext = {
         employees,
         existingTasks,
@@ -667,12 +794,12 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                   >
                     <Select
                       placeholder={
-                        selectedGroupId
+                        activeGroupId
                           ? t('task.branchSearchPlaceholder')
                           : t('task.selectGroupFirst')
                       }
                       options={branchOptions}
-                      disabled={!selectedGroupId}
+                      disabled={!activeGroupId}
                       showSearch
                       searchValue={branchSearchText}
                       onSearch={setBranchSearchText}
@@ -691,7 +818,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                               type="dashed"
                               icon={<PlusOutlined />}
                               block
-                              disabled={!selectedGroupId}
+                              disabled={!activeGroupId}
                               onClick={() => {
                                 setQuickCreateIsNewGroup(false);
                                 setQuickCreateOpen(true);
@@ -1143,6 +1270,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
       {/* Quick Create Customer Group & Branch Dialog */}
       <QuickCreateCustomerModal
         open={quickCreateOpen}
+        initialGroupId={selectedGroupId}
         initialGroupName={quickCreateIsNewGroup ? groupSearchText.trim() : currentGroupName}
         initialBranchName={branchSearchText.trim()}
         isNewGroup={quickCreateIsNewGroup}

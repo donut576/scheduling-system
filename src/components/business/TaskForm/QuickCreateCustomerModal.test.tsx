@@ -90,7 +90,7 @@ describe('QuickCreateCustomerModal', () => {
     const addressInput = screen.getByTestId('quick-create-address');
     await user.type(addressInput, '台北市信義區松壽路12號');
 
-    const submitBtn = screen.getByText('確定建立並帶入');
+    const submitBtn = screen.getByText('確定建立並代入');
     await user.click(submitBtn);
 
     await waitFor(() => {

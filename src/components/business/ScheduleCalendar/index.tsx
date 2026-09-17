@@ -124,12 +124,14 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
 
   const { data: scheduleData, isLoading } = useScheduleData(queryParams);
 
-  // 當前時間標記紅線：週與月檢視（以天為格子）將時間設為正午 12:00，確保紅線精準置中切在該日期格子正中間
+  // 當前時間標記紅線：
+  // - 週與月檢視（以天為格子）：將時間設為正午 12:00，確保紅線精準置中切在該日期格子正中間
+  // - 日檢視（以小時/分鐘為格子）：使用真實當前時間 (undefined)，確保紅線依照實際時分精確切點（如 15:50 靠近 16:00）
   const calendarNow = useMemo(() => {
     if (viewMode === 'week' || viewMode === 'month') {
       return `${dayjs().format('YYYY-MM-DD')}T12:00:00`;
     }
-    return new Date();
+    return undefined;
   }, [viewMode]);
 
   const events = useMemo(

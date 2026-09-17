@@ -59,7 +59,40 @@ export function useCreateCustomer() {
       const response = await customerApi.create(data);
       return response.data.data;
     },
-    onSuccess: () => {
+    onSuccess: (newCustomer) => {
+      if (newCustomer) {
+        queryClient.setQueryData<CustomerGroup[]>(customerKeys.groups(), (oldGroups = []) => {
+          const groupIndex = oldGroups.findIndex(
+            (g) => g.id === newCustomer.groupId || g.name === newCustomer.groupName,
+          );
+          const newBranch = {
+            id: newCustomer.branchId || newCustomer.id,
+            groupId: newCustomer.groupId,
+            name: newCustomer.branchName,
+            address: newCustomer.address,
+            contactName: newCustomer.contactName,
+            contactPhone: newCustomer.contactPhone,
+            requiredLicenses: newCustomer.requiredLicenses || [],
+          };
+          if (groupIndex !== -1) {
+            const updated = [...oldGroups];
+            const target = updated[groupIndex]!;
+            updated[groupIndex] = {
+              ...target,
+              branches: [...target.branches.filter((b) => b.id !== newBranch.id), newBranch],
+            };
+            return updated;
+          }
+          return [
+            {
+              id: newCustomer.groupId,
+              name: newCustomer.groupName,
+              branches: [newBranch],
+            },
+            ...oldGroups,
+          ];
+        });
+      }
       queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
       queryClient.invalidateQueries({ queryKey: customerKeys.groups() });
     },
