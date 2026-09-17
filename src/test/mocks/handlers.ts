@@ -4388,7 +4388,11 @@ export const handlers = [
       );
     }
     if (status) {
-      list = list.filter((a) => a.status === status);
+      if (status === 'PROCESSED') {
+        list = list.filter((a) => a.status !== 'PENDING');
+      } else {
+        list = list.filter((a) => a.status === status);
+      }
     }
     if (type) {
       list = list.filter((a) => a.type === type);

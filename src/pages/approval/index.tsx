@@ -63,6 +63,12 @@ const APPROVAL_STATUS_OPTIONS = [
   { label: '已撤回', value: 'WITHDRAWN' },
 ];
 
+const PROCESSED_STATUS_OPTIONS = [
+  { label: '已核准', value: 'APPROVED' },
+  { label: '已駁回', value: 'REJECTED' },
+  { label: '已撤回', value: 'WITHDRAWN' },
+];
+
 const DEFAULT_PARAMS: ApprovalListParams = { page: 1, pageSize: 20 };
 
 /** 格式化變更差異數值，將英文代碼（如 BED_BUG、TERMITE）轉為中文名稱 */
@@ -238,7 +244,7 @@ const ApprovalPage: FC = () => {
     setManagerStep(step);
     setFilters((prev) => ({
       ...prev,
-      status: step === 'pending' ? 'PENDING' : undefined,
+      status: step === 'pending' ? 'PENDING' : 'PROCESSED',
       page: 1,
     }));
   }, []);
@@ -289,9 +295,14 @@ const ApprovalPage: FC = () => {
     setFilters((prev) => ({ ...prev, type, page: 1 }));
   }, []);
 
-  const handleStatusFilter = useCallback((status?: string) => {
-    setFilters((prev) => ({ ...prev, status, page: 1 }));
-  }, []);
+  const handleStatusFilter = useCallback(
+    (status?: string) => {
+      const effectiveStatus =
+        !isApplicantRole && managerStep === 'processed' && !status ? 'PROCESSED' : status;
+      setFilters((prev) => ({ ...prev, status: effectiveStatus, page: 1 }));
+    },
+    [isApplicantRole, managerStep],
+  );
 
   const localizedSearchFields: SearchFieldConfig[] = useMemo(
     () => [
@@ -314,7 +325,7 @@ const ApprovalPage: FC = () => {
     setFilters({
       ...DEFAULT_PARAMS,
       requestedBy: defaultRequesterFilter,
-      status: !isApplicantRole && managerStep === 'pending' ? 'PENDING' : undefined,
+      status: !isApplicantRole ? (managerStep === 'pending' ? 'PENDING' : 'PROCESSED') : undefined,
     });
   }, [defaultRequesterFilter, isApplicantRole, managerStep]);
 
@@ -465,18 +476,38 @@ const ApprovalPage: FC = () => {
       ),
     },
     {
-      title: (
-        <ColumnFilterTitle label={t('approval.statusLabel')} active={!!filters.status}>
-          <Select
-            placeholder="請選擇狀態"
-            style={{ width: 130 }}
-            allowClear
-            value={filters.status}
-            onChange={(val) => handleStatusFilter(val ?? undefined)}
-            options={APPROVAL_STATUS_OPTIONS}
-          />
-        </ColumnFilterTitle>
-      ),
+      title:
+        !isApplicantRole && managerStep === 'pending' ? (
+          <span>{t('approval.statusLabel')}</span>
+        ) : (
+          <ColumnFilterTitle
+            label={t('approval.statusLabel')}
+            active={
+              !isApplicantRole && managerStep === 'processed'
+                ? filters.status !== 'PROCESSED' && !!filters.status
+                : !!filters.status
+            }
+          >
+            <Select
+              placeholder="請選擇狀態"
+              style={{ width: 130 }}
+              allowClear
+              value={
+                !isApplicantRole && managerStep === 'processed'
+                  ? filters.status === 'PROCESSED'
+                    ? undefined
+                    : filters.status
+                  : filters.status
+              }
+              onChange={(val) => handleStatusFilter(val ?? undefined)}
+              options={
+                !isApplicantRole && managerStep === 'processed'
+                  ? PROCESSED_STATUS_OPTIONS
+                  : APPROVAL_STATUS_OPTIONS
+              }
+            />
+          </ColumnFilterTitle>
+        ),
       key: 'status',
       width: 110,
       render: (_value, record) => {
