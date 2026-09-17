@@ -219,9 +219,22 @@ function baseColumns(
         if (!a.date && !b.date) return 0;
         if (!a.date) return -1;
         if (!b.date) return 1;
-        if (a.date !== b.date) return a.date.localeCompare(b.date);
-        if (a.status === 'UNSCHEDULED' && b.status !== 'UNSCHEDULED') return -1;
-        if (a.status !== 'UNSCHEDULED' && b.status === 'UNSCHEDULED') return 1;
+
+        const today = dayjs().format('YYYY-MM-DD');
+        const isPastA = a.date < today;
+        const isPastB = b.date < today;
+
+        if (!isPastA && isPastB) return -1;
+        if (isPastA && !isPastB) return 1;
+
+        if (!isPastA && !isPastB) {
+          if (a.date !== b.date) return a.date.localeCompare(b.date);
+          if (a.status === 'UNSCHEDULED' && b.status !== 'UNSCHEDULED') return -1;
+          if (a.status !== 'UNSCHEDULED' && b.status === 'UNSCHEDULED') return 1;
+          return (a.startTime || '').localeCompare(b.startTime || '');
+        }
+
+        if (a.date !== b.date) return b.date.localeCompare(a.date);
         return (a.startTime || '').localeCompare(b.startTime || '');
       },
       render: (value, record) => (

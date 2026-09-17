@@ -2,8 +2,9 @@ import React, { useEffect, useMemo } from 'react';
 import { Modal, Form, Input, Typography, Tag, Space, Alert, message } from 'antd';
 import { PlusCircleOutlined, ShopOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { useCreateCustomer } from '@/queries/useCustomerQueries';
+import { useCreateCustomer, useCustomerGroups } from '@/queries/useCustomerQueries';
 import { getRegionByAddress, REGION_NAMES_MAP } from '@/utils/regionMapping';
+import { checkCustomerDuplicate } from '@/utils/customerValidation';
 import type { Customer } from '@/types/customer';
 
 const { Text } = Typography;
@@ -39,11 +40,22 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
   const { t } = useTranslation();
   const [form] = Form.useForm<QuickCreateFormValues>();
   const createCustomerMutation = useCreateCustomer();
+  const { data: customerGroups = [] } = useCustomerGroups();
 
   const watchAddress = Form.useWatch('address', form);
+  const watchGroupName = Form.useWatch('groupName', form) || '';
+  const watchBranchName = Form.useWatch('branchName', form) || '';
+
   const detectedRegion = useMemo(() => {
     return getRegionByAddress(watchAddress);
   }, [watchAddress]);
+
+  const validationResult = useMemo(() => {
+    if (!isNewGroup || !watchGroupName) {
+      return { isExactCustomerDuplicate: false, similarGroups: [] };
+    }
+    return checkCustomerDuplicate(watchGroupName, watchBranchName, customerGroups);
+  }, [isNewGroup, watchGroupName, watchBranchName, customerGroups]);
 
   useEffect(() => {
     if (open) {
@@ -59,6 +71,27 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
     }
   }, [open, initialGroupName, initialBranchName, isNewGroup, form]);
 
+  const submitCustomer = async (payload: {
+    groupId?: string;
+    groupName: string;
+    branchName: string;
+    address: string;
+    contactName: string;
+    contactPhone: string;
+    requiredLicenses: string[];
+  }) => {
+    const result = await createCustomerMutation.mutateAsync(payload);
+    message.success(
+      t('task.quickCreateSuccess', {
+        defaultValue: `已成功建立客戶「${payload.groupName} - ${payload.branchName}」並代入表單！`,
+        group: payload.groupName,
+        branch: payload.branchName,
+      }),
+    );
+    onSuccess(result);
+    onClose();
+  };
+
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
@@ -72,16 +105,16 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
         requiredLicenses: ['NONE'],
       };
 
-      const result = await createCustomerMutation.mutateAsync(payload);
-      message.success(
-        t('task.quickCreateSuccess', {
-          defaultValue: `已成功建立客戶「${payload.groupName} - ${payload.branchName}」並代入表單！`,
-          group: payload.groupName,
-          branch: payload.branchName,
-        }),
-      );
-      onSuccess(result);
-      onClose();
+      if (isNewGroup) {
+        const check = checkCustomerDuplicate(payload.groupName, payload.branchName, customerGroups);
+
+        if (check.isExactCustomerDuplicate) {
+          message.error(`已存在相同客戶「${check.exactCustomerName}」，請勿重複建立！`);
+          return;
+        }
+      }
+
+      await submitCustomer(payload);
     } catch (err) {
       // Form validation error or API error
       console.error('Failed to quick create customer:', err);
@@ -125,6 +158,26 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
             </Space>
           }
           rules={[{ required: true, message: '請輸入集團名稱' }]}
+          validateStatus={
+            isNewGroup &&
+            (validationResult.exactGroupMatch || validationResult.similarGroups.length > 0)
+              ? 'error'
+              : undefined
+          }
+          help={
+            isNewGroup &&
+            (validationResult.exactGroupMatch ? (
+              <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 4 }}>
+                ⚠️ 系統中已經有這個集團了（共 {validationResult.exactGroupMatch.branchCount}{' '}
+                間分店）
+              </div>
+            ) : validationResult.similarGroups.length > 0 ? (
+              <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 4 }}>
+                ⚠️ 系統中已經有類似的集團了（
+                {validationResult.similarGroups.map((g) => g.name).join('、')}）
+              </div>
+            ) : undefined)
+          }
         >
           <Input
             placeholder="例如：王品集團、乾杯集團"
@@ -142,6 +195,16 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
             </Space>
           }
           rules={[{ required: true, message: '請輸入分店名稱' }]}
+          validateStatus={
+            isNewGroup && validationResult.isExactCustomerDuplicate ? 'error' : undefined
+          }
+          help={
+            isNewGroup && validationResult.isExactCustomerDuplicate ? (
+              <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 4 }}>
+                ⚠️ 此集團已存在相同分店名稱（{validationResult.exactCustomerName}）
+              </div>
+            ) : undefined
+          }
         >
           <Input
             placeholder="例如：信義店、總部大樓、竹科一廠"

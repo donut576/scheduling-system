@@ -8,6 +8,7 @@ import BaseSearchForm, { type SearchFieldConfig } from '@/components/base/BaseSe
 import BaseModal from '@/components/base/BaseModal';
 import {
   useCustomerList,
+  useCustomerGroups,
   useCreateCustomer,
   useUpdateCustomer,
   useDeleteCustomer,
@@ -15,6 +16,7 @@ import {
 import { usePermissionStore } from '@/stores/usePermissionStore';
 import { LICENSE_TYPE_MAP } from '@/constants/licenseTypes';
 import { getGroupColor } from '@/utils/groupColor';
+import { checkCustomerDuplicate } from '@/utils/customerValidation';
 import type { CustomerListParams, CustomerFormData } from '@/api/customer';
 import type { Customer } from '@/types/customer';
 import type { PaginatedResponse } from '@/types/common';
@@ -168,6 +170,19 @@ const CustomerPage: FC = () => {
     },
   ];
 
+  // 取得客戶集團列表供防呆判定
+  const { data: customerGroups = [] } = useCustomerGroups();
+
+  const watchGroupName = Form.useWatch('groupName', form) || '';
+  const watchBranchName = Form.useWatch('branchName', form) || '';
+
+  const validationResult = useMemo(() => {
+    if (editingCustomer || !watchGroupName) {
+      return { isExactCustomerDuplicate: false, similarGroups: [] };
+    }
+    return checkCustomerDuplicate(watchGroupName, watchBranchName, customerGroups);
+  }, [editingCustomer, watchGroupName, watchBranchName, customerGroups]);
+
   // 建立/更新/刪除客戶資料的 mutation hooks
   const createMutation = useCreateCustomer();
   const updateMutation = useUpdateCustomer();
@@ -236,7 +251,24 @@ const CustomerPage: FC = () => {
     form.resetFields();
   }, [form]);
 
-  // 送出表單：依是否為編輯模式呼叫更新或建立 API
+  const submitCustomer = useCallback(
+    async (payload: CustomerFormData) => {
+      if (editingCustomer) {
+        await updateMutation.mutateAsync({ id: editingCustomer.id, data: payload });
+        message.success(t('customer.updateSuccess'));
+      } else {
+        await createMutation.mutateAsync(payload);
+        message.success(t('customer.createSuccess'));
+      }
+
+      setModalOpen(false);
+      setEditingCustomer(null);
+      form.resetFields();
+    },
+    [editingCustomer, updateMutation, createMutation, t, form],
+  );
+
+  // 送出表單：依是否為編輯模式呼叫更新或建立 API（含防呆驗證）
   const handleModalOk = useCallback(async () => {
     const values = await form.validateFields();
 
@@ -248,29 +280,28 @@ const CustomerPage: FC = () => {
     }
 
     const payload: CustomerFormData = {
-      groupName: values.groupName,
-      branchName: values.branchName,
-      address: values.address,
-      contactName: values.contactName,
-      contactPhone: values.contactPhone,
+      groupName: values.groupName.trim(),
+      branchName: values.branchName.trim(),
+      address: values.address.trim(),
+      contactName: values.contactName.trim(),
+      contactPhone: values.contactPhone.trim(),
       requiredLicenses,
       licenseRestrictionNote:
-        values.licenseRestriction === 'CUSTOM' ? values.licenseRestrictionNote : undefined,
-      remarks: values.remarks,
+        values.licenseRestriction === 'CUSTOM' ? values.licenseRestrictionNote?.trim() : undefined,
+      remarks: values.remarks?.trim(),
     };
 
-    if (editingCustomer) {
-      await updateMutation.mutateAsync({ id: editingCustomer.id, data: payload });
-      message.success(t('customer.updateSuccess'));
-    } else {
-      await createMutation.mutateAsync(payload);
-      message.success(t('customer.createSuccess'));
+    if (!editingCustomer) {
+      const check = checkCustomerDuplicate(payload.groupName, payload.branchName, customerGroups);
+
+      if (check.isExactCustomerDuplicate) {
+        message.error(`已存在相同客戶「${check.exactCustomerName}」，請勿重複建立！`);
+        return;
+      }
     }
 
-    setModalOpen(false);
-    setEditingCustomer(null);
-    form.resetFields();
-  }, [form, editingCustomer, createMutation, updateMutation, t]);
+    await submitCustomer(payload);
+  }, [form, editingCustomer, customerGroups, submitCustomer]);
 
   // 彈出刪除確認 Modal，確認後呼叫刪除 API
   const handleDelete = useCallback(
@@ -432,6 +463,26 @@ const CustomerPage: FC = () => {
             name="groupName"
             label={t('customer.groupName')}
             rules={[{ required: true, message: t('customer.groupNameRequired') }]}
+            validateStatus={
+              !editingCustomer &&
+              (validationResult.exactGroupMatch || validationResult.similarGroups.length > 0)
+                ? 'error'
+                : undefined
+            }
+            help={
+              !editingCustomer &&
+              (validationResult.exactGroupMatch ? (
+                <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 4 }}>
+                  ⚠️ 系統中已經有這個集團了（共 {validationResult.exactGroupMatch.branchCount}{' '}
+                  間分店）
+                </div>
+              ) : validationResult.similarGroups.length > 0 ? (
+                <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 4 }}>
+                  ⚠️ 系統中已經有類似的集團了（
+                  {validationResult.similarGroups.map((g) => g.name).join('、')}）
+                </div>
+              ) : undefined)
+            }
           >
             <Input placeholder={t('customer.groupNamePlaceholder')} />
           </Form.Item>
@@ -439,6 +490,16 @@ const CustomerPage: FC = () => {
             name="branchName"
             label={t('customer.branchName')}
             rules={[{ required: true, message: t('customer.branchNameRequired') }]}
+            validateStatus={
+              !editingCustomer && validationResult.isExactCustomerDuplicate ? 'error' : undefined
+            }
+            help={
+              !editingCustomer && validationResult.isExactCustomerDuplicate ? (
+                <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 4 }}>
+                  ⚠️ 此集團已存在相同分店名稱（{validationResult.exactCustomerName}）
+                </div>
+              ) : undefined
+            }
           >
             <Input placeholder={t('customer.branchNamePlaceholder')} />
           </Form.Item>

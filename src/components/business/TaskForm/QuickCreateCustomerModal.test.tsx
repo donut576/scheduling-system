@@ -10,6 +10,16 @@ vi.mock('@/queries/useCustomerQueries', () => ({
     mutateAsync: mockMutateAsync,
     isPending: false,
   }),
+  useCustomerGroups: () => ({
+    data: [
+      {
+        id: 'g1',
+        name: '王品集團',
+        branches: [{ id: 'b1', name: '台北店' }],
+      },
+    ],
+    isLoading: false,
+  }),
 }));
 
 describe('QuickCreateCustomerModal', () => {
@@ -104,5 +114,11 @@ describe('QuickCreateCustomerModal', () => {
       expect(defaultProps.onSuccess).toHaveBeenCalledWith(fakeCustomer);
       expect(defaultProps.onClose).toHaveBeenCalled();
     });
+  });
+
+  it('shows similar group inline warning when typing similar group name', async () => {
+    render(<QuickCreateCustomerModal {...defaultProps} initialGroupName="王品" />);
+
+    expect(await screen.findByText(/系統中已經有類似的集團了（王品集團）/)).toBeInTheDocument();
   });
 });

@@ -36,6 +36,7 @@ const mockDeleteMutateAsync = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@/queries/useCustomerQueries', () => ({
   useCustomerList: vi.fn(),
+  useCustomerGroups: vi.fn(),
   useCreateCustomer: vi.fn(),
   useUpdateCustomer: vi.fn(),
   useDeleteCustomer: vi.fn(),
@@ -43,12 +44,46 @@ vi.mock('@/queries/useCustomerQueries', () => ({
 
 import {
   useCustomerList,
+  useCustomerGroups,
   useCreateCustomer,
   useUpdateCustomer,
   useDeleteCustomer,
 } from '@/queries/useCustomerQueries';
 import { usePermissionStore } from '@/stores/usePermissionStore';
 import { PERMISSIONS } from '@/constants/permissions';
+
+const mockCustomerGroupsData = [
+  {
+    id: 'g1',
+    name: '集團A',
+    branches: [
+      {
+        id: 'b1',
+        groupId: 'g1',
+        name: '分店A',
+        address: '台北市',
+        contactName: '王',
+        contactPhone: '0900',
+        requiredLicenses: [],
+      },
+    ],
+  },
+  {
+    id: 'g2',
+    name: '王品集團',
+    branches: [
+      {
+        id: 'b2',
+        groupId: 'g2',
+        name: '台北店',
+        address: '台北市',
+        contactName: '陳',
+        contactPhone: '0911',
+        requiredLicenses: [],
+      },
+    ],
+  },
+];
 
 const customers: Customer[] = [
   {
@@ -97,6 +132,11 @@ describe('CustomerPage', () => {
     mockIsMobile = false;
     usePermissionStore.getState().buildPermissions(Object.values(PERMISSIONS), 'ADMIN');
 
+    vi.mocked(useCustomerGroups).mockReturnValue({
+      data: mockCustomerGroupsData,
+      isLoading: false,
+    } as unknown as ReturnType<typeof useCustomerGroups>);
+
     vi.mocked(useCustomerList).mockReturnValue({
       data: listResult,
       isLoading: false,
@@ -144,6 +184,38 @@ describe('CustomerPage', () => {
       expect(screen.getByText('新增客戶資料')).toBeInTheDocument();
       const groupInput = screen.getByLabelText('集團名稱') as HTMLInputElement;
       expect(groupInput.value).toBe('');
+    });
+
+    it('shows duplicate customer inline error and blocks submission if exact group & branch already exists', async () => {
+      const user = userEvent.setup();
+      render(<CustomerPage />);
+
+      await user.click(screen.getByText('新增客戶'));
+
+      await user.type(screen.getByLabelText('集團名稱'), '集團A');
+      await user.type(screen.getByLabelText('分店名稱'), '分店A');
+
+      expect(await screen.findByText(/此集團已存在相同分店名稱/)).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText('地址'), '台北市');
+      await user.type(screen.getByLabelText('聯絡窗口'), '王');
+      await user.type(screen.getByLabelText('電話'), '0900');
+
+      const modal = screen.getByRole('dialog');
+      await user.click(within(modal).getByText('OK'));
+
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it('shows similar group inline warning when typing similar group name', async () => {
+      const user = userEvent.setup();
+      render(<CustomerPage />);
+
+      await user.click(screen.getByText('新增客戶'));
+
+      await user.type(screen.getByLabelText('集團名稱'), '王品');
+
+      expect(await screen.findByText(/系統中已經有類似的集團了（王品集團）/)).toBeInTheDocument();
     });
 
     it('opens edit modal pre-filled with row data when row is clicked', async () => {

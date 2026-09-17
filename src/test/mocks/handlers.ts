@@ -3936,8 +3936,9 @@ export const handlers = [
     } else {
       // 預設排序規則：
       // 1. 未排班且無日期的任務置頂（無日期排最前面）
-      // 2. 有日期的任務（含待排與已排）依日期由近至遠遞增排序
-      // 3. 同日期時，未排班任務優先，再依開始時間遞增排序
+      // 2. 今天與未來之任務（含待排與已排）依日期由近至遠遞增排序 (today -> future)
+      // 3. 過去已經過期的任務（date < today）放置於清單後段，依最近日期排序
+      const today = dayjs().format('YYYY-MM-DD');
       list.sort((a, b) => {
         if (!a.date && !b.date) {
           return (a.createdAt || '').localeCompare(b.createdAt || '');
@@ -3945,12 +3946,28 @@ export const handlers = [
         if (!a.date) return -1;
         if (!b.date) return 1;
 
-        if (a.date !== b.date) {
-          return a.date.localeCompare(b.date);
+        const isPastA = a.date < today;
+        const isPastB = b.date < today;
+
+        // 今天與未來優先於已過期
+        if (!isPastA && isPastB) return -1;
+        if (isPastA && !isPastB) return 1;
+
+        if (!isPastA && !isPastB) {
+          if (a.date !== b.date) {
+            return a.date.localeCompare(b.date);
+          }
+
+          if (a.status === 'UNSCHEDULED' && b.status !== 'UNSCHEDULED') return -1;
+          if (a.status !== 'UNSCHEDULED' && b.status === 'UNSCHEDULED') return 1;
+
+          return (a.startTime || '').localeCompare(b.startTime || '');
         }
 
-        if (a.status === 'UNSCHEDULED' && b.status !== 'UNSCHEDULED') return -1;
-        if (a.status !== 'UNSCHEDULED' && b.status === 'UNSCHEDULED') return 1;
+        // 過去任務：由最近過期的排在較前段 (DESC)
+        if (a.date !== b.date) {
+          return b.date.localeCompare(a.date);
+        }
 
         return (a.startTime || '').localeCompare(b.startTime || '');
       });
