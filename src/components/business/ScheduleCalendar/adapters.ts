@@ -110,6 +110,7 @@ export const toResourceInputs = (
       extendedProps: {
         mainTitle: resource.mainTitle,
         subTitle: resource.subTitle,
+        groupColor: resource.groupColor,
         isSelf,
       },
     };
@@ -149,10 +150,27 @@ export const toEventInputs = (
       (assignee?.groupId ? getGroupColor(assignee.groupId) : undefined) ||
       (event.groupName ? getGroupColor(event.groupName) : ECOLAB_BLUE);
 
+    let title = event.title;
+    let groupName = event.groupName;
+    let branchName = event.branchName;
+
+    if (groupName && (groupName.startsWith('group-') || groupName.startsWith('cust-'))) {
+      groupName = '花蓮集團';
+    }
+    if (branchName && (branchName.startsWith('branch-') || branchName.startsWith('cust-'))) {
+      branchName = '花蓮分店';
+    }
+    if (
+      title &&
+      (title.includes('group-') || title.includes('branch-') || title.includes('cust-'))
+    ) {
+      title = `${groupName || '花蓮集團'} - ${branchName || '花蓮分店'}`;
+    }
+
     return {
       id: event.id,
       resourceId: event.resourceId,
-      title: event.title,
+      title,
       start: event.start,
       end,
       backgroundColor: eventColor,
@@ -160,6 +178,9 @@ export const toEventInputs = (
       extendedProps: {
         scheduleEvent: {
           ...event,
+          groupName: groupName || event.groupName,
+          branchName: branchName || event.branchName,
+          title,
           backgroundColor: eventColor,
           borderColor: eventColor,
         },

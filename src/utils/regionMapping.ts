@@ -220,3 +220,22 @@ export function isAddressInRegion(
   const detected = getRegionByAddress(addressOrText, designatedRegion);
   return detected === normTarget;
 }
+
+/** 四大責任轄區單字縮寫標籤（台北->北、新竹->竹、台中->中、台南->南，避免首字重複） */
+export const AREA_SHORT_MAP: Record<OperationalRegion, string> = {
+  台北: '北',
+  新竹: '竹',
+  台中: '中',
+  台南: '南',
+};
+
+/**
+ * 取得責任轄區之單字縮寫標籤（台北->北、新竹->竹、台中->中、台南->南）
+ * @param regionOrText 組別、地區或相關字串
+ * @returns '北' | '竹' | '中' | '南'
+ */
+export function getAreaShortLabel(regionOrText?: string): string {
+  if (!regionOrText) return '北';
+  const norm = normalizeRegion(regionOrText);
+  return AREA_SHORT_MAP[norm] || '北';
+}

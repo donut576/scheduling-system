@@ -85,15 +85,50 @@ let registryNextIndex = 0;
 
 /**
  * 取得 `groupId` 對應之顏色。
- * 若該群組識別碼尚未被指派過顏色，則從 `GROUP_COLOR_PALETTE`
- * 依「第一次出現」順序指派一個新顏色並快取起來。
+ * 若群組識別碼包含地區關鍵字（台北、新竹、台中、台南），直接對應至與地圖一致之四大責任轄區專屬色；
+ * 各班別（大夜班、早班、午班）均統一採用該地區主題色彩，不同地區才作區分。
+ * 若為自訂或未匹配之群組 ID，則從調色盤指派顏色並快取。
  *
- * 主要用於後端/模擬資料未提供 `groupColor` 欄位時之備援方案。
- *
- * @param groupId 群組識別碼
+ * @param groupId 群組識別碼或地區字串
  * @returns 指派給該群組之 hex 色碼
  */
 export function getGroupColor(groupId: string): string {
+  if (!groupId) return AREA_COLOR_MAP['台北'] || '#7a69c0';
+
+  const text = String(groupId).trim();
+  if (
+    text.includes('台北') ||
+    text.includes('taipei') ||
+    text.includes('北區') ||
+    text.includes('北組')
+  ) {
+    return AREA_COLOR_MAP['台北'] || '#7a69c0';
+  }
+  if (
+    text.includes('新竹') ||
+    text.includes('hsinchu') ||
+    text.includes('竹區') ||
+    text.includes('竹組')
+  ) {
+    return AREA_COLOR_MAP['新竹'] || '#69c0a5';
+  }
+  if (
+    text.includes('台中') ||
+    text.includes('taichung') ||
+    text.includes('中區') ||
+    text.includes('中組')
+  ) {
+    return AREA_COLOR_MAP['台中'] || '#c09569';
+  }
+  if (
+    text.includes('台南') ||
+    text.includes('tainan') ||
+    text.includes('南區') ||
+    text.includes('南組')
+  ) {
+    return AREA_COLOR_MAP['台南'] || '#c06984';
+  }
+
   const cached = groupColorRegistry.get(groupId);
   if (cached) {
     return cached;

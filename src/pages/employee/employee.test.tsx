@@ -251,7 +251,7 @@ describe('EmployeePage', () => {
       await user.click(screen.getByTitle('一般員工'));
 
       await user.click(modalComboboxes[1]!);
-      await user.click(screen.getByTitle('台北'));
+      await user.click(screen.getByTitle('台北 (北)'));
 
       await user.click(modalComboboxes[2]!);
       await user.click(screen.getByTitle('早班'));

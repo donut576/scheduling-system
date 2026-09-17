@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Card, Empty, Input, Space, Tag, Tooltip } from 'antd';
 import { LeftOutlined, RightOutlined, SearchOutlined } from '@ant-design/icons';
 import { Draggable } from '@fullcalendar/interaction';
+import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useTaskList } from '@/queries/useTaskQueries';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
@@ -504,6 +505,34 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                   ? t('task.onetime') || t('schedule.taskTypes.onetime') || '單次'
                   : t('task.esr') || t('schedule.taskTypes.esr') || 'ESR';
 
+            const matchedGroup = customerGroups.find(
+              (g) =>
+                g.id === task.groupId ||
+                g.name === task.groupName ||
+                g.branches.some((b) => b.id === task.branchId),
+            );
+            const matchedBranch =
+              matchedGroup?.branches.find(
+                (b) => b.id === task.branchId || b.name === task.branchName,
+              ) || customerGroups.flatMap((g) => g.branches).find((b) => b.id === task.branchId);
+
+            const displayGroupName =
+              (matchedGroup?.name && !matchedGroup.name.startsWith('group-')
+                ? matchedGroup.name
+                : undefined) ||
+              (task.groupName && !task.groupName.startsWith('group-')
+                ? task.groupName
+                : undefined) ||
+              '花蓮集團';
+            const displayBranchName =
+              (matchedBranch?.name && !matchedBranch.name.startsWith('branch-')
+                ? matchedBranch.name
+                : undefined) ||
+              (task.branchName && !task.branchName.startsWith('branch-')
+                ? task.branchName
+                : undefined) ||
+              '花蓮分店';
+
             return (
               <Card
                 key={task.id}
@@ -546,9 +575,9 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                       textOverflow: 'ellipsis',
                       flex: 1,
                     }}
-                    title={`${task.groupName} - ${task.branchName}`}
+                    title={`${displayGroupName} - ${displayBranchName}`}
                   >
-                    {task.groupName} · {task.branchName}
+                    {displayGroupName} · {displayBranchName}
                   </div>
                   <Space size={4} style={{ flexShrink: 0 }}>
                     {task.isMakeup && (
@@ -600,6 +629,20 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                       }}
                     >
                       📅 待排日期
+                    </Tag>
+                  ) : dayjs(task.date).isBefore(dayjs(), 'day') ? (
+                    <Tag
+                      color="error"
+                      style={{
+                        margin: 0,
+                        fontSize: 11,
+                        lineHeight: '20px',
+                        padding: '0 6px',
+                        fontWeight: 600,
+                        borderRadius: 4,
+                      }}
+                    >
+                      🚨 逾期 (原 {task.date})
                     </Tag>
                   ) : (
                     <span style={{ fontSize: 12, color: '#595959', fontWeight: 500 }}>

@@ -8,6 +8,7 @@ import type {
   TaskContent,
   TaskType,
   TaskStatus,
+  RecurrenceRule,
 } from '@/types/task';
 import type { Employee } from '@/types/employee';
 import type { Customer, CustomerGroup, CustomerBranch, PendingCustomer } from '@/types/customer';
@@ -2085,6 +2086,16 @@ function persistStorage<T>(key: string, data: T): void {
 mockCustomerGroups = loadStorage(STORAGE_KEYS.CUSTOMER_GROUPS, mockCustomerGroups);
 mockCustomers = loadStorage(STORAGE_KEYS.CUSTOMERS, mockCustomers);
 
+// 清理 mockCustomerGroups 中若有的流水號名稱
+mockCustomerGroups = mockCustomerGroups.map((g) => {
+  const gName = g.name && !g.name.startsWith('group-') ? g.name : '花蓮集團';
+  const branches = g.branches.map((b) => ({
+    ...b,
+    name: b.name && !b.name.startsWith('branch-') ? b.name : '花蓮分店',
+  }));
+  return { ...g, name: gName, branches };
+});
+
 // 合併基本測試用員工與額外的 demo 員工，供指派員工下拉選單等端點使用（並補齊新增的員工資料）
 let mockEmployees: Employee[] = (() => {
   const base = [mockEmployee, ...demoEmployees];
@@ -2117,14 +2128,32 @@ const resolveAssignees = (employeeIds: string[]): TaskAssignee[] =>
     .map((emp) => ({ employeeId: emp.id, employeeName: emp.name, licenses: emp.licenses }));
 
 /** 依集團/分店 id 查出對應的名稱；優先比對集團/分店資料庫，若缺少則嘗試由客戶記錄修復 */
-const resolveGroupBranchNames = (groupId: string, branchId: string) => {
-  const group = mockCustomerGroups.find((g) => g.id === groupId);
-  const branch = group?.branches.find((b) => b.id === branchId);
-  const groupHasValidName = group?.name && !group.name.startsWith('group-');
-  const branchHasValidName = branch?.name && !branch.name.startsWith('branch-');
+const resolveGroupBranchNames = (groupId?: string, branchId?: string) => {
+  if (!groupId && !branchId) return { groupName: '花蓮集團', branchName: '花蓮分店' };
+
+  let group = mockCustomerGroups.find((g) => g.id === groupId || (g.name && g.name === groupId));
+  let branch = group?.branches.find((b) => b.id === branchId || (b.name && b.name === branchId));
+
+  if (!branch && branchId) {
+    for (const g of mockCustomerGroups) {
+      const b = g.branches.find((br) => br.id === branchId || (br.name && br.name === branchId));
+      if (b) {
+        branch = b;
+        if (!group) group = g;
+        break;
+      }
+    }
+  }
+
+  const groupHasValidName = Boolean(
+    group?.name && !group.name.startsWith('group-') && !group.name.startsWith('cust-'),
+  );
+  const branchHasValidName = Boolean(
+    branch?.name && !branch.name.startsWith('branch-') && !branch.name.startsWith('cust-'),
+  );
 
   if (groupHasValidName && branchHasValidName) {
-    return { groupName: group.name, branchName: branch.name };
+    return { groupName: group!.name, branchName: branch!.name };
   }
 
   const cust = mockCustomers.find(
@@ -2132,20 +2161,30 @@ const resolveGroupBranchNames = (groupId: string, branchId: string) => {
       c.groupId === groupId ||
       c.branchId === branchId ||
       c.id === branchId ||
-      c.id === `cust-${branchId}`,
+      c.id === `cust-${branchId}` ||
+      (c.groupName && c.groupName === groupId) ||
+      (c.branchName && c.branchName === branchId),
   );
 
   const groupName = groupHasValidName
-    ? group.name
+    ? group!.name
     : cust?.groupName && !cust.groupName.startsWith('group-')
       ? cust.groupName
-      : (group?.name ?? groupId);
+      : group?.name && !group.name.startsWith('group-')
+        ? group.name
+        : groupId && !groupId.startsWith('group-')
+          ? groupId
+          : '花蓮集團';
 
   const branchName = branchHasValidName
-    ? branch.name
+    ? branch!.name
     : cust?.branchName && !cust.branchName.startsWith('branch-')
       ? cust.branchName
-      : (branch?.name ?? branchId);
+      : branch?.name && !branch.name.startsWith('branch-')
+        ? branch.name
+        : branchId && !branchId.startsWith('branch-')
+          ? branchId
+          : '花蓮分店';
 
   // 若發現新集團/分店，動態補入 mockCustomerGroups 以確保前端所有下拉選單一致
   if (groupId && !group && (groupName !== groupId || cust)) {
@@ -2171,7 +2210,7 @@ const resolveGroupBranchNames = (groupId: string, branchId: string) => {
   } else if (group && branchId && !branch && branchName !== branchId) {
     group.branches.push({
       id: branchId,
-      groupId,
+      groupId: groupId || group.id,
       name: branchName,
       address: cust?.address || '',
       contactName: cust?.contactName || '現場負責人',
@@ -3647,6 +3686,22 @@ let mockScheduleEvents: ScheduleEvent[] = loadStorage(
   defaultScheduleEvents,
 );
 
+// 清理 mockScheduleEvents 中的流水號名稱
+mockScheduleEvents = mockScheduleEvents.map((e) => {
+  const { groupName, branchName } = resolveGroupBranchNames(
+    e.groupName,
+    e.resourceId || e.branchName,
+  );
+  const cleanG = e.groupName && !e.groupName.startsWith('group-') ? e.groupName : groupName;
+  const cleanB = e.branchName && !e.branchName.startsWith('branch-') ? e.branchName : branchName;
+  return {
+    ...e,
+    groupName: cleanG,
+    branchName: cleanB,
+    title: `${cleanG} - ${cleanB}`,
+  };
+});
+
 const getCustomerScheduleResources = (
   targetArea?: string,
   targetGroupId?: string,
@@ -4236,25 +4291,32 @@ export const handlers = [
     // 將 mockTasks 中已排班的任務動態轉為 ScheduleEvent 並與 mockScheduleEvents 合併去重
     const taskEvents: ScheduleEvent[] = mockTasks
       .filter((t) => (t.status === 'SCHEDULED' || t.status === 'MODIFIED') && t.date && t.startTime)
-      .map((t) => ({
-        id: `event-${t.id}`,
-        taskId: t.id,
-        resourceId: t.branchId,
-        title: `${t.groupName} - ${t.branchName}`,
-        start: `${t.date}T${t.startTime}:00+08:00`,
-        end: `${t.date}T${t.endTime || '16:00'}:00+08:00`,
-        groupName: t.groupName,
-        branchName: t.branchName,
-        alertStatus: t.alertStatus || 'CLEAN',
-        isRecurring: Boolean(t.recurrenceRule),
-        isOvernight: t.isOvernight,
-        extendedProps: {
-          taskType: t.taskType,
-          shift: t.shift,
-          assignees: t.assignees || [],
-          contents: t.contents || [],
-        },
-      }));
+      .map((t) => {
+        const { groupName, branchName } = resolveGroupBranchNames(t.groupId, t.branchId);
+        const resolvedGroupName =
+          t.groupName && !t.groupName.startsWith('group-') ? t.groupName : groupName;
+        const resolvedBranchName =
+          t.branchName && !t.branchName.startsWith('branch-') ? t.branchName : branchName;
+        return {
+          id: `event-${t.id}`,
+          taskId: t.id,
+          resourceId: t.branchId,
+          title: `${resolvedGroupName} - ${resolvedBranchName}`,
+          start: `${t.date}T${t.startTime}:00+08:00`,
+          end: `${t.date}T${t.endTime || '16:00'}:00+08:00`,
+          groupName: resolvedGroupName,
+          branchName: resolvedBranchName,
+          alertStatus: t.alertStatus || 'CLEAN',
+          isRecurring: Boolean(t.recurrenceRule),
+          isOvernight: t.isOvernight,
+          extendedProps: {
+            taskType: t.taskType,
+            shift: t.shift,
+            assignees: t.assignees || [],
+            contents: t.contents || [],
+          },
+        };
+      });
 
     const combinedEvents = [
       ...mockScheduleEvents,
@@ -4408,21 +4470,115 @@ export const handlers = [
     const targetStart = dayjs(targetStartDate);
     const dayOffset = targetStart.diff(sourceStart, 'day');
 
-    // 找出來源區間內的已排班任務
-    const sourceTasks = mockTasks.filter((t) => {
-      if (!t.date || t.status === 'CANCELLED' || t.status === 'UNSCHEDULED') return false;
-      if (t.date < sourceStartDate || t.date > sourceEndDate) return false;
-      if (taskTypes.length > 0 && !taskTypes.includes(t.taskType)) return false;
+    // 聚合來源區間內的所有排班事件與任務（去重以 taskId 或 id 為準）
+    const candidateTasks: Array<{
+      id: string;
+      date: string;
+      startTime: string;
+      endTime: string;
+      groupId: string;
+      groupName: string;
+      branchId: string;
+      branchName: string;
+      taskType: TaskType;
+      shift: ShiftType;
+      contents: TaskContent[];
+      headcount: number;
+      remarks?: string;
+      route?: string;
+      isOvernight: boolean;
+      recurrenceRule?: RecurrenceRule;
+      assignees: TaskAssignee[];
+    }> = [];
+
+    const seenTaskIds = new Set<string>();
+
+    // 1. 從 mockTasks 收集符合來源日期的任務
+    mockTasks.forEach((t) => {
+      if (!t.date || t.status === 'CANCELLED') return;
+      if (t.date < sourceStartDate || t.date > sourceEndDate) return;
+      if (taskTypes && taskTypes.length > 0 && !taskTypes.includes(t.taskType)) return;
       if (employeeIds && employeeIds.length > 0) {
         const hasMatchingEmp = t.assignees?.some((a) => employeeIds.includes(a.employeeId));
-        if (!hasMatchingEmp) return false;
+        if (!hasMatchingEmp) return;
       }
       if (area) {
-        const matchingEmps = mockEmployees.filter((e) => e.area === area).map((e) => e.id);
-        const hasMatchingEmp = t.assignees?.some((a) => matchingEmps.includes(a.employeeId));
-        if (!hasMatchingEmp) return false;
+        const hasMatchingEmp = t.assignees?.some(
+          (a) => a.area === area || mockEmployees.find((e) => e.id === a.employeeId)?.area === area,
+        );
+        const isBranchMatch = isAddressInRegion(t.branchName, area);
+        if (!hasMatchingEmp && !isBranchMatch) return;
       }
-      return true;
+
+      seenTaskIds.add(t.id);
+      candidateTasks.push({
+        id: t.id,
+        date: t.date,
+        startTime: t.startTime || '09:00',
+        endTime: t.endTime || '17:00',
+        groupId: t.groupId,
+        groupName: t.groupName,
+        branchId: t.branchId,
+        branchName: t.branchName,
+        taskType: t.taskType,
+        shift: t.shift,
+        contents: t.contents || ['P'],
+        headcount: t.headcount || 1,
+        remarks: t.remarks,
+        route: t.route,
+        isOvernight: t.isOvernight,
+        recurrenceRule: t.recurrenceRule,
+        assignees: t.assignees || [],
+      });
+    });
+
+    // 2. 從 mockScheduleEvents 收集來源區間的排班事件（若尚未在 mockTasks 中加入）
+    mockScheduleEvents.forEach((e) => {
+      const eventDate = e.start.split('T')[0] ?? '';
+      if (eventDate < sourceStartDate || eventDate > sourceEndDate) return;
+      if (seenTaskIds.has(e.taskId)) return;
+
+      const taskType = e.extendedProps?.taskType || 'CONTRACT';
+      if (taskTypes && taskTypes.length > 0 && !taskTypes.includes(taskType)) return;
+
+      const assignees = e.extendedProps?.assignees || [];
+      if (employeeIds && employeeIds.length > 0) {
+        const hasMatchingEmp = assignees.some((a) => employeeIds.includes(a.employeeId));
+        if (!hasMatchingEmp) return;
+      }
+      if (area) {
+        const hasMatchingEmp = assignees.some(
+          (a) =>
+            a.area === area || mockEmployees.find((emp) => emp.id === a.employeeId)?.area === area,
+        );
+        const isBranchMatch = isAddressInRegion(e.branchName, area);
+        if (!hasMatchingEmp && !isBranchMatch) return;
+      }
+
+      seenTaskIds.add(e.taskId);
+      const startTime = e.start.split('T')[1]?.slice(0, 5) || '09:00';
+      const endTime = e.end.split('T')[1]?.slice(0, 5) || '17:00';
+      const matchingTask = mockTasks.find((t) => t.id === e.taskId);
+
+      candidateTasks.push({
+        id: e.taskId,
+        date: eventDate,
+        startTime,
+        endTime,
+        groupId: matchingTask?.groupId || 'group-001',
+        groupName: e.groupName || matchingTask?.groupName || '客戶集團',
+        branchId: e.resourceId || matchingTask?.branchId || 'branch-001',
+        branchName: e.branchName || matchingTask?.branchName || '分店',
+        taskType,
+        shift: e.extendedProps?.shift || '早班',
+        contents: e.extendedProps?.contents || ['P'],
+        headcount: e.extendedProps?.headcount || matchingTask?.headcount || 1,
+        remarks: matchingTask?.remarks,
+        route: matchingTask?.route,
+        isOvernight: e.isOvernight,
+        recurrenceRule: matchingTask?.recurrenceRule,
+        assignees,
+      });
     });
 
     let copiedCount = 0;
@@ -4430,42 +4586,58 @@ export const handlers = [
     const newTasks: Task[] = [];
     const newScheduleEvents: ScheduleEvent[] = [];
 
-    sourceTasks.forEach((st) => {
+    candidateTasks.forEach((st) => {
       const originalDate = dayjs(st.date);
       const newDateStr = originalDate.add(dayOffset, 'day').format('YYYY-MM-DD');
 
-      // 衝突檢核：若非覆蓋模式，且目標員工在該時段已有任務
+      // 衝突檢核：若非覆蓋模式，且目標地點在該時段已有任務
       if (!overwrite) {
-        const hasConflict = mockTasks.some((existing) => {
-          if (
-            existing.date !== newDateStr ||
-            existing.status === 'CANCELLED' ||
-            existing.status === 'UNSCHEDULED'
-          )
-            return false;
-          // 若有相同員工在重疊時段
-          const commonEmp = existing.assignees?.some((ea) =>
-            st.assignees?.some((sa) => sa.employeeId === ea.employeeId),
+        const hasDuplicate = mockTasks.some((existing) => {
+          if (existing.date !== newDateStr || existing.status === 'CANCELLED') return false;
+          return (
+            existing.branchId === st.branchId &&
+            existing.startTime === st.startTime &&
+            existing.endTime === st.endTime
           );
-          if (commonEmp && existing.startTime === st.startTime) return true;
-          return false;
         });
 
-        if (hasConflict) {
+        if (hasDuplicate) {
           skippedCount++;
           return;
         }
       }
 
       const newTaskId = `task-copy-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      const { groupName, branchName } = resolveGroupBranchNames(st.groupId, st.branchId);
+      const resolvedGroupName =
+        st.groupName && !st.groupName.startsWith('group-') ? st.groupName : groupName;
+      const resolvedBranchName =
+        st.branchName && !st.branchName.startsWith('branch-') ? st.branchName : branchName;
+
       const newTask: Task = {
-        ...st,
         id: newTaskId,
+        groupId: st.groupId,
+        groupName: resolvedGroupName,
+        branchId: st.branchId,
+        branchName: resolvedBranchName,
+        taskType: st.taskType,
         date: newDateStr,
-        status: 'SCHEDULED',
+        startTime: st.startTime,
+        endTime: st.endTime,
+        isOvernight: st.isOvernight,
+        headcount: st.headcount,
+        shift: st.shift,
+        route: st.route || '',
+        contents: st.contents,
+        assignees: [], // 複製過去基本日期、地點和時間訂好，人員先留空
+        remarks: st.remarks,
+        recurrenceRule: st.recurrenceRule,
+        status: 'UNSCHEDULED', // 人員留空後為待排班狀態
         alertStatus: 'CLEAN',
+        createdBy: 'emp-001',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        isFromPending: false,
       };
 
       newTasks.push(newTask);
@@ -4473,18 +4645,18 @@ export const handlers = [
         id: `event-${newTaskId}`,
         taskId: newTaskId,
         resourceId: newTask.branchId,
-        title: `${newTask.groupName} - ${newTask.branchName}`,
-        start: `${newDateStr}T${newTask.startTime}:00+08:00`,
-        end: `${newDateStr}T${newTask.endTime || '16:00'}:00+08:00`,
-        groupName: newTask.groupName,
-        branchName: newTask.branchName,
+        title: `${resolvedGroupName} - ${resolvedBranchName}`,
+        start: `${newDateStr}T${newTask.startTime || '09:00'}:00+08:00`,
+        end: `${newDateStr}T${newTask.endTime || '18:00'}:00+08:00`,
+        groupName: resolvedGroupName,
+        branchName: resolvedBranchName,
         alertStatus: 'CLEAN',
         isRecurring: Boolean(newTask.recurrenceRule),
         isOvernight: newTask.isOvernight,
         extendedProps: {
           taskType: newTask.taskType,
           shift: newTask.shift,
-          assignees: newTask.assignees || [],
+          assignees: [],
           contents: newTask.contents || [],
           headcount: newTask.headcount,
           remarks: newTask.remarks,
@@ -4499,6 +4671,7 @@ export const handlers = [
     mockTasks = [...newTasks, ...mockTasks];
     mockScheduleEvents = [...newScheduleEvents, ...mockScheduleEvents];
     persistStorage(STORAGE_KEYS.TASKS, mockTasks);
+    persistStorage(STORAGE_KEYS.SCHEDULE_EVENTS, mockScheduleEvents);
 
     return HttpResponse.json(
       ok<CopyScheduleResult>({

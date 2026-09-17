@@ -10,6 +10,7 @@ import {
   getGroupColor,
   resetGroupColorRegistry,
   GROUP_COLOR_PALETTE,
+  AREA_COLOR_MAP,
 } from './groupColor';
 
 /**
@@ -95,6 +96,25 @@ describe('Property 21: 群組色彩唯一性', () => {
         }),
         { numRuns: 100 },
       );
+    });
+
+    it('各地區員工（不論早班/大夜班）均直接對應至與地圖一致之地區主題色彩', () => {
+      expect(getGroupColor('台北')).toBe(AREA_COLOR_MAP['台北']);
+      expect(getGroupColor('台北 早班')).toBe(AREA_COLOR_MAP['台北']);
+      expect(getGroupColor('台北 大夜班')).toBe(AREA_COLOR_MAP['台北']);
+      expect(getGroupColor('taipei-morning')).toBe(AREA_COLOR_MAP['台北']);
+
+      expect(getGroupColor('新竹')).toBe(AREA_COLOR_MAP['新竹']);
+      expect(getGroupColor('新竹 早班')).toBe(AREA_COLOR_MAP['新竹']);
+      expect(getGroupColor('新竹 大夜班')).toBe(AREA_COLOR_MAP['新竹']);
+
+      expect(getGroupColor('台中')).toBe(AREA_COLOR_MAP['台中']);
+      expect(getGroupColor('台中 早班')).toBe(AREA_COLOR_MAP['台中']);
+      expect(getGroupColor('台中 大夜班')).toBe(AREA_COLOR_MAP['台中']);
+
+      expect(getGroupColor('台南')).toBe(AREA_COLOR_MAP['台南']);
+      expect(getGroupColor('台南 早班')).toBe(AREA_COLOR_MAP['台南']);
+      expect(getGroupColor('台南 大夜班')).toBe(AREA_COLOR_MAP['台南']);
     });
   });
 });

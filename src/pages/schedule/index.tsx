@@ -515,6 +515,14 @@ const SchedulePage: FC = () => {
               : '大夜班';
       }
 
+      const isPastDate = Boolean(task.date && dayjs(task.date).isBefore(dayjs(), 'day'));
+      const isReschedulingToFuture = isPastDate && targetDate !== task.date;
+      const isMakeup = Boolean(task.isMakeup || isReschedulingToFuture);
+      const originalDate = isReschedulingToFuture
+        ? task.originalDate || task.date
+        : task.originalDate;
+      const makeupReason = isReschedulingToFuture ? '逾期改期補做' : task.makeupReason;
+
       try {
         await updateTaskMutation.mutateAsync({
           id: taskId,
@@ -532,6 +540,9 @@ const SchedulePage: FC = () => {
             otherContentNote: task.otherContentNote,
             assignees: newAssigneeIds,
             remarks: task.remarks,
+            isMakeup,
+            originalDate,
+            makeupReason,
             isFromPending: true,
             status: newStatus,
           },
@@ -779,9 +790,66 @@ const SchedulePage: FC = () => {
       ? formatTaskContents(selectedEvent.extendedProps.contents, ', ', t)
       : '-';
 
+    const cleanName = (name?: string) => {
+      if (
+        !name ||
+        name.startsWith('group-') ||
+        name.startsWith('branch-') ||
+        name.startsWith('cust-')
+      )
+        return '';
+      return name;
+    };
+
+    const matchedGroup = customerGroups?.find(
+      (g) =>
+        g.id === selectedEvent.groupName ||
+        g.id === selectedEvent.resourceId ||
+        g.id === taskDetail?.groupId ||
+        g.name === selectedEvent.groupName ||
+        g.branches.some(
+          (b) =>
+            b.id === selectedEvent.branchName ||
+            b.id === selectedEvent.resourceId ||
+            b.id === taskDetail?.branchId,
+        ),
+    );
+    const matchedBranch =
+      matchedGroup?.branches.find(
+        (b) =>
+          b.id === selectedEvent.branchName ||
+          b.id === selectedEvent.resourceId ||
+          b.id === taskDetail?.branchId ||
+          b.name === selectedEvent.branchName,
+      ) ||
+      customerGroups
+        ?.flatMap((g) => g.branches)
+        .find(
+          (b) =>
+            b.id === selectedEvent.branchName ||
+            b.id === selectedEvent.resourceId ||
+            b.id === taskDetail?.branchId,
+        );
+
+    const titleParts = selectedEvent.title?.includes(' - ') ? selectedEvent.title.split(' - ') : [];
+
+    const displayGroupName =
+      cleanName(matchedGroup?.name) ||
+      cleanName(taskDetail?.groupName) ||
+      cleanName(selectedEvent.groupName) ||
+      cleanName(titleParts[0]) ||
+      '花蓮集團';
+
+    const displayBranchName =
+      cleanName(matchedBranch?.name) ||
+      cleanName(taskDetail?.branchName) ||
+      cleanName(selectedEvent.branchName) ||
+      cleanName(titleParts[1]) ||
+      '花蓮分店';
+
     return {
-      groupName: selectedEvent.groupName,
-      branchName: selectedEvent.branchName,
+      groupName: displayGroupName,
+      branchName: displayBranchName,
       taskType: selectedEvent.extendedProps.taskType,
       date: dayjs(selectedEvent.start).format('YYYY-MM-DD'),
       startTime: startTimeStr,
@@ -793,7 +861,15 @@ const SchedulePage: FC = () => {
       contents: contentsStr,
       isRecurring: selectedEvent.isRecurring,
     };
-  }, [selectedEvent, t]);
+  }, [
+    customerGroups,
+    selectedEvent,
+    t,
+    taskDetail?.branchId,
+    taskDetail?.branchName,
+    taskDetail?.groupId,
+    taskDetail?.groupName,
+  ]);
 
   const renderEventDetail = useCallback(
     (event: ScheduleEvent) => {
@@ -1312,7 +1388,7 @@ const SchedulePage: FC = () => {
                 </div>
               </Space>
 
-              {/* 複製班表按鈕：僅具備排班編輯權限者可操作 */}
+              {/* 複製班表按鈕：僅具備排班編輯權限者（組長/管理員）可操作 */}
               {hasScheduleEdit && (
                 <Button
                   icon={<CopyOutlined />}
@@ -1320,12 +1396,15 @@ const SchedulePage: FC = () => {
                   aria-label="copy-schedule-btn"
                   style={{
                     borderRadius: 6,
-                    fontWeight: 500,
+                    fontWeight: 600,
                     flexShrink: 0,
                     marginLeft: 16,
+                    borderColor: '#13c2c2',
+                    color: '#08979c',
+                    backgroundColor: '#e6fffb',
                   }}
                 >
-                  {t('schedule.copySchedule') || '複製班表'}
+                  {t('schedule.copySchedule') || '一鍵複製班表'}
                 </Button>
               )}
             </div>
@@ -1709,6 +1788,18 @@ const SchedulePage: FC = () => {
         open={copyModalOpen}
         onCancel={() => setCopyModalOpen(false)}
         defaultSourceRange={dateRange}
+        onSuccess={(result) => {
+          if (result.copiedCount > 0 && result.tasks[0]?.date) {
+            const firstDate = result.tasks[0].date;
+            const lastDate = result.tasks[result.tasks.length - 1]?.date || firstDate;
+            if (currentView === 'day') {
+              setDateRange({ start: firstDate, end: firstDate });
+            } else {
+              setDateRange({ start: firstDate, end: lastDate });
+            }
+            setUnscheduledCollapsed(false);
+          }
+        }}
       />
     </div>
   );

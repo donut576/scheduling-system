@@ -4,6 +4,7 @@ import {
   REGION_COUNTIES_MAP,
   getRegionByAddress,
   isAddressInRegion,
+  getAreaShortLabel,
 } from './regionMapping';
 
 describe('regionMapping (台灣22縣市與責任轄區對應)', () => {
@@ -67,6 +68,33 @@ describe('regionMapping (台灣22縣市與責任轄區對應)', () => {
 
     it('returns true when manager explicitly designates the task to this region', () => {
       expect(isAddressInRegion('花蓮縣花蓮市', '新竹', '新竹')).toBe(true);
+    });
+  });
+
+  describe('getAreaShortLabel', () => {
+    it('returns "北" for Taipei region strings', () => {
+      expect(getAreaShortLabel('台北')).toBe('北');
+      expect(getAreaShortLabel('台北組')).toBe('北');
+      expect(getAreaShortLabel('台北 早班')).toBe('北');
+      expect(getAreaShortLabel('taipei')).toBe('北');
+    });
+
+    it('returns "竹" for Hsinchu region strings', () => {
+      expect(getAreaShortLabel('新竹')).toBe('竹');
+      expect(getAreaShortLabel('新竹組')).toBe('竹');
+      expect(getAreaShortLabel('hsinchu')).toBe('竹');
+    });
+
+    it('returns "中" for Taichung region strings', () => {
+      expect(getAreaShortLabel('台中')).toBe('中');
+      expect(getAreaShortLabel('台中組')).toBe('中');
+      expect(getAreaShortLabel('taichung')).toBe('中');
+    });
+
+    it('returns "南" for Tainan region strings', () => {
+      expect(getAreaShortLabel('台南')).toBe('南');
+      expect(getAreaShortLabel('台南組')).toBe('南');
+      expect(getAreaShortLabel('tainan')).toBe('南');
     });
   });
 });

@@ -5,9 +5,11 @@ import {
   Avatar,
   Button,
   Card,
+  Col,
   Form,
   Input,
   Radio,
+  Row,
   Select,
   Space,
   Tag,
@@ -35,7 +37,7 @@ import { PERMISSIONS } from '@/constants/permissions';
 import { hasLicenseConflict, hasOnlyPestControlLicense } from '@/utils/licenseValidation';
 import { getGroupColor } from '@/utils/groupColor';
 import { formatPhone } from '@/utils/format';
-import { normalizeRegion } from '@/utils/regionMapping';
+import { normalizeRegion, getAreaShortLabel } from '@/utils/regionMapping';
 import type { EmployeeFormData, EmployeeListParams } from '@/api/employee';
 import { LEAVE_TYPE_MAP, type Employee } from '@/types/employee';
 import type { LicenseType } from '@/types/alert';
@@ -596,10 +598,10 @@ const EmployeePage: FC = () => {
 
   const localizedAreaOptions = useMemo(
     () => [
-      { label: t('employee.areas.taipei'), value: '台北' },
-      { label: t('employee.areas.hsinchu'), value: '新竹' },
-      { label: t('employee.areas.taichung'), value: '台中' },
-      { label: t('employee.areas.tainan'), value: '台南' },
+      { label: `${t('employee.areas.taipei')} (北)`, value: '台北' },
+      { label: `${t('employee.areas.hsinchu')} (竹)`, value: '新竹' },
+      { label: `${t('employee.areas.taichung')} (中)`, value: '台中' },
+      { label: `${t('employee.areas.tainan')} (南)`, value: '台南' },
     ],
     [t],
   );
@@ -733,8 +735,19 @@ const EmployeePage: FC = () => {
           <Card
             title={
               <Space>
-                <Avatar style={{ backgroundColor: '#1677ff' }}>{user?.name?.[0] || '員'}</Avatar>
+                <Avatar
+                  style={{ backgroundColor: getGroupColor(currentStaffEmployee?.area || '台北') }}
+                >
+                  {getAreaShortLabel(currentStaffEmployee?.area || '台北')}
+                </Avatar>
                 <span style={{ fontSize: 16, fontWeight: 700 }}>員工個人資料</span>
+                <Tag
+                  color={getGroupColor(currentStaffEmployee?.area || '台北')}
+                  style={{ fontWeight: 700, marginInlineStart: 4 }}
+                >
+                  {getAreaShortLabel(currentStaffEmployee?.area || '台北')} ·{' '}
+                  {currentStaffEmployee?.area || '台北'}組
+                </Tag>
               </Space>
             }
             style={{ borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}
@@ -766,14 +779,18 @@ const EmployeePage: FC = () => {
                 <Select disabled options={localizedPositionOptions} />
               </Form.Item>
               <Form.Item label={t('employee.group')} style={{ marginBottom: 16 }}>
-                <Space style={{ width: '100%', display: 'flex' }} size={8}>
-                  <Form.Item name="area" noStyle>
-                    <Select disabled options={localizedAreaOptions} style={{ width: '50%' }} />
-                  </Form.Item>
-                  <Form.Item name="shift" noStyle>
-                    <Select disabled options={localizedShiftOptions} style={{ width: '50%' }} />
-                  </Form.Item>
-                </Space>
+                <Row gutter={12}>
+                  <Col span={12}>
+                    <Form.Item name="area" noStyle>
+                      <Select disabled options={localizedAreaOptions} style={{ width: '100%' }} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item name="shift" noStyle>
+                      <Select disabled options={localizedShiftOptions} style={{ width: '100%' }} />
+                    </Form.Item>
+                  </Col>
+                </Row>
               </Form.Item>
 
               <Form.Item label={t('employee.designatedLeave')}>
@@ -933,30 +950,34 @@ const EmployeePage: FC = () => {
             />
           </Form.Item>
           <Form.Item label={t('employee.group')} required style={{ marginBottom: 16 }}>
-            <Space style={{ width: '100%', display: 'flex' }} size={8}>
-              <Form.Item
-                name="area"
-                noStyle
-                rules={[{ required: true, message: t('employee.groupRequired') }]}
-              >
-                <Select
-                  placeholder={t('employee.groupPlaceholder')}
-                  options={localizedAreaOptions}
-                  style={{ width: 260 }}
-                />
-              </Form.Item>
-              <Form.Item
-                name="shift"
-                noStyle
-                rules={[{ required: true, message: t('task.shiftRequired') }]}
-              >
-                <Select
-                  placeholder={t('task.shiftPlaceholder')}
-                  options={localizedShiftOptions}
-                  style={{ width: 260 }}
-                />
-              </Form.Item>
-            </Space>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item
+                  name="area"
+                  noStyle
+                  rules={[{ required: true, message: t('employee.groupRequired') }]}
+                >
+                  <Select
+                    placeholder={t('employee.groupPlaceholder')}
+                    options={localizedAreaOptions}
+                    style={{ width: '100%' }}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="shift"
+                  noStyle
+                  rules={[{ required: true, message: t('task.shiftRequired') }]}
+                >
+                  <Select
+                    placeholder={t('task.shiftPlaceholder')}
+                    options={localizedShiftOptions}
+                    style={{ width: '100%' }}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
           </Form.Item>
 
           <Form.Item label={t('employee.designatedLeave')}>

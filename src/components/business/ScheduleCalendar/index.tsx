@@ -6,7 +6,7 @@ import resourceTimelinePlugin from '@fullcalendar/resource-timeline';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Popover } from 'antd';
+import { Popover, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { ScheduleDimension, ScheduleEvent, ScheduleFilters } from '@/types/schedule';
@@ -14,6 +14,8 @@ import type { Task } from '@/types/task';
 import { useScheduleData } from '@/queries/useScheduleQueries';
 import { useUserStore } from '@/stores/useUserStore';
 import { isHoliday } from '@/utils/date';
+import { getGroupColor } from '@/utils/groupColor';
+import { getAreaShortLabel } from '@/utils/regionMapping';
 import AlertBadge from '@/components/business/AlertBadge';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { toResourceInputs, toEventInputs } from './adapters';
@@ -674,60 +676,81 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   );
 
   // 資源標籤渲染（支援一般兩行設計）
-  const renderResourceLabelContent = useCallback((arg: ResourceLabelContentArg) => {
-    const ext = arg.resource.extendedProps as
-      { mainTitle?: string; subTitle?: string; isSelf?: boolean } | undefined;
-    const mainTitle = ext?.mainTitle || arg.resource.title;
-    const subTitle = ext?.subTitle;
-    const isSelf = ext?.isSelf || false;
+  const renderResourceLabelContent = useCallback(
+    (arg: ResourceLabelContentArg) => {
+      const ext = arg.resource.extendedProps as
+        | { mainTitle?: string; subTitle?: string; isSelf?: boolean; groupColor?: string }
+        | undefined;
+      const mainTitle = ext?.mainTitle || arg.resource.title;
+      const subTitle = ext?.subTitle;
+      const isSelf = ext?.isSelf || false;
+      const areaShort = subTitle ? getAreaShortLabel(subTitle) : undefined;
+      const groupColor = ext?.groupColor || (subTitle ? getGroupColor(subTitle) : '#1677ff');
 
-    return (
-      <div
-        aria-label={arg.resource.title}
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          padding: '4px 6px',
-          lineHeight: 1.3,
-          overflow: 'hidden',
-          backgroundColor: isSelf ? '#f0f7ff' : 'transparent',
-          borderRadius: 4,
-        }}
-      >
-        <span style={{ display: 'none' }}>{arg.resource.title}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-          <span
-            style={{
-              fontWeight: 700,
-              color: isSelf ? '#0958d9' : '#1f1f1f',
-              fontSize: '13px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {mainTitle}
-          </span>
+      return (
+        <div
+          aria-label={arg.resource.title}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            padding: '4px 6px',
+            lineHeight: 1.3,
+            overflow: 'hidden',
+            backgroundColor: isSelf ? '#f0f7ff' : 'transparent',
+            borderRadius: 4,
+          }}
+        >
+          <span style={{ display: 'none' }}>{arg.resource.title}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+            {dimension === 'employee' && areaShort && (
+              <Tag
+                color={groupColor}
+                style={{
+                  margin: 0,
+                  padding: '0 4px',
+                  fontSize: '11px',
+                  lineHeight: '18px',
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                {areaShort}
+              </Tag>
+            )}
+            <span
+              style={{
+                fontWeight: 700,
+                color: isSelf ? '#0958d9' : '#1f1f1f',
+                fontSize: '13px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {mainTitle}
+            </span>
+          </div>
+          {subTitle && (
+            <span
+              style={{
+                color: isSelf ? '#1677ff' : '#8c8c8c',
+                fontSize: '12px',
+                marginTop: '2px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                fontWeight: isSelf ? 500 : 400,
+              }}
+            >
+              {subTitle}
+            </span>
+          )}
         </div>
-        {subTitle && (
-          <span
-            style={{
-              color: isSelf ? '#1677ff' : '#8c8c8c',
-              fontSize: '12px',
-              marginTop: '2px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              fontWeight: isSelf ? 500 : 400,
-            }}
-          >
-            {subTitle}
-          </span>
-        )}
-      </div>
-    );
-  }, []);
+      );
+    },
+    [dimension],
+  );
 
   const renderResourceAreaHeader = useCallback(() => {
     if (isMobile) {

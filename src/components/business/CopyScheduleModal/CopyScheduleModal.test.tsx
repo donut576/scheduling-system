@@ -26,12 +26,12 @@ describe('CopyScheduleModal', () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByText('快速複製排班')).toBeInTheDocument();
+    expect(screen.getByText('一鍵快速複製排班')).toBeInTheDocument();
     expect(screen.getByText('來源區間')).toBeInTheDocument();
     expect(screen.getByText('目標區間')).toBeInTheDocument();
     expect(screen.getByText('下一週')).toBeInTheDocument();
     expect(screen.getByText('全體員工')).toBeInTheDocument();
-    expect(screen.getByText('開始複製')).toBeInTheDocument();
+    expect(screen.getByText('開始一鍵複製')).toBeInTheDocument();
   });
 
   it('allows clicking quick target buttons like 下一週', async () => {
