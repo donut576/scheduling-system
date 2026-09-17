@@ -215,7 +215,15 @@ function baseColumns(
       dataIndex: 'date',
       key: 'date',
       width: 140,
-      sorter: true,
+      sorter: (a, b) => {
+        if (!a.date && !b.date) return 0;
+        if (!a.date) return -1;
+        if (!b.date) return 1;
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        if (a.status === 'UNSCHEDULED' && b.status !== 'UNSCHEDULED') return -1;
+        if (a.status !== 'UNSCHEDULED' && b.status === 'UNSCHEDULED') return 1;
+        return (a.startTime || '').localeCompare(b.startTime || '');
+      },
       render: (value, record) => (
         <Space direction="vertical" size={2}>
           <span>{(value as string) || '-'}</span>

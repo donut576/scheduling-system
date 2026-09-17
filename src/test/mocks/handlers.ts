@@ -3920,6 +3920,41 @@ export const handlers = [
         );
       });
     }
+    const sortBy = url.searchParams.get('sortBy');
+    const sortOrder = url.searchParams.get('sortOrder');
+
+    if (sortBy) {
+      list.sort((a, b) => {
+        const valA = (a as unknown as Record<string, unknown>)[sortBy];
+        const valB = (b as unknown as Record<string, unknown>)[sortBy];
+        if (valA === valB) return 0;
+        if (valA == null) return 1;
+        if (valB == null) return -1;
+        const comp = String(valA).localeCompare(String(valB));
+        return sortOrder === 'descend' ? -comp : comp;
+      });
+    } else {
+      // 預設排序規則：
+      // 1. 未排班且無日期的任務置頂（無日期排最前面）
+      // 2. 有日期的任務（含待排與已排）依日期由近至遠遞增排序
+      // 3. 同日期時，未排班任務優先，再依開始時間遞增排序
+      list.sort((a, b) => {
+        if (!a.date && !b.date) {
+          return (a.createdAt || '').localeCompare(b.createdAt || '');
+        }
+        if (!a.date) return -1;
+        if (!b.date) return 1;
+
+        if (a.date !== b.date) {
+          return a.date.localeCompare(b.date);
+        }
+
+        if (a.status === 'UNSCHEDULED' && b.status !== 'UNSCHEDULED') return -1;
+        if (a.status !== 'UNSCHEDULED' && b.status === 'UNSCHEDULED') return 1;
+
+        return (a.startTime || '').localeCompare(b.startTime || '');
+      });
+    }
 
     return HttpResponse.json(ok(paginated<Task>(list, page, pageSize)));
   }),
