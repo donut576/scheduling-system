@@ -8,7 +8,7 @@ import type { ApprovalType, ApprovalStatus } from '@/types/notification';
 /** 異動核准類型對應顯示文字 */
 export const APPROVAL_TYPE_MAP: Record<ApprovalType, string> = {
   TASK_CHANGE: '任務變更',
-  ALERT_OVERRIDE: '警示覆蓋',
+  ALERT_OVERRIDE: '警示特許',
   SCHEDULE_CHANGE: '排班變更',
   SHIFT_CHANGE: '班別變更',
 };

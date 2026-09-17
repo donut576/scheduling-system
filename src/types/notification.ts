@@ -66,7 +66,7 @@ export interface Approval {
   updatedAt: string;
 }
 
-/** 異動核准類型：任務變更／警示覆蓋 */
+/** 異動核准類型：任務變更／警示特許 */
 export type ApprovalType = 'TASK_CHANGE' | 'ALERT_OVERRIDE' | 'SCHEDULE_CHANGE' | 'SHIFT_CHANGE';
 /** 異動核准狀態：待核准／已核准／已駁回／已撤回 */
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';

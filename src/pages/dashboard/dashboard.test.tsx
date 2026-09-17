@@ -90,7 +90,7 @@ const scheduleData: ScheduleData = {
         shift: 'DAY',
         assignees: [],
         contents: ['P'],
-        overrideReason: '主管王經理已核准特許覆蓋',
+        overrideReason: '主管王經理已核准特許',
       },
     },
   ],
@@ -205,7 +205,7 @@ describe('DashboardPage', () => {
       // 2 total events: 1 CLEAN + 1 OVERRIDDEN
       expect(screen.getByText('2')).toBeInTheDocument();
       expect(screen.getByText('正常 1')).toBeInTheDocument();
-      expect(screen.getByText(/已覆蓋 1/)).toBeInTheDocument();
+      expect(screen.getByText(/已特許 1/)).toBeInTheDocument();
       expect(screen.queryByText(/警示/)).not.toBeInTheDocument();
     });
 
@@ -216,9 +216,9 @@ describe('DashboardPage', () => {
       const overriddenTag = screen.getByTestId('overridden-tag');
       await user.click(overriddenTag);
 
-      expect(screen.getByText(/今日排班特許覆蓋通知/)).toBeInTheDocument();
+      expect(screen.getByText(/今日排班特許通知/)).toBeInTheDocument();
       expect(screen.getByText(/集團B - 分店B/)).toBeInTheDocument();
-      expect(screen.getByText(/主管王經理已核准特許覆蓋/)).toBeInTheDocument();
+      expect(screen.getByText(/主管王經理已核准特許/)).toBeInTheDocument();
     });
 
     it('navigates to /schedule when 查看排班總覽 link is clicked', async () => {

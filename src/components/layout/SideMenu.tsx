@@ -5,11 +5,12 @@
  * 並依目前路徑（location.pathname）標示選中狀態，點選項目時導航至對應路由。
  */
 import React from 'react';
-import { Menu } from 'antd';
+import { Badge, Menu, Space } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { usePermissionStore } from '@/stores/usePermissionStore';
 import { useUserStore } from '@/stores/useUserStore';
+import { useApprovalList } from '@/queries/useApprovalQueries';
 import type { MenuItem } from '@/types/common';
 import type { MenuProps } from 'antd';
 
@@ -29,11 +30,11 @@ const MENU_TRANSLATION_KEYS: Record<string, string> = {
 };
 
 // 將權限系統產生的 MenuItem 結構（遞迴）轉換為 Ant Design Menu 所需的 items 格式
-function mapMenuItems(items: MenuItem[]): AntMenuItem[] {
+function mapMenuItems(items: (MenuItem & { labelNode?: React.ReactNode })[]): AntMenuItem[] {
   return items.map((item) => ({
     key: item.key,
     icon: item.icon,
-    label: item.label,
+    label: item.labelNode ?? item.label,
     children: item.children ? mapMenuItems(item.children) : undefined,
   }));
 }
@@ -51,6 +52,11 @@ const SideMenu: React.FC<SideMenuProps> = ({ onNavigate }) => {
   const { menuTree } = usePermissionStore();
   const user = useUserStore((state) => state.user);
   const isStaff = user?.role === 'STAFF';
+  const isLeader = user?.role === 'LEADER';
+  const isApplicantRole = isLeader || isStaff;
+
+  const { data: pendingStatsData } = useApprovalList({ status: 'PENDING', pageSize: 1 });
+  const pendingCount = !isApplicantRole ? (pendingStatsData?.total ?? 0) : 0;
 
   // 先將選單樹的 label 依 i18n 翻譯（找不到對應 key 時 fallback 為原始 label）
   const translatedMenuTree = menuTree.map((item) => {
@@ -60,9 +66,22 @@ const SideMenu: React.FC<SideMenuProps> = ({ onNavigate }) => {
       if (item.key === '/employee') labelKey = 'menu.employeeStaff';
       if (item.key === '/notification') labelKey = 'menu.notificationStaff';
     }
+    const label = t(labelKey, item.label);
+
+    let labelNode: React.ReactNode = label;
+    if (!isApplicantRole && item.key === '/approval' && pendingCount > 0) {
+      labelNode = (
+        <Space size={6} align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <span>{label}</span>
+          <Badge count={pendingCount} size="small" style={{ backgroundColor: '#ff4d4f' }} />
+        </Space>
+      );
+    }
+
     return {
       ...item,
-      label: t(labelKey, item.label),
+      label,
+      labelNode,
     };
   });
   const items = mapMenuItems(translatedMenuTree);

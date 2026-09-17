@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import type { FC } from 'react';
 import {
   Alert,
+  Badge,
   Button,
   Card,
   Descriptions,
@@ -52,7 +53,7 @@ const APPROVAL_STATUS_KEYS: Record<string, string> = {
 
 const APPROVAL_TYPE_OPTIONS = [
   { label: '任務變更', value: 'TASK_CHANGE' },
-  { label: '警示覆蓋', value: 'ALERT_OVERRIDE' },
+  { label: '警示特許', value: 'ALERT_OVERRIDE' },
 ];
 
 const APPROVAL_STATUS_OPTIONS = [
@@ -126,7 +127,7 @@ function renderApprovalCard(
   onViewDiff: (record: Approval) => void,
   onWithdraw: (record: Approval) => void,
   t: (key: string) => string,
-  isLeader = false,
+  isApplicantRole = false,
 ) {
   const statusConfig = APPROVAL_STATUS_MAP[record.status] ?? {
     label: record.status,
@@ -136,7 +137,7 @@ function renderApprovalCard(
     record.type === 'TASK_CHANGE' ||
     record.type === 'SCHEDULE_CHANGE' ||
     record.type === 'SHIFT_CHANGE';
-  const typeLabel = isTaskChange ? '任務變更' : '警示覆蓋';
+  const typeLabel = isTaskChange ? '任務變更' : '警示特許';
   const statusLabel = t(APPROVAL_STATUS_KEYS[record.status] || record.status);
 
   return (
@@ -150,7 +151,7 @@ function renderApprovalCard(
       <Space direction="vertical" size={4} style={{ width: '100%' }}>
         <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
           <Space>
-            {record.status === 'PENDING' ? (
+            {isApplicantRole && record.status === 'PENDING' ? (
               <Button
                 type="text"
                 danger
@@ -165,15 +166,15 @@ function renderApprovalCard(
                 title="撤回申請"
                 style={{ width: 22, height: 22, padding: 0 }}
               />
-            ) : (
+            ) : isApplicantRole ? (
               <span style={{ display: 'inline-block', width: 22, height: 22 }} />
-            )}
+            ) : null}
             <Tag color="geekblue">{record.id}</Tag>
             <Tag color={statusConfig.color}>{statusLabel}</Tag>
           </Space>
           <Tag color={isTaskChange ? 'blue' : 'gold'}>{typeLabel}</Tag>
         </Space>
-        {!isLeader && (
+        {!isApplicantRole && (
           <span>
             {t('approval.requester')}：<strong>{record.requestedByName}</strong>
           </span>
@@ -201,10 +202,9 @@ function renderApprovalCard(
 }
 
 /**
- * 異動核准頁面主元件
- * - 經理／系統管理員（MANAGER / ADMIN）：負責特殊狀況特准放行（ALERT_OVERRIDE）及全域審核
- * - 排班組長（LEADER）：負責審核日常任務變更（TASK_CHANGE / 調班 / 請假）；特准放行需由經理審核
- * - 一般員工（STAFF）：追蹤個人提出之申請進度，並可一鍵撤回待審申請
+ * 異動核准 / 申請進度追蹤頁面元件
+ * - 經理／系統管理員（MANAGER / ADMIN）：負責全域案件（任務變更與警示特許）之審核與駁回
+ * - 排班組長／一般員工（LEADER / STAFF）：負責提出申請與追蹤自己組別/個人的申請進度，並可一鍵撤回待審申請
  */
 const ApprovalPage: FC = () => {
   const { t } = useTranslation();
@@ -212,18 +212,36 @@ const ApprovalPage: FC = () => {
   const userRole = user?.role;
   const isLeader = userRole === 'LEADER';
   const isStaff = userRole === 'STAFF';
+  const isApplicantRole = isLeader || isStaff;
 
-  // 只有一般員工預設過濾為自己提出的申請
-  const defaultStaffFilter = useMemo(() => {
-    if (isStaff && user?.name) return user.name;
-    if (isStaff && user?.id) return user.id;
+  // 申請發起者（組長與員工）預設過濾為自己提出的申請，經理與管理員可綜觀全台待審核案件
+  const defaultRequesterFilter = useMemo(() => {
+    if (isApplicantRole && (user?.id || user?.name)) {
+      return user.id || user.name;
+    }
     return undefined;
-  }, [isStaff, user?.id, user?.name]);
+  }, [isApplicantRole, user?.id, user?.name]);
+
+  const [managerStep, setManagerStep] = useState<'pending' | 'processed'>('pending');
+
+  // 查詢待處理案件數量（僅審核主管視角需要統計與在標籤提示紅色圓圈數字）
+  const { data: pendingStatsData } = useApprovalList({ status: 'PENDING', pageSize: 1 });
+  const pendingCount = !isApplicantRole ? (pendingStatsData?.total ?? 0) : 0;
 
   const [filters, setFilters] = useState<ApprovalListParams>({
     ...DEFAULT_PARAMS,
-    requestedBy: defaultStaffFilter,
+    requestedBy: defaultRequesterFilter,
+    status: !isApplicantRole ? 'PENDING' : undefined,
   });
+
+  const handleStepChange = useCallback((step: 'pending' | 'processed') => {
+    setManagerStep(step);
+    setFilters((prev) => ({
+      ...prev,
+      status: step === 'pending' ? 'PENDING' : undefined,
+      page: 1,
+    }));
+  }, []);
 
   const [diffModalOpen, setDiffModalOpen] = useState(false);
   const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
@@ -241,7 +259,7 @@ const ApprovalPage: FC = () => {
   const withdrawMutation = useWithdrawRequest();
   const sendNotificationMutation = useSendNotification();
 
-  // 撤回申請確認
+  // 撤回申請確認（組長與員工專屬）
   const handleWithdrawClick = useCallback(
     (record: Approval) => {
       Modal.confirm({
@@ -281,10 +299,10 @@ const ApprovalPage: FC = () => {
         name: 'keyword',
         label: t('common.keyword'),
         type: 'input',
-        placeholder: isLeader ? '輸入申請單編號' : '輸入申請單編號或申請人',
+        placeholder: isApplicantRole ? '輸入申請單編號' : '輸入申請單編號或申請人',
       },
     ],
-    [isLeader, t],
+    [isApplicantRole, t],
   );
 
   const handleSearch = useCallback((values: Record<string, unknown>) => {
@@ -293,8 +311,12 @@ const ApprovalPage: FC = () => {
   }, []);
 
   const handleResetFilters = useCallback(() => {
-    setFilters({ ...DEFAULT_PARAMS, requestedBy: defaultStaffFilter });
-  }, [defaultStaffFilter]);
+    setFilters({
+      ...DEFAULT_PARAMS,
+      requestedBy: defaultRequesterFilter,
+      status: !isApplicantRole && managerStep === 'pending' ? 'PENDING' : undefined,
+    });
+  }, [defaultRequesterFilter, isApplicantRole, managerStep]);
 
   const notifyApprovalResult = useCallback(
     (approval: Approval, approved: boolean, comment?: string) => {
@@ -417,10 +439,10 @@ const ApprovalPage: FC = () => {
       title: '申請單編號',
       dataIndex: 'id',
       key: 'id',
-      width: 170,
+      width: isApplicantRole ? 170 : 140,
       render: (value, record) => (
         <Space size={6} align="center">
-          {record.status === 'PENDING' ? (
+          {isApplicantRole && record.status === 'PENDING' ? (
             <Button
               type="text"
               danger
@@ -435,9 +457,9 @@ const ApprovalPage: FC = () => {
               title="撤回申請"
               style={{ width: 24, height: 24, padding: 0 }}
             />
-          ) : (
+          ) : isApplicantRole ? (
             <span style={{ display: 'inline-block', width: 24, height: 24 }} />
-          )}
+          ) : null}
           <Tag color="geekblue">{value as string}</Tag>
         </Space>
       ),
@@ -495,7 +517,7 @@ const ApprovalPage: FC = () => {
       width: 160,
       render: (_value, record) => formatDateTime(record.createdAt, 'YYYY-MM-DD HH:mm'),
     },
-    ...(!isLeader
+    ...(!isApplicantRole
       ? [
           {
             title: t('approval.requester'),
@@ -508,7 +530,7 @@ const ApprovalPage: FC = () => {
     {
       title: t('approval.actions'),
       key: 'actions',
-      width: 120,
+      width: 100,
       fixed: 'right',
       render: (_value, record) => (
         <Button
@@ -530,6 +552,7 @@ const ApprovalPage: FC = () => {
   return (
     <div className="approval-page">
       <style>{`
+        /* 待處理案件撤回按鈕：滑鼠 hover 資料列或卡片時平滑顯現叉叉 */
         .approval-row-withdraw-btn {
           opacity: 0;
           transition: opacity 0.18s ease-in-out;
@@ -540,6 +563,126 @@ const ApprovalPage: FC = () => {
           opacity: 1;
         }
       `}</style>
+
+      {/* 經理端專屬：流程步驟導覽列（Step 1 待審核清單 ➔ Step 2 已處理紀錄） */}
+      {!isApplicantRole && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            marginBottom: 16,
+            flexWrap: 'wrap',
+          }}
+        >
+          {/* Step 1: 待審核清單 */}
+          <div
+            onClick={() => handleStepChange('pending')}
+            role="button"
+            tabIndex={0}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '8px 18px',
+              borderRadius: 8,
+              cursor: 'pointer',
+              background: managerStep === 'pending' ? '#EBF5FF' : '#ffffff',
+              border: managerStep === 'pending' ? '1.5px solid #005EB8' : '1px solid #d9d9d9',
+              boxShadow: managerStep === 'pending' ? '0 2px 8px rgba(0, 94, 184, 0.12)' : 'none',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <div
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: '50%',
+                background: managerStep === 'pending' ? '#005EB8' : '#e2e8f0',
+                color: managerStep === 'pending' ? '#ffffff' : '#64748b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: 12,
+              }}
+            >
+              1
+            </div>
+            <div>
+              <Space size={6} align="center">
+                <span
+                  style={{
+                    fontWeight: managerStep === 'pending' ? 700 : 500,
+                    color: managerStep === 'pending' ? '#005EB8' : '#334155',
+                    fontSize: 14,
+                  }}
+                >
+                  待審核
+                </span>
+                {pendingCount > 0 && (
+                  <Badge
+                    count={pendingCount}
+                    overflowCount={99}
+                    style={{ backgroundColor: '#ff4d4f' }}
+                  />
+                )}
+              </Space>
+            </div>
+          </div>
+
+          {/* 流程連接箭頭 */}
+          <div style={{ color: '#94a3b8', fontSize: 16, userSelect: 'none' }}>➔</div>
+
+          {/* Step 2: 已處理 */}
+          <div
+            onClick={() => handleStepChange('processed')}
+            role="button"
+            tabIndex={0}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '8px 18px',
+              borderRadius: 8,
+              cursor: 'pointer',
+              background: managerStep === 'processed' ? '#EBF5FF' : '#ffffff',
+              border: managerStep === 'processed' ? '1.5px solid #005EB8' : '1px solid #d9d9d9',
+              boxShadow: managerStep === 'processed' ? '0 2px 8px rgba(0, 94, 184, 0.12)' : 'none',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <div
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: '50%',
+                background: managerStep === 'processed' ? '#005EB8' : '#e2e8f0',
+                color: managerStep === 'processed' ? '#ffffff' : '#64748b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: 12,
+              }}
+            >
+              2
+            </div>
+            <div>
+              <span
+                style={{
+                  fontWeight: managerStep === 'processed' ? 700 : 500,
+                  color: managerStep === 'processed' ? '#005EB8' : '#334155',
+                  fontSize: 14,
+                }}
+              >
+                已處理
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <BaseSearchForm
         fields={localizedSearchFields}
         onSearch={handleSearch}
@@ -553,7 +696,7 @@ const ApprovalPage: FC = () => {
         emptyText="最近無申請紀錄"
         onRowClick={handleViewDiff}
         cardRender={(record) =>
-          renderApprovalCard(record, handleViewDiff, handleWithdrawClick, t, isLeader)
+          renderApprovalCard(record, handleViewDiff, handleWithdrawClick, t, isApplicantRole)
         }
         rowKey="id"
       />
@@ -571,7 +714,8 @@ const ApprovalPage: FC = () => {
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={handleCloseDiffModal}>關閉</Button>
-            {selectedApproval?.status === 'PENDING' && isStaff && (
+            {/* 申請提出者（組長與員工）：待審中可一鍵撤回申請 */}
+            {selectedApproval?.status === 'PENDING' && isApplicantRole && (
               <Button
                 danger
                 icon={<CloseOutlined />}
@@ -582,9 +726,9 @@ const ApprovalPage: FC = () => {
                 撤回申請
               </Button>
             )}
-            {selectedApproval?.status === 'PENDING' && !isStaff && (
+            {/* 審核主管（經理與系統管理員）：擁有全權核准與駁回操作 */}
+            {selectedApproval?.status === 'PENDING' && !isApplicantRole && (
               <>
-                {/* 駁回按鈕：組長與經理皆可操作 */}
                 <Button
                   danger
                   icon={<CloseOutlined />}
@@ -594,27 +738,15 @@ const ApprovalPage: FC = () => {
                 >
                   {t('approval.reject')}
                 </Button>
-                {/* 核准按鈕：若為 ALERT_OVERRIDE 且為組長則限制不可核准；經理/管理員或日常任務變更可直接核准 */}
-                {selectedApproval.type === 'ALERT_OVERRIDE' && isLeader ? (
-                  <Button
-                    type="primary"
-                    disabled
-                    title="警示特准放行需由營運經理審核"
-                    icon={<CheckOutlined />}
-                  >
-                    {t('approval.approve')}（經理專屬）
-                  </Button>
-                ) : (
-                  <Button
-                    type="primary"
-                    icon={<CheckOutlined />}
-                    onClick={() => {
-                      if (selectedApproval) handleApproveClick(selectedApproval);
-                    }}
-                  >
-                    {t('approval.approve')}
-                  </Button>
-                )}
+                <Button
+                  type="primary"
+                  icon={<CheckOutlined />}
+                  onClick={() => {
+                    if (selectedApproval) handleApproveClick(selectedApproval);
+                  }}
+                >
+                  {t('approval.approve')}
+                </Button>
               </>
             )}
           </div>
@@ -622,14 +754,6 @@ const ApprovalPage: FC = () => {
       >
         {selectedApproval && (
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            {selectedApproval.type === 'ALERT_OVERRIDE' && isLeader && (
-              <Alert
-                type="warning"
-                showIcon
-                message="審核權限提醒"
-                description="此項目為「排班規則 / 工時法規特准放行（OVERRIDE）」，涉及重大合規責任，需由營運經理（MANAGER）或系統管理員（ADMIN）進行審核放行。"
-              />
-            )}
             <Descriptions bordered size="small" column={2}>
               <Descriptions.Item label="申請單編號">
                 <Tag color="geekblue">{selectedApproval.id}</Tag>
@@ -700,11 +824,11 @@ const ApprovalPage: FC = () => {
               </div>
             )}
 
-            {/* 警示覆蓋項目對照資訊 */}
+            {/* 警示特許項目對照資訊 */}
             {selectedApproval.type === 'ALERT_OVERRIDE' && (
               <div>
                 <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
-                  項目對照（警示與覆蓋）
+                  項目對照（警示與特許）
                 </Text>
                 {selectedApproval.violatedRules && selectedApproval.violatedRules.length > 0 && (
                   <div style={{ marginBottom: 12 }}>
@@ -730,7 +854,7 @@ const ApprovalPage: FC = () => {
                   <Alert
                     type="error"
                     showIcon
-                    message="主管覆蓋原因"
+                    message="主管特許原因"
                     description={selectedApproval.overrideRemark}
                   />
                 )}

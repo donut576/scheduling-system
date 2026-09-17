@@ -2493,8 +2493,8 @@ let mockApprovals: Approval[] = [
     status: 'PENDING',
     requestedBy: 'emp-003',
     requestedByName: '黃俊傑',
-    changeSummary: '夜間跨日排班工安證照覆蓋',
-    overrideRemark: '經理評估現場有主管陪同施作，核准證照覆蓋',
+    changeSummary: '夜間跨日排班工安證照特許',
+    overrideRemark: '經理評估現場有主管陪同施作，核准證照特許',
     violatedRules: ['該任務需至少一人持有病媒防治專業技術人員證照', '夜間工時連續超過限制'],
     approvers: [
       {
@@ -3995,7 +3995,11 @@ export const handlers = [
       });
       events = events.filter((e) => validResourceIds.has(e.resourceId));
     } else if (dim === 'employee') {
-      let emps = mockEmployees;
+      let emps = mockEmployees.filter(
+        (e) =>
+          e.position === 'STAFF' ||
+          (!e.position && !e.name.includes('組長') && !e.name.includes('經理')),
+      );
       if (employeeId) {
         emps = emps.filter((e) => e.id === employeeId);
       }
@@ -4399,6 +4403,17 @@ export const handlers = [
           (a.changeSummary && a.changeSummary.toLowerCase().includes(kw)),
       );
     }
+
+    // 預設排序：待核准 (PENDING) 案件置頂最上方，已處理案件依建立時間新至舊排在下方
+    list = [...list].sort((a, b) => {
+      const isPendingA = a.status === 'PENDING' ? 0 : 1;
+      const isPendingB = b.status === 'PENDING' ? 0 : 1;
+      if (isPendingA !== isPendingB) {
+        return isPendingA - isPendingB;
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
     return HttpResponse.json(ok(paginated<Approval>(list, page, pageSize)));
   }),
   http.post('*/api/v1/approvals/:id/approve', ({ params }) => {
@@ -4451,6 +4466,7 @@ export const handlers = [
     const url = new URL(request.url);
     const groupId = url.searchParams.get('groupId');
     const branchId = url.searchParams.get('branchId');
+    const area = url.searchParams.get('area');
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
     const page = Number(url.searchParams.get('page') || 1);
@@ -4461,6 +4477,17 @@ export const handlers = [
     }
     if (branchId) {
       list = list.filter((p) => p.branchId === branchId);
+    }
+    if (area) {
+      list = list.filter((p) => {
+        const branch = mockCustomerGroups
+          .flatMap((cg) => cg.branches)
+          .find((b) => b.id === p.branchId);
+        const addr = branch?.address || '';
+        const name = branch?.name || p.branchName || p.groupName;
+        const designated = (branch as unknown as { designatedRegion?: string })?.designatedRegion;
+        return isAddressInRegion(addr || name, area, designated);
+      });
     }
     if (startDate) {
       list = list.filter((p) => !p.date || p.date >= startDate);

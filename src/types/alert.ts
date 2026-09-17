@@ -28,7 +28,7 @@ export type AlertRuleId =
   | 'DESIGNATED_LEAVE'
   | 'HEADCOUNT_BELOW_MIN';
 
-/** 警示嚴重程度：阻擋（不可送出）／警告（可覆蓋送出）／提示 */
+/** 警示嚴重程度：阻擋（不可送出）／警告（可特許送出）／提示 */
 export type AlertSeverity = 'BLOCKING' | 'WARNING' | 'INFO';
 
 /** 單筆警示違規結果 */

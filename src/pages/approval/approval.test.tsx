@@ -46,6 +46,7 @@ import {
 } from '@/queries/useApprovalQueries';
 import { useSendNotification } from '@/queries/useNotificationQueries';
 import { usePermissionStore } from '@/stores/usePermissionStore';
+import { useUserStore } from '@/stores/useUserStore';
 import { PERMISSIONS } from '@/constants/permissions';
 
 const taskChangeApproval: Approval = {
@@ -72,7 +73,7 @@ const alertOverrideApproval: Approval = {
   status: 'PENDING',
   requestedBy: 'u2',
   requestedByName: '李組長',
-  changeSummary: '特許覆蓋警示申請',
+  changeSummary: '特許警示申請',
   violatedRules: ['連續工作天數超限 (7 天)', '每日工時超過 12 小時'],
   approvers: [],
   overrideRemark: '因客戶緊急專案需求特許排班',
@@ -90,6 +91,16 @@ function mockListData(list: Approval[]): PaginatedResponse<Approval> {
 describe('ApprovalPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useUserStore.setState({
+      token: 'test-token',
+      user: {
+        id: 'admin-1',
+        name: 'Demo 管理員',
+        employeeNo: 'A001',
+        role: 'ADMIN',
+        permissions: Object.values(PERMISSIONS),
+      },
+    });
     usePermissionStore.getState().buildPermissions(Object.values(PERMISSIONS), 'ADMIN');
 
     vi.mocked(useApprovalList).mockReturnValue({
@@ -135,7 +146,7 @@ describe('ApprovalPage', () => {
       expect(screen.getByText('approval-001')).toBeInTheDocument();
       expect(screen.getByText('approval-002')).toBeInTheDocument();
       expect(screen.getByText('任務變更')).toBeInTheDocument();
-      expect(screen.getByText('警示覆蓋')).toBeInTheDocument();
+      expect(screen.getByText('警示特許')).toBeInTheDocument();
       expect(screen.getByText('王組長')).toBeInTheDocument();
       expect(screen.getByText('李組長')).toBeInTheDocument();
 
@@ -240,6 +251,37 @@ describe('ApprovalPage', () => {
           comment: '時段與其他客戶衝突',
         });
       });
+    });
+
+    it('renders as application progress tracking for LEADER (no approve/reject buttons, provides withdraw)', async () => {
+      const user = userEvent.setup();
+      useUserStore.setState({
+        token: 'leader-token',
+        user: {
+          id: 'u1',
+          name: '王組長',
+          employeeNo: 'L001',
+          role: 'LEADER',
+          permissions: ['approval:view'],
+        },
+      });
+
+      render(<ApprovalPage />);
+
+      // Search input placeholder is tailored for applicants
+      expect(screen.getByPlaceholderText('輸入申請單編號')).toBeInTheDocument();
+      // Requester column is not rendered for applicant perspective
+      expect(screen.queryByText('申請人')).not.toBeInTheDocument();
+
+      const viewButtons = screen.getAllByText('檢視變更');
+      await user.click(viewButtons[0]!);
+
+      // Inside modal: no approve or reject button, only 關閉 and 撤回申請
+      const modals = screen.getAllByRole('dialog');
+      const diffModal = modals[modals.length - 1]!;
+      expect(within(diffModal).queryByRole('button', { name: /核准/ })).not.toBeInTheDocument();
+      expect(within(diffModal).queryByRole('button', { name: /駁回/ })).not.toBeInTheDocument();
+      expect(within(diffModal).getByRole('button', { name: /撤回申請/ })).toBeInTheDocument();
     });
   });
 });

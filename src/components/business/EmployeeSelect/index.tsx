@@ -50,7 +50,12 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
   });
 
   const employees: Employee[] = useMemo(() => {
-    return employeeData?.list ?? [];
+    const list = employeeData?.list ?? [];
+    return list.filter(
+      (emp) =>
+        emp.position === 'STAFF' ||
+        (!emp.position && !emp.name.includes('組長') && !emp.name.includes('經理')),
+    );
   }, [employeeData]);
 
   // 判斷該員工於指定日期是否為指定休假日

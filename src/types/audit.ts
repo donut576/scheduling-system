@@ -3,7 +3,7 @@
  *
  * 系統需針對以下四類可稽核操作建立對應稽核日誌記錄：
  * - SCHEDULE_CHANGE（排班變更）
- * - ALERT_OVERRIDE（警示覆蓋）
+ * - ALERT_OVERRIDE（警示特許）
  * - PERMISSION_CHANGE（權限變更）
  * - DELETE（刪除操作）
  */

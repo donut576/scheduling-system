@@ -82,16 +82,14 @@ export const toResourceInputs = (
 
   if (dimension === 'employee') {
     list = [...list].sort((a, b) => {
-      const aSelf =
+      const aSelf = Boolean(
         (currentUserId && a.id === currentUserId) ||
-        (currentUserName && a.mainTitle === currentUserName) ||
-        a.id === 'emp-staff' ||
-        a.mainTitle.includes('Demo 員工');
-      const bSelf =
+        (currentUserName && a.mainTitle === currentUserName),
+      );
+      const bSelf = Boolean(
         (currentUserId && b.id === currentUserId) ||
-        (currentUserName && b.mainTitle === currentUserName) ||
-        b.id === 'emp-staff' ||
-        b.mainTitle.includes('Demo 員工');
+        (currentUserName && b.mainTitle === currentUserName),
+      );
 
       if (aSelf && !bSelf) return -1;
       if (!aSelf && bSelf) return 1;
@@ -100,11 +98,10 @@ export const toResourceInputs = (
   }
 
   return list.map((resource) => {
-    const isSelf =
+    const isSelf = Boolean(
       (currentUserId && resource.id === currentUserId) ||
-      (currentUserName && resource.mainTitle === currentUserName) ||
-      resource.id === 'emp-staff' ||
-      resource.mainTitle.includes('Demo 員工');
+      (currentUserName && resource.mainTitle === currentUserName),
+    );
 
     return {
       id: resource.id,

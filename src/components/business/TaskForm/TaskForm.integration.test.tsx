@@ -201,11 +201,11 @@ describe('TaskForm integration - 完整任務建立流程', () => {
     // onSubmit must not have been called yet - blocked by the violation
     expect(onSubmit).not.toHaveBeenCalled();
 
-    // 覆蓋：輸入覆蓋備註並點擊「確認覆蓋」(Requirement 7.7)
-    const remarkInput = screen.getByLabelText('覆蓋備註');
+    // 特許：輸入特許備註並點擊「確認特許」(Requirement 7.7)
+    const remarkInput = screen.getByLabelText('特許備註');
     await user.type(remarkInput, '人手調度中，先建立任務');
 
-    const overrideButton = screen.getByRole('button', { name: '確認覆蓋' });
+    const overrideButton = screen.getByRole('button', { name: '確認特許' });
     expect(overrideButton).not.toBeDisabled();
     await user.click(overrideButton);
 

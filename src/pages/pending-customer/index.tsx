@@ -45,11 +45,12 @@ import {
   useDeletePendingCustomer,
 } from '@/queries/usePendingCustomerQueries';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
-import { useDictStore } from '@/stores';
+import { useDictStore, useUserStore } from '@/stores';
 import { usePermissionStore } from '@/stores/usePermissionStore';
 import { formatTaskContents } from '@/constants/taskStatus';
 import { HOLIDAYS_2026 } from '@/constants/holidays';
 import { isHoliday } from '@/utils/date';
+import { normalizeRegion, isAddressInRegion } from '@/utils/regionMapping';
 import { pendingCustomerApi } from '@/api/pending-customer';
 import type {
   PendingCustomerListParams,
@@ -389,9 +390,34 @@ const PendingCustomerPage: FC = () => {
   const convertContents: string[] = Form.useWatch('contents', convertForm) ?? [];
   const convertAssignees: string[] = Form.useWatch('assignees', convertForm) ?? [];
 
+  const user = useUserStore((state) => state.user);
+  const isLeader = user?.role === 'LEADER';
+  const leaderArea = useMemo(() => {
+    if (!isLeader) return undefined;
+    return normalizeRegion((user as unknown as { area?: string })?.area || user?.groupId);
+  }, [isLeader, user]);
+
+  const effectiveFilters: PendingCustomerListParams = useMemo(
+    () => ({
+      ...filters,
+      area: isLeader ? leaderArea : undefined,
+    }),
+    [filters, isLeader, leaderArea],
+  );
+
   function usePendingCustomerListQuery(): QueryResult<PaginatedResponse<PendingCustomer>> {
-    return usePendingCustomerList(filters) as QueryResult<PaginatedResponse<PendingCustomer>>;
+    return usePendingCustomerList(effectiveFilters) as QueryResult<
+      PaginatedResponse<PendingCustomer>
+    >;
   }
+
+  const isBranchInLeaderArea = useCallback(
+    (branch: { address?: string; name: string; designatedRegion?: string }) => {
+      if (!isLeader || !leaderArea) return true;
+      return isAddressInRegion(branch.address || branch.name, leaderArea, branch.designatedRegion);
+    },
+    [isLeader, leaderArea],
+  );
 
   // 集團下拉選項
   const groupOptions = useMemo(
@@ -399,19 +425,23 @@ const PendingCustomerPage: FC = () => {
     [customerGroups],
   );
 
-  // 依所選集團連動出的分店下拉選項（新增/編輯表單用）
+  // 依所選集團連動出的分店下拉選項（新增/編輯表單用，組長模式下過濾本區）
   const formBranchOptions = useMemo(() => {
     if (!selectedGroupId) return [];
     const group = customerGroups.find((g: CustomerGroup) => g.id === selectedGroupId);
-    return (group?.branches ?? []).map((b) => ({ label: b.name, value: b.id }));
-  }, [selectedGroupId, customerGroups]);
+    return (group?.branches ?? [])
+      .filter(isBranchInLeaderArea)
+      .map((b) => ({ label: b.name, value: b.id }));
+  }, [selectedGroupId, customerGroups, isBranchInLeaderArea]);
 
-  // 依所選集團連動出的分店下拉選項（排定任務表單用）
+  // 依所選集團連動出的分店下拉選項（排定任務表單用，組長模式下過濾本區）
   const convertBranchOptions = useMemo(() => {
     if (!convertGroupId) return [];
     const group = customerGroups.find((g: CustomerGroup) => g.id === convertGroupId);
-    return (group?.branches ?? []).map((b) => ({ label: b.name, value: b.id }));
-  }, [convertGroupId, customerGroups]);
+    return (group?.branches ?? [])
+      .filter(isBranchInLeaderArea)
+      .map((b) => ({ label: b.name, value: b.id }));
+  }, [convertGroupId, customerGroups, isBranchInLeaderArea]);
 
   // 客戶要求證照
   const requiredLicenses = useMemo(() => {

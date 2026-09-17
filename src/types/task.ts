@@ -104,7 +104,7 @@ export type TaskType = 'CONTRACT' | 'ONETIME' | 'ESR';
 /** 任務狀態：未排班／已排班／已更改／已確認／待核准／已取消 */
 export type TaskStatus =
   'UNSCHEDULED' | 'SCHEDULED' | 'MODIFIED' | 'CONFIRMED' | 'PENDING_APPROVAL' | 'CANCELLED';
-/** 警示狀態：無警示／有違規／已覆蓋 */
+/** 警示狀態：無警示／有違規／已特許 */
 export type AlertStatus = 'CLEAN' | 'VIOLATED' | 'OVERRIDDEN';
 /** 回報方式：APP 填寫／EDM 電子郵件／紙本回報／拍照存證 */
 export type ReportType = 'APP' | 'EDM' | 'PAPER' | 'PHOTO';

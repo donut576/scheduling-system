@@ -105,10 +105,16 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({
 
   // 員工多選選項
   const employeeOptions = useMemo(() => {
-    return employees.map((emp) => ({
-      label: `${emp.name} (${emp.area || '台北'} ${emp.shift || '早班'})`,
-      value: emp.id,
-    }));
+    return employees
+      .filter(
+        (emp) =>
+          emp.position === 'STAFF' ||
+          (!emp.position && !emp.name.includes('組長') && !emp.name.includes('經理')),
+      )
+      .map((emp) => ({
+        label: `${emp.name} (${emp.area || '台北'} ${emp.shift || '早班'})`,
+        value: emp.id,
+      }));
   }, [employees]);
 
   // 提交複製

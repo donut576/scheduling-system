@@ -113,8 +113,7 @@ const getTaskExportColumns = (t: (key: string) => string): ExcelColumn<Task>[] =
     key: (record) => {
       const parts: string[] = [];
       if (record.reportTypes?.length) parts.push(record.reportTypes.join(', '));
-      if (record.requirePhotos)
-        parts.push(`需照片${record.photoCount ? `(${record.photoCount}張)` : ''}`);
+      if (record.requirePhotos) parts.push('需照片');
       return parts.join(' / ') || '-';
     },
     width: 20,
@@ -386,7 +385,7 @@ function renderTaskCard(record: Task, t: (key: string) => string) {
             ))}
             {record.requirePhotos && (
               <Tag color="cyan" style={{ fontSize: 11, margin: 0 }}>
-                {record.photoCount ? `${record.photoCount}張照` : '需照片'}
+                需照片
               </Tag>
             )}
           </Space>
@@ -439,6 +438,7 @@ function TaskPage() {
   const hasPermission = usePermissionStore((state) => state.hasPermission);
   const user = useUserStore((state) => state.user);
   const isLeader = user?.role === 'LEADER';
+
   const leaderArea = useMemo(() => {
     if (!isLeader) return undefined;
     return normalizeRegion((user as unknown as { area?: string })?.area || user?.groupId);

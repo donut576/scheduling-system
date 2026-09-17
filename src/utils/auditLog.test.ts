@@ -7,7 +7,7 @@ import { AUDITABLE_ACTION_TYPES, createAuditLogEntry, isAuditableAction } from '
  * **Validates: Requirements 13.4**
  *
  * Property 25: 稽核日誌建立
- * 驗證：for any 可稽核操作（排班變更、警示覆蓋、權限變更、刪除），
+ * 驗證：for any 可稽核操作（排班變更、警示特許、權限變更、刪除），
  * 系統應建立對應之稽核日誌記錄，包含操作類型、操作者、時間戳與變更內容。
  */
 

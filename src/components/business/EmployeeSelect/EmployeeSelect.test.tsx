@@ -31,7 +31,7 @@ const mockEmployees: Employee[] = [
     name: '李小華',
     phone: '0923456789',
     employeeNo: 'E002',
-    position: 'LEADER',
+    position: 'STAFF',
     groupId: 'group-b',
     groupName: 'B組',
     area: '台中',

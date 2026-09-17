@@ -3,7 +3,7 @@
  *
  * 業務用途：建立/編輯排班任務之主表單，整合集團→分店連動選擇、員工指派、
  * 循環頻率設定，並於送出前執行前端警示規則預檢（證照資格、連續7日上班、日工時超10H、
- * 時段重複、指定休假等）。若偵測到違規則跳出警示並要求填寫必填備註說明後覆蓋排入。
+ * 時段重複、指定休假等）。若偵測到違規則跳出警示並要求填寫必填備註說明後特許排入。
  */
 import React, { useState, useCallback, useMemo } from 'react';
 import {
@@ -1018,7 +1018,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
 
         <Divider style={{ margin: '16px 0' }} />
 
-        {/* ConflictPanel - 當偵測到 5 大警示規則違規時顯示，要求必填備註後覆蓋 */}
+        {/* ConflictPanel - 當偵測到 5 大警示規則違規時顯示，要求必填備註後特許 */}
         {alertResults && !alertResults.isValid && (
           <div style={{ marginBottom: 20 }}>
             <ConflictPanel

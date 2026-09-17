@@ -159,7 +159,11 @@ const SchedulePage: FC = () => {
 
   // 員工模糊搜尋下拉選項（支援姓名與員工編號搜尋，組長僅限所屬組別，依所選地區與班別即時篩選）
   const employeeOptions = useMemo(() => {
-    let list = employees;
+    let list = employees.filter(
+      (e) =>
+        e.position === 'STAFF' ||
+        (!e.position && !e.name.includes('組長') && !e.name.includes('經理')),
+    );
     const activeArea = isLeader ? leaderArea : selectedArea;
     if (activeArea) {
       list = list.filter((e) => e.area === activeArea || e.groupName?.includes(activeArea));
@@ -934,9 +938,7 @@ const SchedulePage: FC = () => {
                     fontWeight: 600,
                   }}
                 >
-                  {event.extendedProps.photoCount
-                    ? `${event.extendedProps.photoCount} 張照片需求`
-                    : '需照片存證'}
+                  需照片存證
                 </Tag>
               </div>
             )}
@@ -1120,7 +1122,7 @@ const SchedulePage: FC = () => {
   return (
     <div className="schedule-page" data-testid="schedule-page">
       {/* 頂部維度切換 Tabs 與左側待排快捷按鈕 */}
-      {hasScheduleEdit && (
+      {!isStaff && (
         <div
           style={{
             display: 'flex',
@@ -1139,70 +1141,71 @@ const SchedulePage: FC = () => {
             tabBarStyle={{ marginBottom: 0 }}
           />
 
-          {/* 待排任務按鈕：置於左側 Tab 旁 */}
-          {effectiveDimension === 'employee' && currentView === 'day' ? (
-            <Button
-              type={!unscheduledCollapsed ? 'primary' : 'default'}
-              icon={<ScheduleOutlined />}
-              onClick={() => setUnscheduledCollapsed((prev) => !prev)}
-              aria-label="toggle-unscheduled-tasks"
-              style={{
-                borderRadius: 6,
-                height: 38,
-                fontWeight: 600,
-                borderColor: '#1677ff',
-                color: !unscheduledCollapsed ? '#ffffff' : '#1677ff',
-                backgroundColor: !unscheduledCollapsed ? '#1677ff' : '#e6f4ff',
-                boxShadow: !unscheduledCollapsed ? '0 2px 6px rgba(22, 119, 255, 0.25)' : 'none',
-              }}
-            >
-              <span>待排任務</span>
-              <Badge
-                count={unscheduledCount}
-                overflowCount={99}
+          {/* 待排任務按鈕：僅具備排班編輯權限者（如組長、管理員）顯示 */}
+          {hasScheduleEdit &&
+            (effectiveDimension === 'employee' && currentView === 'day' ? (
+              <Button
+                type={!unscheduledCollapsed ? 'primary' : 'default'}
+                icon={<ScheduleOutlined />}
+                onClick={() => setUnscheduledCollapsed((prev) => !prev)}
+                aria-label="toggle-unscheduled-tasks"
                 style={{
-                  marginLeft: 8,
-                  backgroundColor: !unscheduledCollapsed ? '#ffffff' : '#1677ff',
-                  color: !unscheduledCollapsed ? '#1677ff' : '#ffffff',
-                  fontWeight: 700,
+                  borderRadius: 6,
+                  height: 38,
+                  fontWeight: 600,
+                  borderColor: '#1677ff',
+                  color: !unscheduledCollapsed ? '#ffffff' : '#1677ff',
+                  backgroundColor: !unscheduledCollapsed ? '#1677ff' : '#e6f4ff',
+                  boxShadow: !unscheduledCollapsed ? '0 2px 6px rgba(22, 119, 255, 0.25)' : 'none',
                 }}
-              />
-            </Button>
-          ) : (
-            <Button
-              type="primary"
-              icon={<ScheduleOutlined />}
-              onClick={() => {
-                setDimension('employee');
-                setView('day');
-                setUnscheduledCollapsed(false);
-              }}
-              aria-label="go-to-employee-dispatch"
-              style={{
-                borderRadius: 6,
-                height: 38,
-                fontWeight: 600,
-                backgroundColor: '#1677ff',
-                borderColor: '#1677ff',
-                boxShadow: '0 2px 6px rgba(22, 119, 255, 0.3)',
-              }}
-            >
-              <span>待排任務</span>
-              <Badge
-                count={unscheduledCount}
-                overflowCount={99}
+              >
+                <span>待排任務</span>
+                <Badge
+                  count={unscheduledCount}
+                  overflowCount={99}
+                  style={{
+                    marginLeft: 8,
+                    backgroundColor: !unscheduledCollapsed ? '#ffffff' : '#1677ff',
+                    color: !unscheduledCollapsed ? '#1677ff' : '#ffffff',
+                    fontWeight: 700,
+                  }}
+                />
+              </Button>
+            ) : (
+              <Button
+                type="primary"
+                icon={<ScheduleOutlined />}
+                onClick={() => {
+                  setDimension('employee');
+                  setView('day');
+                  setUnscheduledCollapsed(false);
+                }}
+                aria-label="go-to-employee-dispatch"
                 style={{
-                  marginLeft: 6,
-                  backgroundColor: '#ff4d4f',
-                  color: '#ffffff',
-                  fontWeight: 700,
+                  borderRadius: 6,
+                  height: 38,
+                  fontWeight: 600,
+                  backgroundColor: '#1677ff',
+                  borderColor: '#1677ff',
+                  boxShadow: '0 2px 6px rgba(22, 119, 255, 0.3)',
                 }}
-              />
-              <span style={{ fontSize: 13, color: '#ffffff', marginLeft: 6, fontWeight: 500 }}>
-                ➔ 前往員工日排班
-              </span>
-            </Button>
-          )}
+              >
+                <span>待排任務</span>
+                <Badge
+                  count={unscheduledCount}
+                  overflowCount={99}
+                  style={{
+                    marginLeft: 6,
+                    backgroundColor: '#ff4d4f',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                  }}
+                />
+                <span style={{ fontSize: 13, color: '#ffffff', marginLeft: 6, fontWeight: 500 }}>
+                  ➔ 前往員工日排班
+                </span>
+              </Button>
+            ))}
         </div>
       )}
 

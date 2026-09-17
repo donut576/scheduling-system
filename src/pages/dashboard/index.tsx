@@ -145,10 +145,10 @@ const DashboardPage: FC = () => {
     return '查看進度';
   }, [role]);
 
-  // 點擊「已覆蓋」Tag 處理
+  // 點擊「已特許」Tag 處理
   const handleOverriddenTagClick = () => {
     if (overriddenEvents.length === 0) {
-      message.info('今日目前無特許覆蓋項目');
+      message.info('今日目前無特許項目');
       return;
     }
     setOverrideModalOpen(true);
@@ -475,12 +475,12 @@ const DashboardPage: FC = () => {
         )}
       </Modal>
 
-      {/* 特許覆蓋詳細通知彈窗 */}
+      {/* 特許詳細通知彈窗 */}
       <Modal
         title={
           <Space>
             <SafetyCertificateOutlined style={{ color: '#faad14' }} />
-            <span>今日排班特許覆蓋通知（共 {overriddenEvents.length} 筆）</span>
+            <span>今日排班特許通知（共 {overriddenEvents.length} 筆）</span>
           </Space>
         }
         open={overrideModalOpen}
@@ -508,7 +508,7 @@ const DashboardPage: FC = () => {
             const assigneesText =
               event.extendedProps?.assignees?.map((a) => a.employeeName).join('、') || '未指派';
             const reasonText =
-              event.extendedProps?.overrideReason || '主管特許覆蓋指派（經核准特殊放行）';
+              event.extendedProps?.overrideReason || '主管特許指派（經核准特殊放行）';
 
             return (
               <List.Item key={event.id} style={{ padding: '12px 0' }}>
@@ -519,7 +519,7 @@ const DashboardPage: FC = () => {
                     <Text strong style={{ fontSize: 14 }}>
                       {event.groupName} - {event.branchName}
                     </Text>
-                    <Tag color="warning">已特許覆蓋</Tag>
+                    <Tag color="warning">已特許</Tag>
                   </div>
                   <div style={{ color: '#595959', fontSize: 13, marginBottom: 4 }}>
                     負責員工：<Text style={{ color: '#1677ff' }}>{assigneesText}</Text>
@@ -537,7 +537,7 @@ const DashboardPage: FC = () => {
                       color: '#d48806',
                     }}
                   >
-                    覆蓋備註：{reasonText}
+                    特許備註：{reasonText}
                   </div>
                 </div>
               </List.Item>

@@ -109,8 +109,8 @@ describe('ConflictPanel', () => {
         <ConflictPanel violations={mockViolations} onOverride={onOverride} canOverride={true} />,
       );
 
-      expect(screen.getByLabelText('覆蓋備註')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: '確認覆蓋' })).toBeInTheDocument();
+      expect(screen.getByLabelText('特許備註')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '確認特許' })).toBeInTheDocument();
     });
 
     it('disables the override button when remark is empty', () => {
@@ -118,7 +118,7 @@ describe('ConflictPanel', () => {
         <ConflictPanel violations={mockViolations} onOverride={onOverride} canOverride={true} />,
       );
 
-      expect(screen.getByRole('button', { name: '確認覆蓋' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: '確認特許' })).toBeDisabled();
     });
 
     it('enables the override button when remark is entered', async () => {
@@ -127,8 +127,8 @@ describe('ConflictPanel', () => {
         <ConflictPanel violations={mockViolations} onOverride={onOverride} canOverride={true} />,
       );
 
-      await user.type(screen.getByLabelText('覆蓋備註'), '主管核准');
-      expect(screen.getByRole('button', { name: '確認覆蓋' })).toBeEnabled();
+      await user.type(screen.getByLabelText('特許備註'), '主管核准');
+      expect(screen.getByRole('button', { name: '確認特許' })).toBeEnabled();
     });
 
     it('calls onOverride with trimmed remark when override button is clicked', async () => {
@@ -137,10 +137,10 @@ describe('ConflictPanel', () => {
         <ConflictPanel violations={mockViolations} onOverride={onOverride} canOverride={true} />,
       );
 
-      await user.type(screen.getByLabelText('覆蓋備註'), '  主管已核准覆蓋  ');
-      await user.click(screen.getByRole('button', { name: '確認覆蓋' }));
+      await user.type(screen.getByLabelText('特許備註'), '  主管已核准特許  ');
+      await user.click(screen.getByRole('button', { name: '確認特許' }));
 
-      expect(onOverride).toHaveBeenCalledWith('主管已核准覆蓋');
+      expect(onOverride).toHaveBeenCalledWith('主管已核准特許');
     });
 
     it('does not call onOverride when remark is only whitespace', async () => {
@@ -149,9 +149,9 @@ describe('ConflictPanel', () => {
         <ConflictPanel violations={mockViolations} onOverride={onOverride} canOverride={true} />,
       );
 
-      await user.type(screen.getByLabelText('覆蓋備註'), '   ');
+      await user.type(screen.getByLabelText('特許備註'), '   ');
       // Button should still be disabled
-      expect(screen.getByRole('button', { name: '確認覆蓋' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: '確認特許' })).toBeDisabled();
     });
 
     it('does not show the no-permission alert', () => {
@@ -159,7 +159,7 @@ describe('ConflictPanel', () => {
         <ConflictPanel violations={mockViolations} onOverride={onOverride} canOverride={true} />,
       );
 
-      expect(screen.queryByText(/您無權限覆蓋此違規/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/您無權限特許此違規/)).not.toBeInTheDocument();
     });
   });
 
@@ -169,7 +169,7 @@ describe('ConflictPanel', () => {
         <ConflictPanel violations={mockViolations} onOverride={onOverride} canOverride={false} />,
       );
 
-      expect(screen.getByText(/您無權限覆蓋此違規/)).toBeInTheDocument();
+      expect(screen.getByText(/您無權限特許此違規/)).toBeInTheDocument();
     });
 
     it('does not render the remark text area or override button', () => {
@@ -177,8 +177,8 @@ describe('ConflictPanel', () => {
         <ConflictPanel violations={mockViolations} onOverride={onOverride} canOverride={false} />,
       );
 
-      expect(screen.queryByLabelText('覆蓋備註')).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: '確認覆蓋' })).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('特許備註')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: '確認特許' })).not.toBeInTheDocument();
     });
 
     it('still shows all violations', () => {
