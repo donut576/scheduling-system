@@ -49,11 +49,12 @@ const SideMenu: React.FC<SideMenuProps> = ({ onNavigate }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const { menuTree } = usePermissionStore();
+  const { menuTree, hasPermission } = usePermissionStore();
+  const canApprove = hasPermission('approval:approve');
   const user = useUserStore((state) => state.user);
   const isStaff = user?.role === 'STAFF';
   const isLeader = user?.role === 'LEADER';
-  const isApplicantRole = isLeader || isStaff;
+  const isApplicantRole = !canApprove || isLeader || isStaff;
 
   const { data: pendingStatsData } = useApprovalList({ status: 'PENDING', pageSize: 1 });
   const pendingCount = !isApplicantRole ? (pendingStatsData?.total ?? 0) : 0;

@@ -35,6 +35,7 @@ import {
 } from '@/queries/useApprovalQueries';
 import { useSendNotification } from '@/queries/useNotificationQueries';
 import { useUserStore } from '@/stores/useUserStore';
+import { usePermissionStore } from '@/stores/usePermissionStore';
 import type { ApprovalListParams } from '@/api/approval';
 import { APPROVAL_STATUS_MAP, APPROVAL_TYPE_MAP } from '@/constants/approvalTypes';
 import { formatDateTime } from '@/utils/date';
@@ -214,11 +215,13 @@ function renderApprovalCard(
  */
 const ApprovalPage: FC = () => {
   const { t } = useTranslation();
+  const hasPermission = usePermissionStore((state) => state.hasPermission);
+  const canApprove = hasPermission('approval:approve');
   const user = useUserStore((state) => state.user);
   const userRole = user?.role;
   const isLeader = userRole === 'LEADER';
   const isStaff = userRole === 'STAFF';
-  const isApplicantRole = isLeader || isStaff;
+  const isApplicantRole = !canApprove || isLeader || isStaff;
 
   // 申請發起者（組長與員工）預設過濾為自己提出的申請，經理與管理員可綜觀全台待審核案件
   const defaultRequesterFilter = useMemo(() => {
