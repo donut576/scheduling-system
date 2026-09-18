@@ -8,6 +8,8 @@ import { ConfigProvider } from 'antd';
 import zhTW from 'antd/locale/zh_TW';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { queryClient } from '@/queries/queryClient';
 import { router } from '@/routes';
 import { antdTheme } from '@/styles/antd-theme';
@@ -18,6 +20,7 @@ import i18n from '@/i18n';
  * - 提供 React Query 的 QueryClientProvider，供全站共用資料快取。
  * - 鎖定繁體中文（zh-TW）介面。
  * - 透過 RouterProvider 掛載路由設定（router）。
+ * - 內建 Vercel Analytics 與 SpeedInsights 即時流量與效能監測。
  */
 function App() {
   useEffect(() => {
@@ -30,6 +33,8 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ConfigProvider locale={zhTW} theme={antdTheme}>
         <RouterProvider router={router} />
+        <Analytics />
+        <SpeedInsights />
       </ConfigProvider>
     </QueryClientProvider>
   );
