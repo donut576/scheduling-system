@@ -1,0 +1,96 @@
+name: 🌐 系統流量與存活率監控 (Uptime & Health Monitor)
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: '欲測試之網站網址 (預設使用專案 Vercel 網址)'
+        required: false
+        default: ''
+  push:
+    branches:
+      - main
+
+jobs:
+  uptime-check:
+    name: 檢查網站健康狀態與回應時間
+    runs-on: ubuntu-latest
+    steps:
+      - name: 決定目標監測網址
+        id: set-url
+        run: |
+          TARGET="${{ github.event.inputs.target_url }}"
+          if [ -z "$TARGET" ]; then
+            TARGET="${{ secrets.SITE_URL || vars.SITE_URL }}"
+          fi
+          if [ -z "$TARGET" ]; then
+            TARGET="https://scheduling-system-donut576.vercel.app"
+          fi
+          echo "url=$TARGET" >> $GITHUB_OUTPUT
+          echo "🔍 監測目標網址: $TARGET"
+
+      - name: 發送 HTTP 請求並量測回應延遲
+        id: health-check
+        run: |
+          TARGET_URL="${{ steps.set-url.outputs.url }}"
+          echo "正在檢測 $TARGET_URL ..."
+          
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code} %{time_total} %{time_namelookup} %{time_connect} %{time_starttransfer}" -L "$TARGET_URL" || echo "000 0 0 0 0")
+          
+          HTTP_CODE=$(echo $RESPONSE | awk '{print $1}')
+          TOTAL_SEC=$(echo $RESPONSE | awk '{print $2}')
+          NAMELOOKUP_SEC=$(echo $RESPONSE | awk '{print $3}')
+          CONNECT_SEC=$(echo $RESPONSE | awk '{print $4}')
+          TTFB_SEC=$(echo $RESPONSE | awk '{print $5}')
+          
+          TOTAL_MS=$(awk -v t="$TOTAL_SEC" 'BEGIN {printf "%.0f", t * 1000}')
+          NAMELOOKUP_MS=$(awk -v t="$NAMELOOKUP_SEC" 'BEGIN {printf "%.0f", t * 1000}')
+          CONNECT_MS=$(awk -v t="$CONNECT_SEC" 'BEGIN {printf "%.0f", t * 1000}')
+          TTFB_MS=$(awk -v t="$TTFB_SEC" 'BEGIN {printf "%.0f", t * 1000}')
+          
+          echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
+          echo "total_ms=$TOTAL_MS" >> $GITHUB_OUTPUT
+          echo "dns_ms=$NAMELOOKUP_MS" >> $GITHUB_OUTPUT
+          echo "connect_ms=$CONNECT_MS" >> $GITHUB_OUTPUT
+          echo "ttfb_ms=$TTFB_MS" >> $GITHUB_OUTPUT
+          
+          echo "✅ HTTP 狀態碼: $HTTP_CODE"
+          echo "⏱️ 總回應時間: ${TOTAL_MS} ms"
+
+      - name: 產出健康診斷報表 (GitHub Job Summary)
+        run: |
+          STATUS="${{ steps.health-check.outputs.http_code }}"
+          TOTAL_MS="${{ steps.health-check.outputs.total_ms }}"
+          DNS_MS="${{ steps.health-check.outputs.dns_ms }}"
+          CONNECT_MS="${{ steps.health-check.outputs.connect_ms }}"
+          TTFB_MS="${{ steps.health-check.outputs.ttfb_ms }}"
+          TARGET_URL="${{ steps.set-url.outputs.url }}"
+          
+          if [ "$STATUS" = "200" ]; then
+            BADGE="🟢 正常運作 (Healthy)"
+          else
+            BADGE="🔴 連線異常 (Degraded / Down)"
+          fi
+          
+          cat << EOT >> $GITHUB_STEP_SUMMARY
+          ## 🌐 藝康排班系統 - 流量與健康監控診斷報表
+          
+          | 項目 | 監測結果 |
+          | :--- | :--- |
+          | **監控狀態** | **$BADGE** |
+          | **目標網址** | \`$TARGET_URL\` |
+          | **HTTP 狀態碼** | \`$STATUS\` |
+          | **總回應時間 (Total Latency)** | **${TOTAL_MS} ms** |
+          | **首字節時間 (TTFB)** | ${TTFB_MS} ms |
+          | **TCP 連線時間 (Connect)** | ${CONNECT_MS} ms |
+          | **DNS 解析時間 (DNS Lookup)** | ${DNS_MS} ms |
+          | **檢測時間 (UTC)** | $(date -u '+%Y-%m-%d %H:%M:%S UTC') |
+          EOT
+
+      - name: 斷線警報判定
+        if: steps.health-check.outputs.http_code != '200' && steps.health-check.outputs.http_code != '301' && steps.health-check.outputs.http_code != '302'
+        run: |
+          echo "⚠️ 網站回應異常 (HTTP ${{ steps.health-check.outputs.http_code }})，觸發警報！"
+          exit 1
