@@ -18,14 +18,18 @@ if (typeof document !== 'undefined') {
 
 /**
  * 依環境變數啟用瀏覽器端的 API Mock（MSW）。
- * 僅在開發環境（DEV）且 VITE_USE_MOCK_API 設為 'true' 時才會動態載入並啟動 worker，
- * 讓前端可在沒有真實後端的情況下進行開發與測試。
- * onUnhandledRequest: 'bypass' 表示未被 mock 攔截到的請求會直接放行，不會報錯。
+ * 預設啟用 worker 模擬 API（或當 VITE_USE_MOCK_API !== 'false' 時），
+ * 讓前端在無真實後端或部署至 Vercel 展示環境下可完整獨立運作。
  */
 async function enableMocking() {
-  if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API === 'true') {
+  if (import.meta.env.VITE_USE_MOCK_API !== 'false') {
     const { worker } = await import('./mocks/browser');
-    await worker.start({ onUnhandledRequest: 'bypass' });
+    await worker.start({
+      onUnhandledRequest: 'bypass',
+      serviceWorker: {
+        url: '/mockServiceWorker.js',
+      },
+    });
   }
 }
 
