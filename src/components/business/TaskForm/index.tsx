@@ -23,10 +23,8 @@ import {
   Card,
   Tag,
   Switch,
-  Upload,
   message,
 } from 'antd';
-import type { UploadFile } from 'antd/es/upload';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -124,18 +122,6 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
   const [quickCreateIsNewGroup, setQuickCreateIsNewGroup] = useState(true);
   const [groupSearchText, setGroupSearchText] = useState('');
   const [branchSearchText, setBranchSearchText] = useState('');
-  const [fileList, setFileList] = useState<UploadFile[]>(() => {
-    if (initialData?.photos && initialData.photos.length > 0) {
-      return initialData.photos.map((url, idx) => ({
-        uid: `photo-${idx}`,
-        name: `photo-${idx + 1}.jpg`,
-        status: 'done',
-        url,
-        thumbUrl: url,
-      }));
-    }
-    return [];
-  });
 
   // 判斷目前是否為編輯週期任務之某一實例，若是則送出前需詢問修改範圍
   const isRecurringTask = mode === 'edit' && !!initialData?.recurrenceId;
@@ -1153,49 +1139,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
 
                   if (!isPhotoChecked) return null;
 
-                  return (
-                    <Form.Item label={t('task.photos')} extra="支援預覽、上傳施作現場/回報照片">
-                      <Upload
-                        listType="picture-card"
-                        fileList={fileList}
-                        beforeUpload={(file) => {
-                          const reader = new FileReader();
-                          reader.onload = (e) => {
-                            const url = (e.target?.result as string) || '';
-                            const newFile: UploadFile = {
-                              uid: `photo-${Date.now()}-${Math.random()}`,
-                              name: file.name,
-                              status: 'done',
-                              url,
-                              thumbUrl: url,
-                            };
-                            setFileList((prev) => [...prev, newFile]);
-                            const currentPhotos = form.getFieldValue('photos') || [];
-                            form.setFieldValue('photos', [...currentPhotos, url]);
-                          };
-                          reader.readAsDataURL(file);
-                          return false;
-                        }}
-                        onRemove={(file) => {
-                          setFileList((prev) => {
-                            const next = prev.filter((item) => item.uid !== file.uid);
-                            const urls = next.map((f) => f.url || f.thumbUrl || '').filter(Boolean);
-                            form.setFieldValue('photos', urls);
-                            return next;
-                          });
-                        }}
-                      >
-                        {fileList.length >= 20 ? null : (
-                          <div style={{ textAlign: 'center' }}>
-                            <PlusOutlined />
-                            <div style={{ marginTop: 6, fontSize: 12 }}>
-                              {t('task.photosUpload')}
-                            </div>
-                          </div>
-                        )}
-                      </Upload>
-                    </Form.Item>
-                  );
+                  return null;
                 }}
               </Form.Item>
 

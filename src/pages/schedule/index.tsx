@@ -402,21 +402,6 @@ const SchedulePage: FC = () => {
     setSelectedEvent(null);
   }, []);
 
-  const handleCancelTask = useCallback(() => {
-    if (!selectedEvent) return;
-    Modal.confirm({
-      title: '刪除任務',
-      content: `確定要刪除「${selectedEvent?.title ?? ''}」這筆任務嗎？`,
-      okText: t('common.delete'),
-      cancelText: t('common.cancel'),
-      okButtonProps: { danger: true },
-      onOk: () => {
-        setDetailOpen(false);
-        setSelectedEvent(null);
-      },
-    });
-  }, [selectedEvent, t]);
-
   const handleEditClick = useCallback(() => {
     setDetailOpen(false);
     setEditOpen(true);
@@ -727,6 +712,70 @@ const SchedulePage: FC = () => {
       return handleRemoveFromSchedule(taskId, taskTitle, undefined, undefined, false);
     },
     [handleRemoveFromSchedule],
+  );
+
+  const handleCancelTask = useCallback(() => {
+    if (!selectedEvent) return;
+    Modal.confirm({
+      title: '刪除任務',
+      icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
+      content: `確定要刪除「${selectedEvent.groupName || ''} ${selectedEvent.branchName || ''}」這筆任務嗎？`,
+      okText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setDetailOpen(false);
+        await handleRemoveFromSchedule(
+          selectedEvent.taskId,
+          selectedEvent.title,
+          undefined,
+          selectedEvent,
+        );
+        setSelectedEvent(null);
+      },
+    });
+  }, [handleRemoveFromSchedule, selectedEvent, t]);
+
+  const handleEventHoverDelete = useCallback(
+    (event: ScheduleEvent, e: React.MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+
+      const isEmployeeView = effectiveDimension === 'employee';
+      const assigneesCount = event.extendedProps?.assignees?.length || 0;
+
+      Modal.confirm({
+        title: '確認刪除或移出排班？',
+        icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
+        content: (
+          <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.6 }}>
+            <div>
+              確定要刪除「
+              <strong>
+                {event.groupName} · {event.branchName}
+              </strong>
+              」此筆排班任務嗎？
+            </div>
+            <div style={{ marginTop: 6, color: '#8c8c8c', fontSize: 12 }}>
+              {isEmployeeView && assigneesCount > 1
+                ? '此操作將移除該名員工的排班指派。'
+                : '此任務將會被取消並移回待排清單。'}
+            </div>
+          </div>
+        ),
+        okText: '確認刪除',
+        cancelText: '取消',
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          if (isEmployeeView && assigneesCount > 1) {
+            await handleRemoveFromSchedule(event.taskId, event.title, event.resourceId, event);
+          } else {
+            await handleRemoveFromSchedule(event.taskId, event.title, undefined, event);
+          }
+        },
+      });
+    },
+    [effectiveDimension, handleRemoveFromSchedule],
   );
 
   // 日曆事件拖曳開始：啟動待排面板放置高亮提示
@@ -1554,6 +1603,7 @@ const SchedulePage: FC = () => {
               onEventDragStart={handleEventDragStart}
               onEventDragStop={handleEventDragStop}
               draggingTask={draggingUnscheduledTask}
+              onDeleteEvent={hasScheduleEdit ? handleEventHoverDelete : undefined}
             />
           </div>
         </div>
@@ -1569,6 +1619,7 @@ const SchedulePage: FC = () => {
             isDropActive={isDraggingEvent}
             dimension={effectiveDimension}
             viewMode={currentView}
+            onDeleteTask={undefined}
           />
         )}
       </div>

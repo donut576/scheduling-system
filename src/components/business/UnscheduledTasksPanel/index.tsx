@@ -14,6 +14,7 @@ export interface UnscheduledTasksPanelProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   onEditTask?: (task: Task) => void;
+  onDeleteTask?: (task: Task) => void;
   onDragStartTask?: (task: Task) => void;
   onDragEndTask?: () => void;
   isDropActive?: boolean;
@@ -44,6 +45,7 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
   collapsed = false,
   onToggleCollapse,
   onEditTask,
+  onDeleteTask,
   onDragStartTask,
   onDragEndTask,
   isDropActive = false,
@@ -555,6 +557,41 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                   body: { padding: '8px 10px' },
                 }}
               >
+                {onDeleteTask && (
+                  <button
+                    type="button"
+                    className="unscheduled-task-hover-delete-btn"
+                    aria-label="取消待排任務"
+                    title="取消/刪除此待排任務"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      onDeleteTask(task);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      width: 17,
+                      height: 17,
+                      borderRadius: '50%',
+                      backgroundColor: '#ff4d4f',
+                      color: '#ffffff',
+                      fontSize: 11,
+                      fontWeight: 900,
+                      lineHeight: '15px',
+                      textAlign: 'center',
+                      border: '1px solid #ffffff',
+                      cursor: 'pointer',
+                      zIndex: 15,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.25)',
+                      transition: 'transform 0.15s ease, background-color 0.15s ease',
+                      padding: 0,
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
                 {/* 第 1 行：集團 · 分店 (粗體) + 類型標籤 */}
                 <div
                   style={{

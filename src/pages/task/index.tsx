@@ -1,11 +1,25 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Button, Modal, Card, Space, Tag, Dropdown, Select, DatePicker, Tabs, message } from 'antd';
+import {
+  Button,
+  Modal,
+  Card,
+  Space,
+  Tag,
+  Dropdown,
+  Select,
+  DatePicker,
+  Tabs,
+  message,
+  Tooltip,
+} from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
   DownOutlined,
   DownloadOutlined,
   ReloadOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -478,12 +492,13 @@ function renderTaskCard(record: Task, t: (key: string) => string) {
  */
 function buildActionColumn(
   onEditClick: (record: Task) => void,
+  onDeleteClick: (record: Task) => void,
   t: (key: string) => string,
 ): ColumnDef<Task> {
   return {
     title: t('common.actions'),
     key: 'actions',
-    width: 120,
+    width: 140,
     fixed: 'right',
     render: (_value, record) => (
       <Space size={4}>
@@ -498,6 +513,19 @@ function buildActionColumn(
         >
           {t('common.edit')}
         </Button>
+        <Tooltip title="刪除任務">
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            aria-label="刪除任務"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteClick(record);
+            }}
+            style={{ color: '#ff4d4f' }}
+          />
+        </Tooltip>
       </Space>
     ),
   };
@@ -663,6 +691,41 @@ function TaskPage() {
     [editingTask, createMutation, updateMutation, t],
   );
 
+  // 刪除（取消）任務：顯示防呆確認 Modal，確認後將狀態更新為 CANCELLED
+  const handleDeleteTask = useCallback(
+    (record: Task) => {
+      Modal.confirm({
+        title: '確認刪除任務',
+        icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
+        content: (
+          <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7 }}>
+            <div>
+              確定要刪除「
+              <strong>
+                {record.groupName} · {record.branchName}
+              </strong>
+              」這筆任務嗎？
+            </div>
+            <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 4 }}>
+              刪除後任務狀態將變更為「已取消」，此操作無法復原。
+            </div>
+          </div>
+        ),
+        okText: '確認刪除',
+        cancelText: '取消',
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          await updateMutation.mutateAsync({
+            id: record.id,
+            data: { status: 'CANCELLED' } as TaskFormData,
+          });
+          message.success('任務已刪除');
+        },
+      });
+    },
+    [updateMutation],
+  );
+
   // 組合表格欄位定義，將狀態/集團/分店/日期篩選 UI 注入對應欄位標題
   const tableColumns = useMemo(() => {
     const statusOptions = [
@@ -729,7 +792,7 @@ function TaskPage() {
 
     return [
       ...baseColumns(statusTitle, groupTitle, branchTitle, dateTitle, t),
-      buildActionColumn(handleRowClick, t),
+      buildActionColumn(handleRowClick, handleDeleteTask, t),
     ];
   }, [
     branchOptions,
@@ -741,6 +804,7 @@ function TaskPage() {
     groupOptions,
     handleBranchFilter,
     handleDateFilter,
+    handleDeleteTask,
     handleGroupFilter,
     handleRowClick,
     handleStatusFilter,

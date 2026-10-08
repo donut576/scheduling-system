@@ -52,6 +52,7 @@ export interface ScheduleCalendarProps {
     jsEvent: MouseEvent;
   }) => void;
   draggingTask?: Task | null;
+  onDeleteEvent?: (event: ScheduleEvent, e: React.MouseEvent) => void;
 }
 
 /**
@@ -77,6 +78,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   onEventDragStart,
   onEventDragStop,
   draggingTask,
+  onDeleteEvent,
 }) => {
   const { t } = useTranslation();
   const calendarRef = useRef<FullCalendar>(null);
@@ -539,6 +541,21 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             )}
             {scheduleEvent.isRecurring && <span style={{ fontSize: 12, lineHeight: 1 }}>∞</span>}
           </div>
+          {onDeleteEvent && (
+            <button
+              type="button"
+              className="schedule-event-hover-delete-btn"
+              aria-label="刪除排班任務"
+              title="刪除/移回待排"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onDeleteEvent(scheduleEvent, e);
+              }}
+            >
+              ✕
+            </button>
+          )}
         </div>
       ) : (
         <div
@@ -637,6 +654,21 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             <span style={{ marginTop: 2 }}>
               <AlertBadge status="overridden" tooltip={t('alert.overriddenTooltip')} />
             </span>
+          )}
+          {onDeleteEvent && (
+            <button
+              type="button"
+              className="schedule-event-hover-delete-btn"
+              aria-label="刪除排班任務"
+              title="刪除/移回待排"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onDeleteEvent(scheduleEvent, e);
+              }}
+            >
+              ✕
+            </button>
           )}
         </div>
       );
@@ -1094,6 +1126,41 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           user-select: none;
           box-sizing: border-box !important;
         }
+        
+        /* 事件卡片 Hover 紅色刪除叉叉按鈕 */
+        .schedule-event-hover-delete-btn {
+          display: none;
+          position: absolute;
+          top: 2px;
+          right: 2px;
+          width: 17px;
+          height: 17px;
+          border-radius: 50%;
+          background-color: #ff4d4f;
+          color: #ffffff;
+          font-size: 11px;
+          font-weight: 900;
+          line-height: 15px;
+          text-align: center;
+          border: 1px solid #ffffff;
+          cursor: pointer;
+          z-index: 20;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+          transition: transform 0.15s ease, background-color 0.15s ease;
+          padding: 0;
+        }
+        .fc-event:hover .schedule-event-hover-delete-btn,
+        .schedule-event-hover-delete-btn:hover,
+        [data-testid^="schedule-event-"]:hover .schedule-event-hover-delete-btn {
+          display: flex !important;
+          align-items: center;
+          justify-content: center;
+        }
+        .schedule-event-hover-delete-btn:hover {
+          background-color: #cf1322 !important;
+          transform: scale(1.2);
+        }
+
         /* 總覽月視圖事件卡片樣式 */
         .fc-daygrid-event-harness {
           margin: 1px 2px !important;
