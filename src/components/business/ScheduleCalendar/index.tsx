@@ -565,6 +565,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             display: 'grid',
             gap: 1,
             padding: '3px 18px 3px 5px',
+            gridTemplateColumns: 'minmax(0, 1fr)',
             backgroundColor: eventColor,
             borderRadius: 6,
             overflow: 'hidden',
@@ -619,6 +620,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                   padding: '0 4px',
                   borderRadius: 3,
                   fontWeight: 700,
+                  minWidth: 0,
                 }}
               >
                 補做
@@ -632,6 +634,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                minWidth: 0,
               }}
             >
               {scheduleEvent.groupName}
@@ -1051,7 +1054,6 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         /* 嚴格固定每一行資源列與時間軸軌道的高度一致（統一 64px） */
         .fc-datagrid-cell-frame {
           min-height: 64px !important;
-          height: 64px !important;
           padding: 8px 12px !important;
           display: flex !important;
           flex-direction: column !important;
@@ -1064,17 +1066,13 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         }
         .fc-timeline-lane {
           min-height: 64px !important;
-          height: 64px !important;
           box-sizing: border-box !important;
         }
         .fc-timeline-lane-frame {
           min-height: 64px !important;
-          height: 64px !important;
         }
         /* 避免時間軸內的事件被撐開超出 64px 高度 */
         .fc-timeline-event-harness {
-          top: 8px !important;
-          bottom: 8px !important;
           height: 48px !important;
         }
         .fc-timeline-event {
