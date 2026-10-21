@@ -1051,7 +1051,6 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         /* 嚴格固定每一行資源列與時間軸軌道的高度一致（統一 64px） */
         .fc-datagrid-cell-frame {
           min-height: 64px !important;
-          height: 64px !important;
           padding: 8px 12px !important;
           display: flex !important;
           flex-direction: column !important;
@@ -1064,17 +1063,13 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         }
         .fc-timeline-lane {
           min-height: 64px !important;
-          height: 64px !important;
           box-sizing: border-box !important;
         }
         .fc-timeline-lane-frame {
           min-height: 64px !important;
-          height: 64px !important;
         }
         /* 避免時間軸內的事件被撐開超出 64px 高度 */
         .fc-timeline-event-harness {
-          top: 8px !important;
-          bottom: 8px !important;
           height: 48px !important;
         }
         .fc-timeline-event {
