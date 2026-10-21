@@ -565,6 +565,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             display: 'grid',
             gap: 1,
             padding: '3px 18px 3px 5px',
+            gridTemplateColumns: 'minmax(0, 1fr)',
             backgroundColor: eventColor,
             borderRadius: 6,
             overflow: 'hidden',
@@ -619,6 +620,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                   padding: '0 4px',
                   borderRadius: 3,
                   fontWeight: 700,
+                  minWidth: 0,
                 }}
               >
                 補做
@@ -632,6 +634,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                minWidth: 0,
               }}
             >
               {scheduleEvent.groupName}
