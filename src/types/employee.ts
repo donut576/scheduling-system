@@ -34,4 +34,4 @@ export interface Employee {
 }
 
 /** 員工職位類型 */
-export type PositionType = 'STAFF' | 'LEADER' | 'MANAGER' | 'ADMIN_STAFF';
+export type PositionType = 'STAFF' | 'CONTRACT_STAFF' | 'LEADER' | 'MANAGER' | 'ADMIN_STAFF';
