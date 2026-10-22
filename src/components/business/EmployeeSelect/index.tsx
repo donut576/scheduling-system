@@ -14,6 +14,7 @@ import type { LicenseType } from '@/types/alert';
 import { LICENSE_TYPE_MAP } from '@/constants/licenseTypes';
 import { AREA_OPTIONS, EMPLOYEE_SHIFT_OPTIONS } from '@/constants/groups';
 import { useEmployeeList } from '@/queries/useEmployeeQueries';
+import { ASSIGNABLE_POSITIONS } from '@/constants/positions';
 
 export interface EmployeeSelectProps {
   value?: string[];
@@ -53,7 +54,7 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
     const list = employeeData?.list ?? [];
     return list.filter(
       (emp) =>
-        emp.position === 'STAFF' ||
+        ASSIGNABLE_POSITIONS.includes(emp.position) ||
         (!emp.position && !emp.name.includes('組長') && !emp.name.includes('經理')),
     );
   }, [employeeData]);

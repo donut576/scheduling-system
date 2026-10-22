@@ -27,6 +27,7 @@ import dayjs from 'dayjs';
 import { ROLE_PERMISSIONS } from '@/constants/permissions';
 import { getGroupColor } from '@/utils/groupColor';
 import { isAddressInRegion, normalizeRegion } from '@/utils/regionMapping';
+import { ASSIGNABLE_POSITIONS } from '@/constants/positions';
 
 /**
  * MSW request handlers mocking all API endpoints defined in src/api/*.ts.
@@ -4493,7 +4494,7 @@ export const handlers = [
     } else if (dim === 'employee') {
       let emps = mockEmployees.filter(
         (e) =>
-          e.position === 'STAFF' ||
+          ASSIGNABLE_POSITIONS.includes(e.position) ||
           (!e.position && !e.name.includes('組長') && !e.name.includes('經理')),
       );
       if (employeeId) {

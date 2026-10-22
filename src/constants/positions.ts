@@ -19,3 +19,6 @@ export const POSITION_MAP: Record<PositionType, string> = {
 export const POSITION_OPTIONS: SelectOption[] = Object.entries(POSITION_MAP).map(
   ([value, label]) => ({ label, value }),
 );
+
+/** 可被指派到現場任務的職位（一般員工、約聘員工） */
+export const ASSIGNABLE_POSITIONS: PositionType[] = ['STAFF', 'CONTRACT_STAFF'];
