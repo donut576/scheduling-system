@@ -482,6 +482,7 @@ export default {
     onLeaveDisabled: 'This employee is on leave for the selected date and cannot be assigned',
     positions: {
       staff: 'Staff',
+      contractStaff: 'Contract Staff',
       leader: 'Leader',
       manager: 'Manager',
       adminStaff: 'Admin',
