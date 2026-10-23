@@ -27,6 +27,7 @@ import dayjs from 'dayjs';
 import { ROLE_PERMISSIONS } from '@/constants/permissions';
 import { getGroupColor } from '@/utils/groupColor';
 import { isAddressInRegion, normalizeRegion } from '@/utils/regionMapping';
+import { ASSIGNABLE_POSITIONS } from '@/constants/positions';
 
 /**
  * MSW request handlers mocking all API endpoints defined in src/api/*.ts.
@@ -673,6 +674,21 @@ const demoEmployees: Employee[] = [
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['PEST_CONTROL', 'SAFETY_6HR'],
+    isActive: true,
+  },
+  {
+    id: 'emp-contract-001',
+    name: '約聘測試員',
+    phone: '0900123456',
+    employeeNo: 'CT001',
+    position: 'CONTRACT_STAFF',
+    groupId: 'taipei-morning',
+    groupName: '台北 早班',
+    area: '台北',
+    shift: '早班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
     isActive: true,
   },
 
@@ -4473,7 +4489,7 @@ export const handlers = [
     } else if (dim === 'employee') {
       let emps = mockEmployees.filter(
         (e) =>
-          e.position === 'STAFF' ||
+          ASSIGNABLE_POSITIONS.includes(e.position) ||
           (!e.position && !e.name.includes('組長') && !e.name.includes('經理')),
       );
       if (employeeId) {

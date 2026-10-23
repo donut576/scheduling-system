@@ -40,6 +40,8 @@ import { useTaskDetail, useUpdateTask, useTaskList } from '@/queries/useTaskQuer
 import { AREA_OPTIONS, EMPLOYEE_SHIFT_OPTIONS } from '@/constants/groups';
 import { isAddressInRegion, normalizeRegion } from '@/utils/regionMapping';
 import { formatTaskContents } from '@/constants/taskStatus';
+import { ASSIGNABLE_POSITIONS } from '@/constants/positions';
+
 import type {
   ScheduleDimension,
   ScheduleEvent,
@@ -161,7 +163,7 @@ const SchedulePage: FC = () => {
   const employeeOptions = useMemo(() => {
     let list = employees.filter(
       (e) =>
-        e.position === 'STAFF' ||
+        ASSIGNABLE_POSITIONS.includes(e.position) ||
         (!e.position && !e.name.includes('組長') && !e.name.includes('經理')),
     );
     const activeArea = isLeader ? leaderArea : selectedArea;
@@ -1819,7 +1821,7 @@ const SchedulePage: FC = () => {
         open={editOpen}
         onCancel={handleEditClose}
         footer={null}
-        width={800}
+        width={980}
         destroyOnClose
       >
         {(taskDetail || (selectedEvent?.extendedProps as unknown as { task?: Task })?.task) && (

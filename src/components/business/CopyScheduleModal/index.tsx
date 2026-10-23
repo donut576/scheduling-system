@@ -21,6 +21,7 @@ import { useEmployeeList } from '@/queries/useEmployeeQueries';
 import { AREA_OPTIONS } from '@/constants/groups';
 import type { CopyScheduleParams, CopyScheduleResult } from '@/types/schedule';
 import type { TaskType } from '@/types/task';
+import { ASSIGNABLE_POSITIONS } from '@/constants/positions';
 
 const { RangePicker } = DatePicker;
 
@@ -108,7 +109,7 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({
     return employees
       .filter(
         (emp) =>
-          emp.position === 'STAFF' ||
+          ASSIGNABLE_POSITIONS.includes(emp.position) ||
           (!emp.position && !emp.name.includes('組長') && !emp.name.includes('經理')),
       )
       .map((emp) => ({

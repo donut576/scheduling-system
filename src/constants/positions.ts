@@ -9,6 +9,7 @@ import type { SelectOption } from '@/types/common';
 /** 職位代碼對應顯示文字 */
 export const POSITION_MAP: Record<PositionType, string> = {
   STAFF: '一般員工',
+  CONTRACT_STAFF: '約聘員工',
   LEADER: '組長',
   MANAGER: '經理',
   ADMIN_STAFF: '行政',
@@ -18,3 +19,6 @@ export const POSITION_MAP: Record<PositionType, string> = {
 export const POSITION_OPTIONS: SelectOption[] = Object.entries(POSITION_MAP).map(
   ([value, label]) => ({ label, value }),
 );
+
+/** 可被指派到現場任務的職位（一般員工、約聘員工） */
+export const ASSIGNABLE_POSITIONS: PositionType[] = ['STAFF', 'CONTRACT_STAFF'];

@@ -515,10 +515,6 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
       const computedStatus: TaskStatus =
         isFullyStaffed && hasDate && hasTime ? 'SCHEDULED' : 'UNSCHEDULED';
 
-      const photoUrlsFromList = fileList
-        .map((f) => f.url || f.thumbUrl || (f.response ? (f.response as { url?: string }).url : ''))
-        .filter(Boolean) as string[];
-
       const isPhotoChecked =
         Array.isArray(values.reportTypes) && values.reportTypes.includes('PHOTO');
 
@@ -558,18 +554,14 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         requirePhotos: isPhotoChecked,
         photoCount: undefined,
         reportTypes: values.reportTypes ?? [],
-        photos: isPhotoChecked
-          ? photoUrlsFromList.length > 0
-            ? photoUrlsFromList
-            : (values.photos ?? [])
-          : [],
+        photos: isPhotoChecked ? (values.photos ?? []) : [],
         reportNotes: values.reportNotes,
         recurrence: enableRecurrence ? recurrenceRule : undefined,
         overrideRemark: overrideRemark || values.overrideRemark,
         status: computedStatus,
       };
     },
-    [form, enableRecurrence, recurrenceRule, shifts, fileList],
+    [form, enableRecurrence, recurrenceRule, shifts],
   );
 
   // 處理 ConflictPanel 之覆蓋操作：使用者確認覆蓋違規並輸入備註後呼叫
@@ -708,7 +700,6 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     setRecurrenceRule(DEFAULT_RECURRENCE_RULE);
     setAlertResults(null);
     setStoreAlertResults(null);
-    setFileList([]);
   }, [form, setStoreAlertResults]);
 
   const showOtherContentNote =
