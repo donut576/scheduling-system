@@ -489,6 +489,10 @@ export default {
       manager: '經理',
       adminStaff: '行政',
     },
+    tags: {
+      regular: '正',
+      contract: '約',
+    },
     licensesMap: {
       none: '無',
       professional: '專技',

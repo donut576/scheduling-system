@@ -7,6 +7,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import { Select, Tag, Space, Tooltip } from 'antd';
+import EmploymentTag from '@/components/business/EmploymentTag';
 import { StarFilled, WarningFilled } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { Employee } from '@/types/employee';
@@ -178,17 +179,19 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
       </Space>
 
       {/* 員工名單按鈕式呈現：純員工姓名 (工號) */}
-      <Space
-        wrap
-        size={[8, 8]}
+      <div
         role="group"
         aria-label={t('employee.assignEmployees')}
         style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gap: 12,
+          padding: 12,
           border: '1px solid #d9d9d9',
           borderRadius: 6,
-          padding: 10,
           minHeight: 48,
           width: '100%',
+          boxSizing: 'border-box',
           background: disabled ? '#f5f5f5' : '#fafafa',
           cursor: disabled ? 'not-allowed' : 'default',
         }}
@@ -211,53 +214,81 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
               onChange={(checked) => handleToggle(employee, checked)}
               aria-label={employee.name}
               style={{
+                display: 'block',
+                width: '100%',
+                minWidth: 0,
+                margin: 0,
+                boxSizing: 'border-box',
+                padding: '8px 12px',
+                borderRadius: 6,
                 border: selected ? '1px solid #1677ff' : '1px solid #d9d9d9',
-                padding: '5px 12px',
-                borderRadius: 4,
-                cursor: disabled ? 'not-allowed' : 'pointer',
                 background: selected ? (disabled ? '#bae0ff' : '#e6f4ff') : '#ffffff',
                 opacity: disabled && !selected ? 0.6 : 1,
                 transition: 'all 0.2s',
               }}
             >
-              <Space size={4}>
-                {qualified && (
-                  <Tooltip title={t('employee.licenseQualified')}>
-                    <StarFilled
-                      style={{ color: '#52c41a' }}
-                      aria-label={t('employee.licenseQualified')}
-                      role="img"
-                    />
-                  </Tooltip>
-                )}
-                {unqualified && (
-                  <Tooltip title={t('employee.licenseUnqualified')}>
-                    <WarningFilled
-                      style={{ color: '#faad14' }}
-                      aria-label={t('employee.licenseUnqualified')}
-                      role="img"
-                    />
-                  </Tooltip>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  minWidth: 0,
+                  width: '100%',
+                }}
+              >
+                {(qualified || unqualified) && (
+                  <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                    {qualified && (
+                      <Tooltip title={t('employee.licenseQualified')}>
+                        <StarFilled
+                          style={{ color: '#52c41a' }}
+                          aria-label={t('employee.licenseQualified')}
+                          role="img"
+                        />
+                      </Tooltip>
+                    )}
+                    {unqualified && (
+                      <Tooltip title={t('employee.licenseUnqualified')}>
+                        <WarningFilled
+                          style={{ color: '#faad14' }}
+                          aria-label={t('employee.licenseUnqualified')}
+                          role="img"
+                        />
+                      </Tooltip>
+                    )}
+                  </span>
                 )}
                 <span
+                  title={`${employee.name}${employee.employeeNo ? ` (${employee.employeeNo})` : ''}`}
                   style={{
+                    flex: 1,
                     fontWeight: selected ? 600 : 400,
                     color: selected ? '#1677ff' : 'inherit',
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {employee.name}
                   {employee.employeeNo ? ` (${employee.employeeNo})` : ''}
                 </span>
                 {onLeave && (
-                  <Tag color="error" style={{ marginInlineEnd: 0, fontSize: 11, padding: '0 4px' }}>
+                  <Tag
+                    color="error"
+                    style={{ marginInlineEnd: 0, fontSize: 11, padding: '0 4px', flexShrink: 0 }}
+                  >
                     {t('employee.onLeave')}
                   </Tag>
                 )}
-              </Space>
+                <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                  <EmploymentTag position={employee.position} />
+                </span>
+              </div>
             </Tag.CheckableTag>
           );
         })}
-      </Space>
+      </div>
       {disabled && (
         <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 2 }}>
           📌 未排班任務之人員指派請至「班表總覽」進行拖曳排班。
