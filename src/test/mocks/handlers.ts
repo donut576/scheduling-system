@@ -4742,7 +4742,7 @@ export const handlers = [
   http.post('*/api/v1/customers', async ({ request }) => {
     const data = (await request.json()) as Record<string, unknown>;
     const groupName = ((data.groupName as string) || '未命名集團').trim();
-    const branchName = ((data.branchName as string) || '總部').trim();
+    const branchName = ((data.branchName as string) ?? '').trim();
 
     // 尋找既有集團或新建集團
     let targetGroup = mockCustomerGroups.find(

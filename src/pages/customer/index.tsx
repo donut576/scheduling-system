@@ -64,7 +64,7 @@ function renderCustomerCard(
                 {record.groupName}
               </div>
               <div className="management-card-subtitle" title={record.branchName}>
-                {record.branchName}
+                {record.branchName || '\u00A0'}
               </div>
             </div>
           </Space>
@@ -281,7 +281,7 @@ const CustomerPage: FC = () => {
 
     const payload: CustomerFormData = {
       groupName: values.groupName.trim(),
-      branchName: values.branchName.trim(),
+      branchName: (values.branchName ?? '').trim(),
       address: values.address.trim(),
       contactName: values.contactName.trim(),
       contactPhone: values.contactPhone.trim(),
@@ -309,7 +309,7 @@ const CustomerPage: FC = () => {
       Modal.confirm({
         title: t('customer.deleteTitle'),
         content: t('customer.deleteConfirm', {
-          name: `${record.groupName} ${record.branchName}`,
+          name: [record.groupName, record.branchName].filter(Boolean).join(' '),
         }),
         okText: t('customer.confirmDelete'),
         cancelText: t('common.cancel'),
@@ -489,7 +489,6 @@ const CustomerPage: FC = () => {
           <Form.Item
             name="branchName"
             label={t('customer.branchName')}
-            rules={[{ required: true, message: t('customer.branchNameRequired') }]}
             validateStatus={
               !editingCustomer && validationResult.isExactCustomerDuplicate ? 'error' : undefined
             }
