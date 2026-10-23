@@ -1821,7 +1821,7 @@ const SchedulePage: FC = () => {
         open={editOpen}
         onCancel={handleEditClose}
         footer={null}
-        width={800}
+        width={980}
         destroyOnClose
       >
         {(taskDetail || (selectedEvent?.extendedProps as unknown as { task?: Task })?.task) && (
