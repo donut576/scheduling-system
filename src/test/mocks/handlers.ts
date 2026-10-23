@@ -687,6 +687,21 @@ const demoEmployees: Employee[] = [
     licenses: ['PEST_CONTROL', 'SAFETY_6HR'],
     isActive: true,
   },
+  {
+    id: 'emp-contract-001',
+    name: '約聘測試員',
+    phone: '0900123456',
+    employeeNo: 'CT001',
+    position: 'CONTRACT_STAFF',
+    groupId: 'taipei-morning',
+    groupName: '台北 早班',
+    area: '台北',
+    shift: '早班',
+    groupColor: '#7a69c0',
+    designatedLeaves: [],
+    licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
+    isActive: true,
+  },
 
   // ===================== 台北 午班 (12:00 ~ 24:00) =====================
   {
