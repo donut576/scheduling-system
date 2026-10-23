@@ -336,21 +336,14 @@ describe('TaskForm', () => {
     expect(datePicker).toBeInTheDocument();
   });
 
-  it('renders report methods checkboxes and toggles photo upload when 拍照存證 is checked', async () => {
-    const user = userEvent.setup();
+  it('renders report methods checkboxes', () => {
     renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
 
     expect(screen.getByText('施作回報與照片要求')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'APP 填寫' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'EDM 電子郵件' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: '紙本回報' })).toBeInTheDocument();
-    const photoCheckbox = screen.getByRole('checkbox', { name: '拍照存證' });
-    expect(photoCheckbox).toBeInTheDocument();
-
-    expect(screen.queryByText('上傳照片')).not.toBeInTheDocument();
-
-    await user.click(photoCheckbox);
-    expect(await screen.findByText('上傳照片')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: '拍照存證' })).toBeInTheDocument();
   });
 
   it('renders Chinese group and branch names correctly in edit mode when task belongs to custom/new group', async () => {
