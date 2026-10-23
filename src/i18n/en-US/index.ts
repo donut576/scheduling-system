@@ -487,6 +487,10 @@ export default {
       manager: 'Manager',
       adminStaff: 'Admin',
     },
+    tags: {
+      regular: 'Full-time',
+      contract: 'Contract',
+    },
     licensesMap: {
       none: 'None',
       professional: 'Professional',
