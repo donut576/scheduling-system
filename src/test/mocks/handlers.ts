@@ -108,6 +108,17 @@ const mockStaffUser: UserProfile = {
   area: '台北',
 };
 
+// Demo staff account for 蔡孟潔 (login: TPA02 / staff123)
+const mockStaffUserTPA02: UserProfile = {
+  id: 'emp-tp-a02',
+  name: '蔡孟潔',
+  employeeNo: 'TPA02',
+  role: 'STAFF',
+  permissions: ROLE_PERMISSIONS.STAFF!,
+  groupId: 'taipei-afternoon',
+  area: '台北',
+};
+
 const mockTask: Task = {
   id: 'task-001',
   groupId: 'group-001',
@@ -3802,6 +3813,15 @@ export const handlers = [
           accessToken: 'mock-staff-token',
           expiresIn: 3600,
           user: mockStaffUser,
+        }),
+      );
+    }
+    if (body.account === 'TPA02' && body.password === 'staff123') {
+      return HttpResponse.json(
+        ok<LoginResponse>({
+          accessToken: 'mock-staff-tpa02-token',
+          expiresIn: 3600,
+          user: mockStaffUserTPA02,
         }),
       );
     }
