@@ -17,12 +17,13 @@
 
 **網址**：<https://scheduling-system-cyan.vercel.app>
 
-| 角色 | 帳號 | 密碼 |
-| ---- | ---- | ---- |
-| 👑 系統管理員（Admin） | `admin` | `admin123` |
+| 角色                   | 帳號      | 密碼         |
+| ---------------------- | --------- | ------------ |
+| 👑 系統管理員（Admin） | `admin`   | `admin123`   |
 | 👔 單位主管（Manager） | `manager` | `manager123` |
-| 🧑‍💼 排班組長（Leader） | `leader` | `leader123` |
-| 👨‍⚕️ 現場專員（Staff） | `staff` | `staff123` |
+| 🧑‍💼 排班組長（Leader）  | `leader`  | `leader123`  |
+| 👨‍⚕️ 現場專員（Staff）   | `staff`   | `staff123`   |
+| 🧑‍🔧 現場專員（蔡孟潔）  | `TPA02`   | `staff123`   |
 
 > 不同角色登入後會看到不同的工作台與選單，建議各切換一次體驗權限差異。
 
@@ -65,14 +66,14 @@ graph TD
 
 ## 📊 可靠性與監控
 
-| 項目 | 說明 |
-| ---- | ---- |
-| **Prometheus + Grafana** | 收集並視覺化 Pod 的 CPU、記憶體與網路流量 |
-| **HPA 水平擴縮容** | 平時維持 2 個副本，CPU 超過 50% 時自動擴展，上限 10 個 |
-| **Liveness / Readiness Probe** | 容器異常時自動重啟；新 Pod 就緒後才接收流量，達成零停機更新 |
-| **k6 壓力測試** | 模擬高併發流量，驗證 HPA 擴展行為與服務穩定性 |
-| **Vercel Analytics / Speed Insights** | 追蹤真實使用者的 Web Vitals 與造訪來源 |
-| **GitHub Actions Uptime Monitor** | 定時探測 Demo 站點，異常時發出告警 |
+| 項目                                  | 說明                                                        |
+| ------------------------------------- | ----------------------------------------------------------- |
+| **Prometheus + Grafana**              | 收集並視覺化 Pod 的 CPU、記憶體與網路流量                   |
+| **HPA 水平擴縮容**                    | 平時維持 2 個副本，CPU 超過 50% 時自動擴展，上限 10 個      |
+| **Liveness / Readiness Probe**        | 容器異常時自動重啟；新 Pod 就緒後才接收流量，達成零停機更新 |
+| **k6 壓力測試**                       | 模擬高併發流量，驗證 HPA 擴展行為與服務穩定性               |
+| **Vercel Analytics / Speed Insights** | 追蹤真實使用者的 Web Vitals 與造訪來源                      |
+| **GitHub Actions Uptime Monitor**     | 定時探測 Demo 站點，異常時發出告警                          |
 
 ---
 
@@ -84,22 +85,22 @@ graph TD
 
 ### 測試指標
 
-| 指標 | 結果 |
-| :--- | :--- |
-| 總請求數 | **117,497 次**（約 1,305 req/s） |
-| 成功率 | **100%**（0 失敗） |
-| 平均回應時間 | **15.68 ms** |
-| P95 回應時間 | **71.19 ms** |
-| 總傳輸量 | **1.8 GB** |
+| 指標         | 結果                             |
+| :----------- | :------------------------------- |
+| 總請求數     | **117,497 次**（約 1,305 req/s） |
+| 成功率       | **100%**（0 失敗）               |
+| 平均回應時間 | **15.68 ms**                     |
+| P95 回應時間 | **71.19 ms**                     |
+| 總傳輸量     | **1.8 GB**                       |
 
 ### HPA 擴展過程（2 → 10 Pods）
 
-| 時間 | CPU 使用率* | 副本數 | 狀態 |
-| ---- | ---------- | ------ | ---- |
-| 第 1 分鐘 | 2% | 2 | 平時低負載 |
-| 第 2 分鐘 | 261% | 2 → 4 | 流量湧入，觸發擴容 |
-| 第 3 分鐘 | 398% | 4 → 8 → 10 | 持續擴展至上限 |
-| 第 4 分鐘 | 2% | 10 → 逐步縮回 | 壓測結束，負載恢復 |
+| 時間      | CPU 使用率* | 副本數        | 狀態               |
+| --------- | ----------- | ------------- | ------------------ |
+| 第 1 分鐘 | 2%          | 2             | 平時低負載         |
+| 第 2 分鐘 | 261%        | 2 → 4         | 流量湧入，觸發擴容 |
+| 第 3 分鐘 | 398%        | 4 → 8 → 10    | 持續擴展至上限     |
+| 第 4 分鐘 | 2%          | 10 → 逐步縮回 | 壓測結束，負載恢復 |
 
 <sub>* CPU 使用率為相對於 Pod `resources.requests` 的百分比，因此會超過 100%。</sub>
 
@@ -107,24 +108,24 @@ graph TD
 
 ## 🛠️ 技術棧
 
-| 類別 | 技術 |
-| :--- | :--- |
-| 核心框架 | React 18, TypeScript 5, Vite 6 |
-| UI | Ant Design 5, Tailwind CSS, Lucide React |
+| 類別           | 技術                                                                 |
+| :------------- | :------------------------------------------------------------------- |
+| 核心框架       | React 18, TypeScript 5, Vite 6                                       |
+| UI             | Ant Design 5, Tailwind CSS, Lucide React                             |
 | 行事曆／時間軸 | FullCalendar v6（resource-timeline, timegrid, daygrid, interaction） |
-| 地圖 | Leaflet, React-Leaflet |
-| 路由 | React Router 7 |
-| 伺服器狀態 | TanStack Query v5 |
-| 全域狀態 | Zustand 5 |
-| HTTP | Axios |
-| 日期 | Day.js |
-| 國際化 | i18next, react-i18next（預設繁體中文，支援英文） |
-| 檔案匯出 | SheetJS (xlsx) |
-| 容器化與部署 | Docker（multi-stage build）, k3s, Helm |
-| 監控 | Prometheus, Grafana, Alertmanager, HPA |
-| 效能與壓測 | k6, Vercel Analytics, Speed Insights |
-| 測試 | Vitest, React Testing Library, MSW, fast-check |
-| 程式碼品質 | ESLint, Prettier, Husky, lint-staged |
+| 地圖           | Leaflet, React-Leaflet                                               |
+| 路由           | React Router 7                                                       |
+| 伺服器狀態     | TanStack Query v5                                                    |
+| 全域狀態       | Zustand 5                                                            |
+| HTTP           | Axios                                                                |
+| 日期           | Day.js                                                               |
+| 國際化         | i18next, react-i18next（預設繁體中文，支援英文）                     |
+| 檔案匯出       | SheetJS (xlsx)                                                       |
+| 容器化與部署   | Docker（multi-stage build）, k3s, Helm                               |
+| 監控           | Prometheus, Grafana, Alertmanager, HPA                               |
+| 效能與壓測     | k6, Vercel Analytics, Speed Insights                                 |
+| 測試           | Vitest, React Testing Library, MSW, fast-check                       |
+| 程式碼品質     | ESLint, Prettier, Husky, lint-staged                                 |
 
 ---
 
@@ -167,10 +168,10 @@ loadtest/           # k6 壓力測試腳本
 
 ### 1. 環境需求
 
-| 工具 | 版本 |
-| ---- | ---- |
+| 工具    | 版本      |
+| ------- | --------- |
 | Node.js | `>= 18.0` |
-| npm | `>= 9.0` |
+| npm     | `>= 9.0`  |
 
 ### 2. 安裝與本地開發
 
@@ -214,8 +215,8 @@ kubectl get pods,hpa -n <namespace>
 
 採用三層測試策略：
 
-| 層級 | 工具 | 驗證範圍 |
-| ---- | ---- | -------- |
-| **單元測試** | Vitest | 工具函式、自訂 Hooks、Store 邏輯 |
-| **元件／整合測試** | React Testing Library + MSW | 模擬 API 回應，驗證元件互動流程 |
-| **屬性基礎測試（PBT）** | fast-check | 排班演算法、連續排班限制、資料轉換的不變性 |
+| 層級                    | 工具                        | 驗證範圍                                   |
+| ----------------------- | --------------------------- | ------------------------------------------ |
+| **單元測試**            | Vitest                      | 工具函式、自訂 Hooks、Store 邏輯           |
+| **元件／整合測試**      | React Testing Library + MSW | 模擬 API 回應，驗證元件互動流程            |
+| **屬性基礎測試（PBT）** | fast-check                  | 排班演算法、連續排班限制、資料轉換的不變性 |
