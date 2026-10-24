@@ -4735,7 +4735,13 @@ export const handlers = [
   }),
 
   // customer.ts
-  http.get('*/api/v1/customers', () => HttpResponse.json(ok(paginated<Customer>(mockCustomers)))),
+  http.get('*/api/v1/customers', ({ request }) => {
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 1;
+    const pageSize = Number(url.searchParams.get('pageSize')) || 20;
+    return HttpResponse.json(ok(paginated<Customer>(mockCustomers, page, pageSize)));
+  }),
+
   http.get('*/api/v1/customers/groups', () =>
     HttpResponse.json(ok<CustomerGroup[]>(mockCustomerGroups)),
   ),
