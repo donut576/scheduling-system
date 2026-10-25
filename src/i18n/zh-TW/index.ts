@@ -420,6 +420,9 @@ export default {
     groupNamePlaceholder: '請輸入集團名稱',
     branchNameRequired: '請輸入分店名稱',
     branchNamePlaceholder: '請輸入分店名稱',
+    noBranch: '無分店',
+    noBranchRecordHint:
+      '此集團已有一筆「無分店」資料。如為同一間店，請改為編輯該筆並填入分店名稱。',
     addressRequired: '請輸入地址',
     addressPlaceholder: '請輸入地址',
     contactNameRequired: '請輸入聯絡窗口',

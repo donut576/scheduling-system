@@ -2118,7 +2118,7 @@ mockCustomerGroups = mockCustomerGroups.map((g) => {
   const gName = g.name && !g.name.startsWith('group-') ? g.name : '花蓮集團';
   const branches = g.branches.map((b) => ({
     ...b,
-    name: b.name && !b.name.startsWith('branch-') ? b.name : '花蓮分店',
+    name: b.name?.startsWith('branch-') ? '花蓮分店' : (b.name ?? ''),
   }));
   return { ...g, name: gName, branches };
 });
@@ -2176,7 +2176,7 @@ const resolveGroupBranchNames = (groupId?: string, branchId?: string) => {
     group?.name && !group.name.startsWith('group-') && !group.name.startsWith('cust-'),
   );
   const branchHasValidName = Boolean(
-    branch?.name && !branch.name.startsWith('branch-') && !branch.name.startsWith('cust-'),
+    branch && !branch.name?.startsWith('branch-') && !branch.name?.startsWith('cust-'),
   );
 
   if (groupHasValidName && branchHasValidName) {

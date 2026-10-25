@@ -417,6 +417,9 @@ export default {
     groupNamePlaceholder: 'Enter group name',
     branchNameRequired: 'Please enter branch name',
     branchNamePlaceholder: 'Enter branch name',
+    noBranch: 'No branch',
+    noBranchRecordHint:
+      'This group already has a "No branch" record. If it is the same store, edit that record and enter a branch name instead.',
     addressRequired: 'Please enter address',
     addressPlaceholder: 'Enter address',
     contactNameRequired: 'Please enter contact person',

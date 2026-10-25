@@ -16,6 +16,8 @@ export interface CustomerValidationResult {
   exactCustomerName?: string;
   /** 是否有完全相同名稱之集團 */
   exactGroupMatch?: GroupSummary;
+  /** 該集團下是否已存在一筆「無分店」（分店名稱為空）的客戶記錄 */
+  hasNoBranchRecord?: boolean;
   /** 相似之集團清單（不含完全相同者） */
   similarGroups: GroupSummary[];
 }
@@ -126,6 +128,7 @@ export function checkCustomerDuplicate(
   let isExactCustomerDuplicate = false;
   let exactCustomerName: string | undefined;
   let exactGroupMatch: GroupSummary | undefined;
+  let hasNoBranchRecord = false;
   const similarGroups: GroupSummary[] = [];
 
   for (const group of existingGroups) {
@@ -139,15 +142,23 @@ export function checkCustomerDuplicate(
         sampleBranches: branches.map((b) => b.name).slice(0, 3),
       };
 
-      // 檢查是否有同集團且同分店名稱
+      // 該集團是否已有「無分店」（名稱為空）的記錄
+      const hasNoBranch = branches.some((b) => !b.name?.trim());
+      hasNoBranchRecord = hasNoBranch;
+
       if (trimmedBranch) {
+        // 檢查是否有同集團且同分店名稱
         const hasSameBranch = branches.some(
-          (b) => b.name.trim().toLowerCase() === trimmedBranch.toLowerCase(),
+          (b) => b.name?.trim().toLowerCase() === trimmedBranch.toLowerCase(),
         );
         if (hasSameBranch) {
           isExactCustomerDuplicate = true;
           exactCustomerName = `${group.name} - ${trimmedBranch}`;
         }
+      } else if (hasNoBranch) {
+        // 輸入為無分店，且該集團已有一筆無分店記錄 → 視為重複
+        isExactCustomerDuplicate = true;
+        exactCustomerName = `${group.name} - 無分店`;
       }
     } else if (isSimilarGroupName(trimmedGroup, group.name)) {
       similarGroups.push({
@@ -162,6 +173,7 @@ export function checkCustomerDuplicate(
     isExactCustomerDuplicate,
     exactCustomerName,
     exactGroupMatch,
+    hasNoBranchRecord,
     similarGroups,
   };
 }
