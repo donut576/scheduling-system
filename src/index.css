@@ -622,3 +622,21 @@ tr.row-task-cancelled .ant-tag {
   flex-shrink: 0;
   white-space: nowrap;
 }
+
+/* 必填星號改放在標籤文字後面，讓必填與選填欄位的標籤文字左側對齊 */
+.ant-form-item
+  .ant-form-item-label
+  > label.ant-form-item-required:not(.ant-form-item-required-mark-optional)::before {
+  display: none;
+}
+
+.ant-form-item
+  .ant-form-item-label
+  > label.ant-form-item-required:not(.ant-form-item-required-mark-optional)::after {
+  content: '*';
+  visibility: visible;
+  margin-inline-start: 4px;
+  color: #ff4d4f;
+  font-size: 20px;
+  line-height: 1;
+}
