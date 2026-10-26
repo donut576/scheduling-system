@@ -61,7 +61,7 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
     if (open) {
       form.setFieldsValue({
         groupName: initialGroupName,
-        branchName: initialBranchName || (isNewGroup ? '總部 / 一店' : ''),
+        branchName: initialBranchName || '',
         address: '',
         contactName: '現場負責人',
         contactPhone: '02-23456789',
@@ -98,7 +98,7 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
       const payload = {
         groupId: !isNewGroup ? initialGroupId : undefined,
         groupName: values.groupName.trim(),
-        branchName: values.branchName.trim(),
+        branchName: (values.branchName ?? '').trim(),
         address: values.address.trim(),
         contactName: values.contactName?.trim() || '現場負責人',
         contactPhone: values.contactPhone?.trim() || '02-23456789',
@@ -194,7 +194,6 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
               <span style={{ fontWeight: 600 }}>分店／據點名稱</span>
             </Space>
           }
-          rules={[{ required: true, message: '請輸入分店名稱' }]}
           validateStatus={
             isNewGroup && validationResult.isExactCustomerDuplicate ? 'error' : undefined
           }
