@@ -1,6 +1,18 @@
 import { useCallback, useState, useMemo } from 'react';
 import type { FC } from 'react';
-import { Avatar, Button, Card, Form, Input, Select, Space, Tag, message, Modal } from 'antd';
+import {
+  Avatar,
+  Button,
+  Card,
+  Form,
+  Input,
+  Select,
+  Space,
+  Tag,
+  message,
+  Modal,
+  AutoComplete,
+} from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import BaseTable, { type ColumnDef, type QueryResult } from '@/components/base/BaseTable';
@@ -175,6 +187,10 @@ const CustomerPage: FC = () => {
 
   const watchGroupName = Form.useWatch('groupName', form) || '';
   const watchBranchName = Form.useWatch('branchName', form) || '';
+  const groupNameOptions = useMemo(
+    () => customerGroups.map((g) => ({ value: g.name })),
+    [customerGroups],
+  );
 
   const validationResult = useMemo(() => {
     if (editingCustomer || !watchGroupName) {
@@ -182,6 +198,9 @@ const CustomerPage: FC = () => {
     }
     return checkCustomerDuplicate(watchGroupName, watchBranchName, customerGroups);
   }, [editingCustomer, watchGroupName, watchBranchName, customerGroups]);
+
+  const showNoBranchHint =
+    Boolean(validationResult.hasNoBranchRecord) && watchBranchName.trim() !== '';
 
   // 建立/更新/刪除客戶資料的 mutation hooks
   const createMutation = useCreateCustomer();
@@ -465,37 +484,67 @@ const CustomerPage: FC = () => {
             rules={[{ required: true, message: t('customer.groupNameRequired') }]}
             validateStatus={
               !editingCustomer &&
-              (validationResult.exactGroupMatch || validationResult.similarGroups.length > 0)
-                ? 'error'
+              !validationResult.exactGroupMatch &&
+              validationResult.similarGroups.length > 0
+                ? 'warning'
                 : undefined
             }
             help={
-              !editingCustomer &&
-              (validationResult.exactGroupMatch ? (
-                <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 4 }}>
-                  ⚠️ 系統中已經有這個集團了（共 {validationResult.exactGroupMatch.branchCount}{' '}
-                  間分店）
+              !editingCustomer && (watchGroupName ?? '').trim() ? (
+                <div style={{ marginBottom: 12 }}>
+                  {validationResult.exactGroupMatch ? (
+                    <div style={{ color: '#1677ff', fontSize: 13, marginTop: 4 }}>
+                      ✓ 已選取既有集團
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ color: '#8c8c8c', fontSize: 13, marginTop: 4 }}>
+                        準備建立新集團「{(watchGroupName ?? '').trim()}」
+                      </div>
+                      {validationResult.similarGroups.length > 0 && (
+                        <div style={{ color: '#d48806', fontSize: 13, marginTop: 4 }}>
+                          ⚠️ 系統中已有類似的集團，是否為「
+                          {validationResult.similarGroups.map((g) => g.name).join('」或「')}
+                          」？如是，請從選單選擇或輸入完全相同的名稱。
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-              ) : validationResult.similarGroups.length > 0 ? (
-                <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 4 }}>
-                  ⚠️ 系統中已經有類似的集團了（
-                  {validationResult.similarGroups.map((g) => g.name).join('、')}）
-                </div>
-              ) : undefined)
+              ) : undefined
             }
           >
-            <Input placeholder={t('customer.groupNamePlaceholder')} />
+            <AutoComplete
+              options={groupNameOptions}
+              placeholder={t('customer.groupNamePlaceholder')}
+              filterOption={(input, option) =>
+                String(option?.value ?? '')
+                  .toLowerCase()
+                  .includes(input.trim().toLowerCase())
+              }
+            />
           </Form.Item>
           <Form.Item
             name="branchName"
             label={t('customer.branchName')}
             validateStatus={
-              !editingCustomer && validationResult.isExactCustomerDuplicate ? 'error' : undefined
+              !editingCustomer && validationResult.isExactCustomerDuplicate
+                ? 'error'
+                : !editingCustomer && showNoBranchHint
+                  ? 'warning'
+                  : undefined
             }
             help={
               !editingCustomer && validationResult.isExactCustomerDuplicate ? (
-                <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 4 }}>
-                  ⚠️ 此集團已存在相同分店名稱（{validationResult.exactCustomerName}）
+                <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 4, marginBottom: 12 }}>
+                  ⚠️{' '}
+                  {watchBranchName.trim()
+                    ? `此集團已存在相同分店名稱（${validationResult.exactCustomerName}）`
+                    : '此集團已有一筆「無分店」資料，請勿重複建立'}
+                </div>
+              ) : !editingCustomer && showNoBranchHint ? (
+                <div style={{ color: '#d48806', fontSize: 13, marginTop: 4, marginBottom: 12 }}>
+                  ⚠️ {t('customer.noBranchRecordHint')}
                 </div>
               ) : undefined
             }

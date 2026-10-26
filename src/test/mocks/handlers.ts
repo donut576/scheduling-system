@@ -4850,8 +4850,17 @@ export const handlers = [
     return HttpResponse.json(ok<Customer>(mockCustomers[0]!));
   }),
   http.delete('*/api/v1/customers/:id', ({ params }) => {
+    const target = mockCustomers.find((c) => c.id === params.id);
     mockCustomers = mockCustomers.filter((c) => c.id !== params.id);
+    if (target) {
+      mockCustomerGroups = mockCustomerGroups.map((g) =>
+        g.id === target.groupId
+          ? { ...g, branches: g.branches.filter((b) => b.id !== target.branchId) }
+          : g,
+      );
+    }
     persistStorage(STORAGE_KEYS.CUSTOMERS, mockCustomers);
+    persistStorage(STORAGE_KEYS.CUSTOMER_GROUPS, mockCustomerGroups);
     return HttpResponse.json(ok(null));
   }),
 
