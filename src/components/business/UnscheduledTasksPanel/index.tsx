@@ -533,7 +533,7 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
               (task.branchName && !task.branchName.startsWith('branch-')
                 ? task.branchName
                 : undefined) ||
-              '花蓮分店';
+              t('customer.noBranch');
 
             return (
               <Card

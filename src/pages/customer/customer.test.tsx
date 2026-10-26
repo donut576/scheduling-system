@@ -215,7 +215,9 @@ describe('CustomerPage', () => {
 
       await user.type(screen.getByLabelText('集團名稱'), '王品');
 
-      expect(await screen.findByText(/系統中已經有類似的集團了（王品集團）/)).toBeInTheDocument();
+      expect(
+        await screen.findByText(/系統中已有類似的集團，是否為「王品集團」/),
+      ).toBeInTheDocument();
     });
 
     it('opens edit modal pre-filled with row data when row is clicked', async () => {

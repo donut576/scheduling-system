@@ -46,6 +46,7 @@ import { useEmployeeList } from '@/queries/useEmployeeQueries';
 import { useTaskList } from '@/queries/useTaskQueries';
 import { runAlertChecks } from '@/utils/alertRules';
 import { isHoliday } from '@/utils/date';
+import { getBranchLabel } from '@/utils/branchLabel';
 import { HOLIDAYS_2026 } from '@/constants/holidays';
 import { getRegionByAddress, REGION_NAMES_MAP } from '@/utils/regionMapping';
 import EmployeeSelect from '@/components/business/EmployeeSelect';
@@ -318,10 +319,10 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     const group = mergedCustomerGroups.find((g: CustomerGroup) => g.id === activeGroupId);
     if (!group) return [];
     return group.branches.map((b) => ({
-      label: b.name,
+      label: getBranchLabel(b.name, t('customer.noBranch')),
       value: b.id,
     }));
-  }, [activeGroupId, mergedCustomerGroups]);
+  }, [activeGroupId, mergedCustomerGroups, t]);
 
   // Group options from customer groups
   const groupOptions = useMemo(() => {
@@ -478,10 +479,13 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
   const handleGroupChange = useCallback(
     (groupId: string) => {
       setSelectedGroupId(groupId);
-      form.setFieldsValue({ branchId: undefined });
+      const group = mergedCustomerGroups.find((g: CustomerGroup) => g.id === groupId);
+      const onlyBranch = group?.branches.length === 1 ? group.branches[0] : undefined;
+      const onlyNoBranchId = onlyBranch && !onlyBranch.name?.trim() ? onlyBranch.id : undefined;
+      form.setFieldsValue({ branchId: onlyNoBranchId });
       setAlertResults(null);
     },
-    [form],
+    [form, mergedCustomerGroups],
   );
 
   // Holiday date cell render for DatePicker

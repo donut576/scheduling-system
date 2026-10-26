@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { Modal, Form, Input, Typography, Tag, Space, Alert, message } from 'antd';
-import { PlusCircleOutlined, ShopOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useCreateCustomer, useCustomerGroups } from '@/queries/useCustomerQueries';
 import { getRegionByAddress, REGION_NAMES_MAP } from '@/utils/regionMapping';
@@ -63,8 +63,6 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
         groupName: initialGroupName,
         branchName: initialBranchName || '',
         address: '',
-        contactName: '現場負責人',
-        contactPhone: '02-23456789',
       });
     } else {
       form.resetFields();
@@ -151,12 +149,7 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
       <Form form={form} layout="vertical">
         <Form.Item
           name="groupName"
-          label={
-            <Space size={4}>
-              <ShopOutlined />
-              <span style={{ fontWeight: 600 }}>客戶集團名稱</span>
-            </Space>
-          }
+          label={t('customer.groupName')}
           rules={[{ required: true, message: '請輸入集團名稱' }]}
           validateStatus={
             isNewGroup &&
@@ -180,7 +173,7 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
           }
         >
           <Input
-            placeholder="例如：王品集團、乾杯集團"
+            placeholder="請輸入集團名稱"
             disabled={!isNewGroup}
             data-testid="quick-create-group-name"
           />
@@ -188,12 +181,7 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
 
         <Form.Item
           name="branchName"
-          label={
-            <Space size={4}>
-              <ShopOutlined />
-              <span style={{ fontWeight: 600 }}>分店／據點名稱</span>
-            </Space>
-          }
+          label={t('customer.branchName')}
           validateStatus={
             isNewGroup && validationResult.isExactCustomerDuplicate ? 'error' : undefined
           }
@@ -205,55 +193,41 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
             ) : undefined
           }
         >
-          <Input
-            placeholder="例如：信義店、總部大樓、竹科一廠"
-            data-testid="quick-create-branch-name"
-          />
+          <Input placeholder="請輸入分店名稱" data-testid="quick-create-branch-name" />
         </Form.Item>
 
         <Form.Item
           name="address"
-          label={
-            <Space size={4}>
-              <EnvironmentOutlined />
-              <span style={{ fontWeight: 600 }}>分店地址</span>
-            </Space>
-          }
-          rules={[{ required: true, message: '請輸入分店地址' }]}
-          help={
-            detectedRegion ? (
-              <div style={{ marginTop: 4 }}>
+          label={t('customer.address')}
+          rules={[{ required: true, message: '請輸入地址' }]}
+          extra={
+            <div style={{ marginBottom: 12 }}>
+              {detectedRegion ? (
+                <div style={{ marginTop: 4 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    系統自動識別所屬轄區：
+                  </Text>
+                  <Tag color="geekblue" style={{ marginLeft: 6 }}>
+                    {REGION_NAMES_MAP[detectedRegion] || `${detectedRegion}組`}
+                  </Tag>
+                </div>
+              ) : (
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  系統自動識別所屬轄區：
+                  請包含縣市（如台北市），以利辨識轄區與地圖標記
                 </Text>
-                <Tag color="geekblue" style={{ marginLeft: 6 }}>
-                  {REGION_NAMES_MAP[detectedRegion] || `${detectedRegion}組`}
-                </Tag>
-              </div>
-            ) : (
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                請包含縣市（如台北市、新竹市、台中市、高雄市）以利自動辨識責任轄區與地圖標記
-              </Text>
-            )
+              )}
+            </div>
           }
         >
-          <Input placeholder="例如：台北市信義區松壽路12號" data-testid="quick-create-address" />
+          <Input placeholder="請輸入地址" data-testid="quick-create-address" />
         </Form.Item>
 
-        <Form.Item
-          name="contactName"
-          label={<span style={{ color: '#595959' }}>現場聯絡人（選填）</span>}
-          style={{ marginBottom: 12 }}
-        >
-          <Input placeholder="預設：現場負責人" data-testid="quick-create-contact-name" />
+        <Form.Item name="contactName" label={t('customer.contactName')}>
+          <Input placeholder="選填" data-testid="quick-create-contact-name" />
         </Form.Item>
 
-        <Form.Item
-          name="contactPhone"
-          label={<span style={{ color: '#595959' }}>聯絡電話（選填）</span>}
-          style={{ marginBottom: 0 }}
-        >
-          <Input placeholder="預設：02-23456789" data-testid="quick-create-contact-phone" />
+        <Form.Item name="contactPhone" label={t('customer.contactPhone')}>
+          <Input placeholder="選填" data-testid="quick-create-contact-phone" />
         </Form.Item>
       </Form>
     </Modal>
