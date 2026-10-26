@@ -317,6 +317,10 @@ const CustomerPage: FC = () => {
         message.error(`已存在相同客戶「${check.exactCustomerName}」，請勿重複建立！`);
         return;
       }
+      // 與既有集團同名（不分大小寫）時，統一使用既有集團的名稱
+      if (check.exactGroupMatch) {
+        payload.groupName = check.exactGroupMatch.name;
+      }
     }
 
     await submitCustomer(payload);
