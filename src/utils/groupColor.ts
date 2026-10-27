@@ -95,7 +95,7 @@ let registryNextIndex = 0;
 export function getGroupColor(groupId: string): string {
   if (!groupId) return AREA_COLOR_MAP['台北'] || '#7a69c0';
 
-  const text = String(groupId).trim();
+  const text = String(groupId).trim().replace(/臺/g, '台');
   if (
     text.includes('台北') ||
     text.includes('taipei') ||

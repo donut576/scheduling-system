@@ -51,6 +51,12 @@ describe('regionMapping (台灣22縣市與責任轄區對應)', () => {
       // 雖然地址在高雄，但經理指定由台北組支援
       expect(getRegionByAddress('高雄市前鎮區中華五路', '台北')).toBe('台北');
     });
+
+    it('treats 臺 and 台 the same', () => {
+      expect(getRegionByAddress('臺中市西區四維街30號')).toBe('台中');
+      expect(getRegionByAddress('臺北市信義區松壽路12號')).toBe('台北');
+      expect(getRegionByAddress('臺南市永康區')).toBe('台南');
+    });
   });
 
   describe('isAddressInRegion', () => {

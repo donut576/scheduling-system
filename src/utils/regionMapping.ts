@@ -91,7 +91,7 @@ export function getRegionByAddress(
   }
 
   if (!addressOrText) return undefined;
-  const text = addressOrText.trim();
+  const text = addressOrText.trim().replace(/臺/g, '台');
 
   // 2. 縣市名稱第一優先精確匹配 (County-Level Match)
   // 台中組縣市
@@ -191,7 +191,7 @@ export function getRegionByAddress(
  */
 export function normalizeRegion(regionOrGroupId?: string): OperationalRegion {
   if (!regionOrGroupId) return '台北';
-  const text = regionOrGroupId.toLowerCase();
+  const text = regionOrGroupId.toLowerCase().replace(/臺/g, '台');
   if (text.includes('taipei') || text.includes('台北') || text.includes('北')) return '台北';
   if (text.includes('hsinchu') || text.includes('新竹') || text.includes('竹')) return '新竹';
   if (text.includes('taichung') || text.includes('台中') || text.includes('中')) return '台中';
