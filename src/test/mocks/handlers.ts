@@ -4844,6 +4844,28 @@ export const handlers = [
         ...data,
       };
       mockCustomers[index] = updated;
+      // 同步集團清單中的分店資料
+      mockCustomerGroups = mockCustomerGroups.map((g) => ({
+        ...g,
+        branches: g.branches.map((b) =>
+          b.id === updated.branchId
+            ? {
+                ...b,
+                name: updated.branchName ?? '',
+                address: updated.address,
+                contactName: updated.contactName,
+                contactPhone: updated.contactPhone,
+                requiredLicenses: updated.requiredLicenses,
+              }
+            : b,
+        ),
+      }));
+      // 同步已建立任務上的分店名稱
+      mockTasks = mockTasks.map((t) =>
+        t.branchId === updated.branchId ? { ...t, branchName: updated.branchName ?? '' } : t,
+      );
+      persistStorage(STORAGE_KEYS.CUSTOMER_GROUPS, mockCustomerGroups);
+      persistStorage(STORAGE_KEYS.TASKS, mockTasks);
       persistStorage(STORAGE_KEYS.CUSTOMERS, mockCustomers);
       return HttpResponse.json(ok<Customer>(updated));
     }
