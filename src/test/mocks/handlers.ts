@@ -108,6 +108,17 @@ const mockStaffUser: UserProfile = {
   area: '台北',
 };
 
+// Demo staff account for 蔡孟潔 (login: TPA02 / staff123)
+const mockStaffUserTPA02: UserProfile = {
+  id: 'emp-tp-a02',
+  name: '蔡孟潔',
+  employeeNo: 'TPA02',
+  role: 'STAFF',
+  permissions: ROLE_PERMISSIONS.STAFF!,
+  groupId: 'taipei-afternoon',
+  area: '台北',
+};
+
 const mockTask: Task = {
   id: 'task-001',
   groupId: 'group-001',
@@ -3805,6 +3816,15 @@ export const handlers = [
         }),
       );
     }
+    if (body.account === 'TPA02' && body.password === 'staff123') {
+      return HttpResponse.json(
+        ok<LoginResponse>({
+          accessToken: 'mock-staff-tpa02-token',
+          expiresIn: 3600,
+          user: mockStaffUserTPA02,
+        }),
+      );
+    }
 
     return HttpResponse.json(
       ok<LoginResponse>({
@@ -4735,7 +4755,13 @@ export const handlers = [
   }),
 
   // customer.ts
-  http.get('*/api/v1/customers', () => HttpResponse.json(ok(paginated<Customer>(mockCustomers)))),
+  http.get('*/api/v1/customers', ({ request }) => {
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page')) || 1;
+    const pageSize = Number(url.searchParams.get('pageSize')) || 20;
+    return HttpResponse.json(ok(paginated<Customer>(mockCustomers, page, pageSize)));
+  }),
+
   http.get('*/api/v1/customers/groups', () =>
     HttpResponse.json(ok<CustomerGroup[]>(mockCustomerGroups)),
   ),

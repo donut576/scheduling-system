@@ -40,6 +40,17 @@ vi.mock('react-router-dom', () => ({
   useLocation: () => ({ state: mockLocationState }),
 }));
 
+// 使用遠未來日期，避免測試隨時間過期
+const FUTURE_DATE = '2099-12-31';
+const PAST_DATE = '2020-01-01';
+
+let mockUser: { id: string; role: string } | null = null;
+
+vi.mock('@/stores/useUserStore', () => ({
+  useUserStore: (selector: (state: { user: typeof mockUser }) => unknown) =>
+    selector({ user: mockUser }),
+}));
+
 const customers: Customer[] = [
   {
     id: 'cust-1',
@@ -142,30 +153,36 @@ const employees: Employee[] = [
   },
 ];
 
-const tasks: Task[] = [
-  {
-    id: 'task-1',
-    groupId: 'group-1',
-    groupName: '集團A',
-    branchId: 'branch-1',
-    branchName: '分店A1',
-    taskType: 'CONTRACT',
-    date: '2026-08-12',
-    startTime: '09:00',
-    endTime: '10:00',
-    isOvernight: false,
-    headcount: 1,
-    shift: '早班',
-    route: '',
-    contents: ['P'],
-    assignees: [{ employeeId: 'emp-1', employeeName: '王大明', licenses: [] }],
-    status: 'SCHEDULED',
-    alertStatus: 'CLEAN',
-    createdBy: 'admin',
-    createdAt: '2026-08-12T09:00:00+08:00',
-    updatedAt: '2026-08-12T09:00:00+08:00',
-  },
-];
+const buildTask = (
+  id: string,
+  branchId: string,
+  date: string,
+  employeeId: string,
+  employeeName: string,
+): Task => ({
+  id,
+  groupId: 'group-1',
+  groupName: '集團A',
+  branchId,
+  branchName: '',
+  taskType: 'CONTRACT',
+  date,
+  startTime: '09:00',
+  endTime: '10:00',
+  isOvernight: false,
+  headcount: 1,
+  shift: '早班',
+  route: '',
+  contents: ['P'],
+  assignees: [{ employeeId, employeeName, licenses: [] }],
+  status: 'SCHEDULED',
+  alertStatus: 'CLEAN',
+  createdBy: 'admin',
+  createdAt: '2026-08-12T09:00:00+08:00',
+  updatedAt: '2026-08-12T09:00:00+08:00',
+});
+
+let tasks: Task[] = [];
 
 vi.mock('@/queries/useCustomerQueries', () => ({
   useCustomerGroups: () => ({ data: customerGroups, isLoading: false }),
@@ -203,6 +220,12 @@ const renderWithProviders = () => {
 describe('MapPage', () => {
   beforeEach(() => {
     mockLocationState = null;
+    mockUser = null;
+    tasks = [
+      buildTask('task-1', 'branch-1', FUTURE_DATE, 'emp-1', '王大明'),
+      buildTask('task-2', 'branch-2', FUTURE_DATE, 'emp-2', '李小華'),
+      buildTask('task-3', 'branch-3', FUTURE_DATE, 'emp-1', '王大明'),
+    ];
   });
 
   it('renders the filter panel with group and branch selects', () => {
@@ -270,5 +293,35 @@ describe('MapPage', () => {
       expect(screen.queryByTestId('mock-marker-cust-2')).not.toBeInTheDocument();
       expect(screen.getByTestId('mock-marker-cust-3')).toBeInTheDocument();
     });
+  });
+
+  it('does not show customers whose tasks are all in the past', () => {
+    tasks = [
+      buildTask('task-1', 'branch-1', PAST_DATE, 'emp-1', '王大明'),
+      buildTask('task-2', 'branch-2', FUTURE_DATE, 'emp-1', '王大明'),
+    ];
+    renderWithProviders();
+
+    expect(screen.queryByTestId('mock-marker-cust-1')).not.toBeInTheDocument();
+    expect(screen.getByTestId('mock-marker-cust-2')).toBeInTheDocument();
+    expect(screen.queryByTestId('mock-marker-cust-3')).not.toBeInTheDocument();
+  });
+
+  it('shows every customer with future tasks to non-staff roles', () => {
+    mockUser = { id: 'emp-admin', role: 'ADMIN' };
+    renderWithProviders();
+
+    expect(screen.getByTestId('mock-marker-cust-1')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-marker-cust-2')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-marker-cust-3')).toBeInTheDocument();
+  });
+
+  it('shows staff only the customers of tasks assigned to themselves', () => {
+    mockUser = { id: 'emp-1', role: 'STAFF' };
+    renderWithProviders();
+
+    expect(screen.getByTestId('mock-marker-cust-1')).toBeInTheDocument();
+    expect(screen.queryByTestId('mock-marker-cust-2')).not.toBeInTheDocument();
+    expect(screen.getByTestId('mock-marker-cust-3')).toBeInTheDocument();
   });
 });

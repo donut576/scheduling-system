@@ -10,6 +10,8 @@ import { useTaskList } from '@/queries/useTaskQueries';
 import { filterCustomersByLocation } from '@/utils/mapFilter';
 import { getGroupColor, AREA_COLOR_MAP } from '@/utils/groupColor';
 import type { Customer } from '@/types/customer';
+import { getToday } from '@/utils/date';
+import { useUserStore } from '@/stores/useUserStore';
 
 const { Text } = Typography;
 const ECOLAB_BLUE = '#0067a0';
@@ -47,10 +49,33 @@ const MapPage: FC = () => {
 
   const { data: customerGroups = [] } = useCustomerGroups();
   const { data: customerData } = useCustomerList({ page: 1, pageSize: 1000 });
-  const { data: taskData } = useTaskList({ page: 1, pageSize: 1000 });
+  const user = useUserStore((state) => state.user);
+  // 現場專員與約聘員工（登入角色皆為 STAFF）僅能看到自己被指派的任務
+  const isStaff = user?.role === 'STAFF';
+  const today = getToday();
+  const { data: taskData } = useTaskList({ page: 1, pageSize: 1000, startDate: today });
+
   const { data: employeeData } = useEmployeeList({ page: 1, pageSize: 1000 });
   const customers = useMemo(() => customerData?.list ?? [], [customerData]);
   const tasks = useMemo(() => taskData?.list ?? [], [taskData]);
+  // 地圖只顯示今天及未來的任務；現場專員與約聘員工另外只保留自己被指派的任務
+  const visibleTasks = useMemo(
+    () =>
+      tasks.filter(
+        (task) =>
+          !!task.date &&
+          task.date >= today &&
+          (!isStaff || task.assignees.some((a) => a.employeeId === user?.id)),
+      ),
+    [tasks, today, isStaff, user?.id],
+  );
+
+  // 有符合條件任務的分店 id，用來決定哪些客戶標記要顯示
+  const branchIdsWithTasks = useMemo(
+    () => new Set(visibleTasks.map((task) => task.branchId)),
+    [visibleTasks],
+  );
+
   const employees = useMemo(() => employeeData?.list ?? [], [employeeData]);
 
   // 從導覽帶入之 state 初始化篩選條件（例如自排班總覽/任務列表/任務建立點擊地圖按鈕）
@@ -83,8 +108,12 @@ const MapPage: FC = () => {
 
   // Property 27: 地圖篩選正確性 - 顯示之標記僅包含符合所有篩選條件之客戶分店
   const filteredCustomers: Customer[] = useMemo(
-    () => filterCustomersByLocation(customers, { groupId, branchId }),
-    [customers, groupId, branchId],
+    () =>
+      filterCustomersByLocation(
+        customers.filter((c) => branchIdsWithTasks.has(c.branchId)),
+        { groupId, branchId },
+      ),
+    [customers, branchIdsWithTasks, groupId, branchId],
   );
 
   const markerColorByCustomerId = useMemo(() => {
@@ -99,7 +128,7 @@ const MapPage: FC = () => {
 
     return Object.fromEntries(
       filteredCustomers.map((customer) => {
-        const task = tasks.find(
+        const task = visibleTasks.find(
           (item) => item.branchId === customer.branchId && item.assignees.length > 0,
         );
         const assigneeId = task?.assignees[0]?.employeeId;
@@ -110,7 +139,7 @@ const MapPage: FC = () => {
         return [customer.id, color];
       }),
     );
-  }, [employees, filteredCustomers, tasks]);
+  }, [employees, filteredCustomers, visibleTasks]);
 
   // 若帶有 branchId，定位至該分店；否則使用預設中心（台灣全視角）
   const center = useMemo(() => {
