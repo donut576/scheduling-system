@@ -19,7 +19,7 @@ describe('RecurrenceEditor', () => {
   it('renders with default values when no value is provided', () => {
     render(<RecurrenceEditor onChange={onChange} />);
 
-    expect(screen.getByText('循環頻率')).toBeInTheDocument();
+    expect(screen.getByText('施作一次')).toBeInTheDocument();
     expect(screen.getByText('結束條件')).toBeInTheDocument();
     expect(screen.getByLabelText('間隔數')).toHaveValue('1');
   });
@@ -27,10 +27,10 @@ describe('RecurrenceEditor', () => {
   it('renders frequency options', () => {
     render(<RecurrenceEditor onChange={onChange} />);
 
-    expect(screen.getByText('每日')).toBeInTheDocument();
-    expect(screen.getByText('每週')).toBeInTheDocument();
-    expect(screen.getByText('每月')).toBeInTheDocument();
-    expect(screen.getByText('每年')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '週' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '月' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '季' })).toBeInTheDocument();
+    expect(screen.queryByText('每日')).not.toBeInTheDocument();
   });
 
   it('shows days of week when frequency is weekly', () => {
@@ -53,10 +53,11 @@ describe('RecurrenceEditor', () => {
     expect(screen.getByText('六')).toBeInTheDocument();
   });
 
-  it('hides days of week when frequency is daily', () => {
+  it('hides days of week when frequency is monthly', () => {
     const rule: RecurrenceRule = {
-      frequency: 'daily',
+      frequency: 'monthly',
       interval: 1,
+      dayOfMonth: 15,
       endType: 'never',
     };
 
@@ -78,38 +79,23 @@ describe('RecurrenceEditor', () => {
     expect(screen.getByLabelText('每月幾號')).toHaveValue('15');
   });
 
-  it('shows both days of week and day of month when frequency is custom', () => {
-    const rule: RecurrenceRule = {
-      frequency: 'custom',
-      interval: 2,
-      daysOfWeek: [1, 3, 5],
-      dayOfMonth: 10,
-      endType: 'never',
-    };
-
-    render(<RecurrenceEditor value={rule} onChange={onChange} />);
-
-    expect(screen.getByText('週幾')).toBeInTheDocument();
-    expect(screen.getByLabelText('每月幾號')).toBeInTheDocument();
-  });
-
   it('calls onChange when frequency is changed', async () => {
     const user = userEvent.setup();
     const rule: RecurrenceRule = {
-      frequency: 'daily',
+      frequency: 'monthly',
       interval: 1,
+      dayOfMonth: 15,
       endType: 'never',
     };
 
     render(<RecurrenceEditor value={rule} onChange={onChange} />);
 
-    await user.click(screen.getByText('每週'));
+    await user.click(screen.getByText('週'));
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
         frequency: 'weekly',
         interval: 1,
-        daysOfWeek: [],
       }),
     );
   });
@@ -212,25 +198,19 @@ describe('RecurrenceEditor', () => {
     );
   });
 
-  it('displays correct interval unit label based on frequency', () => {
+  it('calls onChange with quarterly frequency when 季 is clicked', async () => {
+    const user = userEvent.setup();
     const rule: RecurrenceRule = {
       frequency: 'weekly',
-      interval: 2,
+      interval: 1,
       daysOfWeek: [],
       endType: 'never',
     };
 
-    const { rerender } = render(<RecurrenceEditor value={rule} onChange={onChange} />);
+    render(<RecurrenceEditor value={rule} onChange={onChange} />);
 
-    expect(screen.getByText('週')).toBeInTheDocument();
+    await user.click(screen.getByText('季'));
 
-    rerender(
-      <RecurrenceEditor
-        value={{ ...rule, frequency: 'monthly', dayOfMonth: 1 }}
-        onChange={onChange}
-      />,
-    );
-
-    expect(screen.getByText('月')).toBeInTheDocument();
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ frequency: 'quarterly' }));
   });
 });

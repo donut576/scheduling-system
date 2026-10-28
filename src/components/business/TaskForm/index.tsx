@@ -99,7 +99,7 @@ const TaskTypeCheckboxGroup: React.FC<TaskTypeCheckboxGroupProps> = ({
 );
 
 const DEFAULT_RECURRENCE_RULE: RecurrenceRule = {
-  frequency: 'daily',
+  frequency: 'weekly',
   interval: 1,
   endType: 'never',
 };
@@ -1056,7 +1056,11 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                       border: '1px solid #f0f0f0',
                     }}
                   >
-                    <RecurrenceEditor value={recurrenceRule} onChange={setRecurrenceRule} />
+                    <RecurrenceEditor
+                      value={recurrenceRule}
+                      onChange={setRecurrenceRule}
+                      startDate={currentDate}
+                    />
                   </div>
                 )}
               </Form.Item>

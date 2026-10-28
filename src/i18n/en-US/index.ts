@@ -552,6 +552,20 @@ export default {
     modifyScope: 'Modify scope',
     thisOnly: 'This occurrence only',
     thisAndFuture: 'This and future occurrences',
+    quarters: 'quarter(s)',
+    doOnce: 'once',
+    quarterlyOn: 'Every quarter on day',
+    legacyNotice:
+      'This task uses a legacy rule (daily / custom). Please choose weekly, monthly or quarterly.',
+    summaryWeekly: 'Every {{n}} week(s) on {{days}}',
+    summaryMonthly: 'Every {{n}} month(s) on day {{day}}',
+    summaryQuarterly: 'Every {{n}} quarter(s) ({{months}} months) on day {{day}}',
+    summaryFrom: 'starting {{date}}',
+    endByDate: 'until {{date}}',
+    endByCount: '{{n}} times in total',
+    nextOccurrences: 'Preview: next {{n}} dates',
+    needDate: 'Select a date first to preview the schedule',
+    holiday: 'Public holiday',
   },
   // 通知管理（發送、範本、通知中心）相關文字
   notification: {
