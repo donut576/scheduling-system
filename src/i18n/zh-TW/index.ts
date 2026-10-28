@@ -484,9 +484,14 @@ export default {
     onLeaveDisabled: '該員工於指定日期休假，無法指派',
     positions: {
       staff: '一般員工',
+      contractStaff: '約聘員工',
       leader: '組長',
       manager: '經理',
       adminStaff: '行政',
+    },
+    tags: {
+      regular: '正',
+      contract: '約',
     },
     licensesMap: {
       none: '無',

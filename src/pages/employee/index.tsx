@@ -136,6 +136,7 @@ const getPositionLabel = (pos: string | undefined, t: (k: string) => string): st
     LEADER: t('employee.positions.leader'),
     MANAGER: t('employee.positions.manager'),
     ADMIN_STAFF: t('employee.positions.adminStaff'),
+    CONTRACT_STAFF: t('employee.positions.contractStaff'),
   };
   return map[pos] ?? POSITION_MAP[pos as keyof typeof POSITION_MAP] ?? pos;
 };
@@ -589,6 +590,7 @@ const EmployeePage: FC = () => {
   const localizedPositionOptions = useMemo(
     () => [
       { label: t('employee.positions.staff'), value: 'STAFF' },
+      { label: t('employee.positions.contractStaff'), value: 'CONTRACT_STAFF' },
       { label: t('employee.positions.leader'), value: 'LEADER' },
       { label: t('employee.positions.manager'), value: 'MANAGER' },
       { label: t('employee.positions.adminStaff'), value: 'ADMIN_STAFF' },
