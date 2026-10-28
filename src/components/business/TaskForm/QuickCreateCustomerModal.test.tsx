@@ -45,7 +45,7 @@ describe('QuickCreateCustomerModal', () => {
     expect(groupInput).not.toBeDisabled();
 
     const branchInput = screen.getByTestId('quick-create-branch-name') as HTMLInputElement;
-    expect(branchInput.value).toBe('總部 / 一店');
+    expect(branchInput.value).toBe('');
 
     const addressInput = screen.getByTestId('quick-create-address') as HTMLInputElement;
     expect(addressInput.value).toBe('');

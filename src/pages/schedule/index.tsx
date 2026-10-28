@@ -896,7 +896,7 @@ const SchedulePage: FC = () => {
       cleanName(taskDetail?.branchName) ||
       cleanName(selectedEvent.branchName) ||
       cleanName(titleParts[1]) ||
-      '花蓮分店';
+      t('customer.noBranch');
 
     return {
       groupName: displayGroupName,
@@ -1012,7 +1012,7 @@ const SchedulePage: FC = () => {
           >
             <div>{`${t('task.group')}: ${detailRows.groupName}`}</div>
             <div>{`${t('task.branch')}: ${detailRows.branchName}`}</div>
-            <div>{`${t('task.taskType')}: ${detailRows.taskType}`}</div>
+            <div>{`${t('task.taskType')}: ${t(`task.${String(detailRows.taskType).toLowerCase()}`, { defaultValue: String(detailRows.taskType) })}`}</div>
             <div>{`${t('task.date')}: ${detailRows.date}`}</div>
             <div>{`${t('task.startTime')}: ${detailRows.startTime}`}</div>
             <div>{`${t('task.endTime')}: ${detailRows.endTime}`}</div>

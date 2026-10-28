@@ -72,6 +72,27 @@ describe('customerValidation', () => {
       expect(result.similarGroups).toHaveLength(0);
     });
 
+    it('treats a second no-branch record in the same group as duplicate', () => {
+      const groups = [{ name: '春水堂', branches: [{ name: '' }] }];
+      const result = checkCustomerDuplicate('春水堂', '', groups);
+      expect(result.isExactCustomerDuplicate).toBe(true);
+      expect(result.hasNoBranchRecord).toBe(true);
+    });
+
+    it('flags hasNoBranchRecord when adding a named branch to a no-branch group', () => {
+      const groups = [{ name: '春水堂', branches: [{ name: '' }] }];
+      const result = checkCustomerDuplicate('春水堂', '信義店', groups);
+      expect(result.isExactCustomerDuplicate).toBe(false);
+      expect(result.hasNoBranchRecord).toBe(true);
+    });
+
+    it('does not flag hasNoBranchRecord when the group has only named branches', () => {
+      const groups = [{ name: '春水堂', branches: [{ name: '信義店' }] }];
+      const result = checkCustomerDuplicate('春水堂', '', groups);
+      expect(result.isExactCustomerDuplicate).toBe(false);
+      expect(result.hasNoBranchRecord).toBe(false);
+    });
+
     it('detects similar group when user inputs variant of existing group name', () => {
       const result = checkCustomerDuplicate('王品', '中正店', existingGroups);
       expect(result.isExactCustomerDuplicate).toBe(false);

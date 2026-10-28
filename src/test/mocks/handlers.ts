@@ -2118,7 +2118,7 @@ mockCustomerGroups = mockCustomerGroups.map((g) => {
   const gName = g.name && !g.name.startsWith('group-') ? g.name : '花蓮集團';
   const branches = g.branches.map((b) => ({
     ...b,
-    name: b.name && !b.name.startsWith('branch-') ? b.name : '花蓮分店',
+    name: b.name?.startsWith('branch-') ? '花蓮分店' : (b.name ?? ''),
   }));
   return { ...g, name: gName, branches };
 });
@@ -2176,7 +2176,7 @@ const resolveGroupBranchNames = (groupId?: string, branchId?: string) => {
     group?.name && !group.name.startsWith('group-') && !group.name.startsWith('cust-'),
   );
   const branchHasValidName = Boolean(
-    branch?.name && !branch.name.startsWith('branch-') && !branch.name.startsWith('cust-'),
+    branch && !branch.name?.startsWith('branch-') && !branch.name?.startsWith('cust-'),
   );
 
   if (groupHasValidName && branchHasValidName) {
@@ -4844,14 +4844,45 @@ export const handlers = [
         ...data,
       };
       mockCustomers[index] = updated;
+      // 同步集團清單中的分店資料
+      mockCustomerGroups = mockCustomerGroups.map((g) => ({
+        ...g,
+        branches: g.branches.map((b) =>
+          b.id === updated.branchId
+            ? {
+                ...b,
+                name: updated.branchName ?? '',
+                address: updated.address,
+                contactName: updated.contactName,
+                contactPhone: updated.contactPhone,
+                requiredLicenses: updated.requiredLicenses,
+              }
+            : b,
+        ),
+      }));
+      // 同步已建立任務上的分店名稱
+      mockTasks = mockTasks.map((t) =>
+        t.branchId === updated.branchId ? { ...t, branchName: updated.branchName ?? '' } : t,
+      );
+      persistStorage(STORAGE_KEYS.CUSTOMER_GROUPS, mockCustomerGroups);
+      persistStorage(STORAGE_KEYS.TASKS, mockTasks);
       persistStorage(STORAGE_KEYS.CUSTOMERS, mockCustomers);
       return HttpResponse.json(ok<Customer>(updated));
     }
     return HttpResponse.json(ok<Customer>(mockCustomers[0]!));
   }),
   http.delete('*/api/v1/customers/:id', ({ params }) => {
+    const target = mockCustomers.find((c) => c.id === params.id);
     mockCustomers = mockCustomers.filter((c) => c.id !== params.id);
+    if (target) {
+      mockCustomerGroups = mockCustomerGroups.map((g) =>
+        g.id === target.groupId
+          ? { ...g, branches: g.branches.filter((b) => b.id !== target.branchId) }
+          : g,
+      );
+    }
     persistStorage(STORAGE_KEYS.CUSTOMERS, mockCustomers);
+    persistStorage(STORAGE_KEYS.CUSTOMER_GROUPS, mockCustomerGroups);
     return HttpResponse.json(ok(null));
   }),
 

@@ -7,6 +7,7 @@ import { customerApi } from '@/api/customer';
 import type { CustomerListParams, CustomerFormData } from '@/api/customer';
 import type { Customer, CustomerGroup } from '@/types/customer';
 import type { PaginatedResponse } from '@/types/common';
+import { taskKeys } from '@/queries/useTaskQueries';
 
 // 客戶相關查詢的 query key 工廠函式，統一管理快取鍵值結構
 export const customerKeys = {
@@ -112,7 +113,8 @@ export function useUpdateCustomer() {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: customerKeys.all });
+      queryClient.invalidateQueries({ queryKey: taskKeys.all });
     },
   });
 }
@@ -131,6 +133,7 @@ export function useDeleteCustomer() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: taskKeys.all });
     },
   });
 }
