@@ -127,7 +127,7 @@ export type TaskContent =
 
 /** 重複規則（用於定期任務，如每日/每週/每月/自訂重複） */
 export interface RecurrenceRule {
-  frequency: 'daily' | 'weekly' | 'monthly' | 'custom';
+  frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'custom';
   interval: number;
   daysOfWeek?: number[];
   dayOfMonth?: number;

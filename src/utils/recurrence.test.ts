@@ -115,6 +115,17 @@ describe('Property 11: 週期任務生成 (Recurrence Instance Generation)', () 
       );
     });
 
+    it('quarterly: every 1 quarter is every 3 months', () => {
+      expect(
+        generateRecurrenceInstances('2026-11-04', {
+          frequency: 'quarterly',
+          interval: 1,
+          endType: 'count',
+          endCount: 3,
+        }),
+      ).toEqual(['2026-11-04', '2027-02-04', '2027-05-04']);
+    });
+
     it('custom frequency with count endType', () => {
       fc.assert(
         fc.property(arbStartDate, arbInterval, arbEndCount, (startDate, interval, endCount) => {

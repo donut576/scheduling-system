@@ -44,6 +44,9 @@ export function generateRecurrenceInstances(startDate: string, rule: RecurrenceR
         : generateWeeklySimple(start, rule);
     case 'monthly':
       return generateMonthly(start, rule);
+    case 'quarterly':
+      // 每 N 季 = 每 N×3 個月，沿用每月邏輯（含月底夾擠）
+      return generateMonthly(start, { ...rule, interval: rule.interval * 3 });
     default:
       return [];
   }
