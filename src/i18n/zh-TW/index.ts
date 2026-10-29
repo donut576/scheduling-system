@@ -194,7 +194,7 @@ export default {
       '彈性任務不指定開始／結束時間，當日內完成即可；班表上以「當日完成」標示。',
     timeRemark: '說明（選填）',
     timeRemarkPlaceholder: '例如：12:00–14:00 客戶用餐，不可施作',
-    timeModeFlexibleBadge: '當日完成',
+    timeModeFlexibleBadge: '當日',
     timeRemarkShort: '說明：',
     contentAndAssignees: '內容與指派人員',
     remarksSection: '備註說明',
