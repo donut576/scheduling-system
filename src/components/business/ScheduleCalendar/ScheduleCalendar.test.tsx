@@ -188,6 +188,35 @@ describe('ScheduleCalendar', () => {
     });
   });
 
+  it('shows 當日完成 and the time remark for flexible events', async () => {
+    const flexibleEvent: ScheduleEvent = {
+      ...normalEvent,
+      id: 'evt-flex',
+      start: '2025-03-10T00:00:00+08:00',
+      end: '2025-03-10T23:59:00+08:00',
+      extendedProps: {
+        ...normalEvent.extendedProps,
+        timeMode: 'FLEXIBLE',
+        timeRemark: '12:00–14:00 不可施作',
+      },
+    };
+    mockScheduleData = {
+      events: [flexibleEvent],
+      resources: [{ id: 'branch-1', title: '集團A_分店A' }],
+    };
+
+    renderWithProviders(<ScheduleCalendar {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('schedule-event-evt-flex')).toBeInTheDocument();
+    });
+
+    const eventEl = screen.getByTestId('schedule-event-evt-flex');
+    expect(eventEl).toHaveTextContent('當日完成');
+    expect(eventEl).toHaveTextContent('12:00–14:00 不可施作');
+    expect(eventEl).not.toHaveTextContent('3/10 00:00-23:59');
+  });
+
   it('calls onDateChange when calendar dates are set on initial render', async () => {
     const onDateChange = vi.fn();
     renderWithProviders(<ScheduleCalendar {...defaultProps} onDateChange={onDateChange} />);
@@ -435,8 +464,7 @@ describe('ScheduleCalendar - Property 19: 行事曆事件方塊資訊完整性',
       }),
       { numRuns: 20 },
     );
-  }, // to give the 20 cumulative runs enough headroom rather than reducing // test's own timeout above the suite-wide default (see vitest.config.ts) // under jsdom, especially under full-suite parallel load. Raise this // and waits (up to 5000ms each) for its async render, which is expensive // Each of the 20 property runs mounts/unmounts a full FullCalendar instance
-  // numRuns or weakening the property.
+  }, // numRuns or weakening the property. // to give the 20 cumulative runs enough headroom rather than reducing // test's own timeout above the suite-wide default (see vitest.config.ts) // under jsdom, especially under full-suite parallel load. Raise this // and waits (up to 5000ms each) for its async render, which is expensive // Each of the 20 property runs mounts/unmounts a full FullCalendar instance
   60000);
 });
 

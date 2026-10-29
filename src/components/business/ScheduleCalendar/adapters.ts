@@ -175,6 +175,7 @@ export const toEventInputs = (
       end,
       backgroundColor: eventColor,
       borderColor: eventColor,
+      classNames: event.extendedProps?.timeMode === 'FLEXIBLE' ? ['flexible-event'] : undefined,
       extendedProps: {
         scheduleEvent: {
           ...event,
