@@ -498,16 +498,16 @@ const CustomerPage: FC = () => {
                 <div style={{ marginBottom: 12 }}>
                   {validationResult.exactGroupMatch ? (
                     <div style={{ color: '#1677ff', fontSize: 13, marginTop: 4 }}>
-                      ✓ 已選取既有集團
+                      ✓ 已選取既有集團／公司
                     </div>
                   ) : (
                     <>
                       <div style={{ color: '#8c8c8c', fontSize: 13, marginTop: 4 }}>
-                        準備建立新集團「{(watchGroupName ?? '').trim()}」
+                        準備建立新集團／公司「{(watchGroupName ?? '').trim()}」
                       </div>
                       {validationResult.similarGroups.length > 0 && (
                         <div style={{ color: '#d48806', fontSize: 13, marginTop: 4 }}>
-                          ⚠️ 系統中已有類似的集團，是否為「
+                          ⚠️ 系統中已有類似的集團／公司，是否為「
                           {validationResult.similarGroups.map((g) => g.name).join('」或「')}
                           」？如是，請從選單選擇或輸入完全相同的名稱。
                         </div>
@@ -543,8 +543,8 @@ const CustomerPage: FC = () => {
                 <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 4, marginBottom: 12 }}>
                   ⚠️{' '}
                   {watchBranchName.trim()
-                    ? `此集團已存在相同分店名稱（${validationResult.exactCustomerName}）`
-                    : '此集團已有一筆「無分店」資料，請勿重複建立'}
+                    ? `此集團／公司已存在相同分店名稱（${validationResult.exactCustomerName}）`
+                    : '此集團／公司已有一筆「無分店」資料，請勿重複建立'}
                 </div>
               ) : !editingCustomer && showNoBranchHint ? (
                 <div style={{ color: '#d48806', fontSize: 13, marginTop: 4, marginBottom: 12 }}>

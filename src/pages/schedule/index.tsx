@@ -1684,7 +1684,7 @@ const SchedulePage: FC = () => {
                 paddingBottom: 6,
               }}
             >
-              <span style={{ color: '#8c8c8c' }}>客戶集團：</span>
+              <span style={{ color: '#8c8c8c' }}>客戶集團／公司：</span>
               <span style={{ fontWeight: 600, color: '#1f1f1f' }}>{viewingTask.groupName}</span>
             </div>
             <div

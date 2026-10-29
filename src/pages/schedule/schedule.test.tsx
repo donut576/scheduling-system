@@ -275,7 +275,7 @@ describe('SchedulePage', () => {
 
     it('renders customer group and branch filters when in customer dimension', () => {
       renderPage();
-      expect(screen.getByRole('combobox', { name: '集團篩選' })).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: '集團／公司篩選' })).toBeInTheDocument();
       expect(screen.getByRole('combobox', { name: '分店篩選' })).toBeInTheDocument();
     });
 
@@ -283,7 +283,7 @@ describe('SchedulePage', () => {
       renderPage();
 
       const user = userEvent.setup();
-      const groupSelect = screen.getByRole('combobox', { name: '集團篩選' });
+      const groupSelect = screen.getByRole('combobox', { name: '集團／公司篩選' });
       await user.click(groupSelect);
       await user.click(await screen.findByTitle('集團A'));
 
@@ -304,7 +304,7 @@ describe('SchedulePage', () => {
       renderPage();
 
       const user = userEvent.setup();
-      const groupSelect = screen.getByRole('combobox', { name: '集團篩選' });
+      const groupSelect = screen.getByRole('combobox', { name: '集團／公司篩選' });
       await user.click(groupSelect);
       await user.click(await screen.findByTitle('集團A'));
 
@@ -382,7 +382,7 @@ describe('SchedulePage', () => {
     it('does not show the detail popover initially', () => {
       renderPage();
       expect(screen.queryByText('任務詳情')).not.toBeInTheDocument();
-      expect(screen.queryByText('集團: 集團A')).not.toBeInTheDocument();
+      expect(screen.queryByText('集團／公司: 集團A')).not.toBeInTheDocument();
     });
 
     it('opens the detail popover showing task info when an event block is clicked', async () => {
@@ -392,7 +392,7 @@ describe('SchedulePage', () => {
       await user.click(screen.getByText('觸發事件點擊'));
 
       await waitFor(() => {
-        expect(screen.getByText('集團: 集團A')).toBeInTheDocument();
+        expect(screen.getByText('集團／公司: 集團A')).toBeInTheDocument();
       });
 
       expect(screen.getByText('分店: 分店A')).toBeInTheDocument();
@@ -443,13 +443,13 @@ describe('SchedulePage', () => {
       await user.click(screen.getByText('觸發事件點擊'));
 
       await waitFor(() => {
-        expect(screen.getByText('集團: 集團A')).toBeInTheDocument();
+        expect(screen.getByText('集團／公司: 集團A')).toBeInTheDocument();
       });
 
       await user.click(screen.getByText('關閉小框'));
 
       await waitFor(() => {
-        expect(screen.queryByText('集團: 集團A')).not.toBeInTheDocument();
+        expect(screen.queryByText('集團／公司: 集團A')).not.toBeInTheDocument();
       });
     });
   });

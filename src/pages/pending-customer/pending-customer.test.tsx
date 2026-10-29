@@ -206,7 +206,7 @@ describe('PendingCustomerPage', () => {
       renderWithClient(<PendingCustomerPage />);
 
       expect(screen.getAllByText('建立時間').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('集團').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('集團／公司').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('分店').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('日期').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('人數需求').length).toBeGreaterThanOrEqual(1);
@@ -231,7 +231,7 @@ describe('PendingCustomerPage', () => {
 
       const modal = screen.getByRole('dialog');
       expect(within(modal).getByText('新增待排任務表單')).toBeInTheDocument();
-      expect(within(modal).getByRole('combobox', { name: '集團' })).toBeInTheDocument();
+      expect(within(modal).getByRole('combobox', { name: '集團／公司' })).toBeInTheDocument();
       expect(within(modal).getByLabelText('人數需求')).toBeInTheDocument();
     });
 
@@ -254,7 +254,7 @@ describe('PendingCustomerPage', () => {
       await user.click(screen.getByRole('button', { name: /新增待排任務/ }));
 
       const modal = screen.getByRole('dialog');
-      await user.click(within(modal).getByRole('combobox', { name: '集團' }));
+      await user.click(within(modal).getByRole('combobox', { name: '集團／公司' }));
       const groupOptions = await screen.findAllByText('集團A');
       await user.click(groupOptions[groupOptions.length - 1]!);
 

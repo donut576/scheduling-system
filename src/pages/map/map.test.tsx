@@ -232,7 +232,7 @@ describe('MapPage', () => {
     renderWithProviders();
 
     expect(screen.getByTestId('map-filter-panel')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: '集團篩選' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '集團／公司篩選' })).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: '分店篩選' })).toBeInTheDocument();
   });
 
@@ -254,7 +254,7 @@ describe('MapPage', () => {
     const user = userEvent.setup();
     renderWithProviders();
 
-    const groupSelect = screen.getByRole('combobox', { name: '集團篩選' });
+    const groupSelect = screen.getByRole('combobox', { name: '集團／公司篩選' });
     await user.click(groupSelect);
     await user.click(await screen.findByTitle('集團B'));
 
@@ -269,7 +269,7 @@ describe('MapPage', () => {
     const user = userEvent.setup();
     renderWithProviders();
 
-    const groupSelect = screen.getByRole('combobox', { name: '集團篩選' });
+    const groupSelect = screen.getByRole('combobox', { name: '集團／公司篩選' });
     await user.click(groupSelect);
     await user.click(await screen.findByTitle('集團A'));
 

@@ -182,7 +182,7 @@ describe('CustomerPage', () => {
       await user.click(screen.getByText('新增客戶'));
 
       expect(screen.getByText('新增客戶資料')).toBeInTheDocument();
-      const groupInput = screen.getByLabelText('集團名稱') as HTMLInputElement;
+      const groupInput = screen.getByLabelText('集團／公司名稱') as HTMLInputElement;
       expect(groupInput.value).toBe('');
     });
 
@@ -192,10 +192,10 @@ describe('CustomerPage', () => {
 
       await user.click(screen.getByText('新增客戶'));
 
-      await user.type(screen.getByLabelText('集團名稱'), '集團A');
+      await user.type(screen.getByLabelText('集團／公司名稱'), '集團A');
       await user.type(screen.getByLabelText('分店名稱'), '分店A');
 
-      expect(await screen.findByText(/此集團已存在相同分店名稱/)).toBeInTheDocument();
+      expect(await screen.findByText(/此集團／公司已存在相同分店名稱/)).toBeInTheDocument();
 
       await user.type(screen.getByLabelText('地址'), '台北市');
       await user.type(screen.getByLabelText('聯絡窗口'), '王');
@@ -213,10 +213,10 @@ describe('CustomerPage', () => {
 
       await user.click(screen.getByText('新增客戶'));
 
-      await user.type(screen.getByLabelText('集團名稱'), '王品');
+      await user.type(screen.getByLabelText('集團／公司名稱'), '王品');
 
       expect(
-        await screen.findByText(/系統中已有類似的集團，是否為「王品集團」/),
+        await screen.findByText(/系統中已有類似的集團／公司，是否為「王品集團」/),
       ).toBeInTheDocument();
     });
 
@@ -229,7 +229,7 @@ describe('CustomerPage', () => {
       await waitFor(() => {
         expect(screen.getByText('編輯客戶資料')).toBeInTheDocument();
       });
-      const groupInput = screen.getByLabelText('集團名稱') as HTMLInputElement;
+      const groupInput = screen.getByLabelText('集團／公司名稱') as HTMLInputElement;
       expect(groupInput.value).toBe('集團A');
     });
 
@@ -248,7 +248,7 @@ describe('CustomerPage', () => {
 
       await user.click(screen.getByText('新增客戶'));
 
-      await user.type(screen.getByLabelText('集團名稱'), '集團C');
+      await user.type(screen.getByLabelText('集團／公司名稱'), '集團C');
       await user.type(screen.getByLabelText('分店名稱'), '分店C');
       await user.type(screen.getByLabelText('地址'), '台南市');
       await user.type(screen.getByLabelText('聯絡窗口'), '林小美');

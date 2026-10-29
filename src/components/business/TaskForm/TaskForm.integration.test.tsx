@@ -153,7 +153,7 @@ describe('TaskForm integration - 完整任務建立流程', () => {
     renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
 
     // 開啟 TaskForm - wait for customer group data (from MSW) to load
-    const groupSelect = screen.getByRole('combobox', { name: '集團' });
+    const groupSelect = screen.getByRole('combobox', { name: '集團／公司' });
     await user.click(groupSelect);
     await user.click(await screen.findByTitle('測試集團X'));
 
