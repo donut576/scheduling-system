@@ -406,13 +406,21 @@ function renderTaskCard(record: Task, t: (key: string) => string) {
           </Space>
         </Space>
         <span>
-          {record.date || record.startTime || record.endTime ? (
+          {record.date || record.startTime || record.endTime || record.timeMode === 'FLEXIBLE' ? (
             <>
               {record.date ? `${record.date} ` : ''}
-              {record.startTime && record.endTime
-                ? `${record.startTime} ~ ${record.endTime}`
-                : record.startTime || record.endTime || ''}
-              {record.isOvernight ? ` (${t('task.overnight')})` : ''}
+              {record.timeMode === 'FLEXIBLE' ? (
+                <Tag color="orange" style={{ margin: 0 }}>
+                  {t('task.timeModeFlexibleBadge')}
+                </Tag>
+              ) : (
+                <>
+                  {record.startTime && record.endTime
+                    ? `${record.startTime} ~ ${record.endTime}`
+                    : record.startTime || record.endTime || ''}
+                  {record.isOvernight ? ` (${t('task.overnight')})` : ''}
+                </>
+              )}
             </>
           ) : (
             <Tag color="warning" style={{ margin: 0, fontSize: 11 }}>
