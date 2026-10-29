@@ -494,6 +494,12 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
 
       const showOverridden = scheduleEvent.alertStatus === 'OVERRIDDEN';
       const eventColor = scheduleEvent.backgroundColor || arg.event.backgroundColor || '#7a69c0';
+      const cornerTagStyle: React.CSSProperties = {
+        fontSize: 10,
+        padding: '1px 4px',
+        borderRadius: 3,
+        lineHeight: '12 px',
+      };
       const flexTheme = isFlexible ? getFlexibleCardTheme(eventColor) : null;
       const isMonthGrid = effectiveView === 'dayGridMonth';
 
@@ -578,7 +584,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             position: 'relative',
             display: 'grid',
             gap: 1,
-            padding: '3px 18px 3px 5px',
+            padding: '3px 5px',
             gridTemplateColumns: 'minmax(0, 1fr)',
             backgroundColor: eventColor,
             borderRadius: 6,
@@ -593,43 +599,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             }),
           }}
         >
-          <div
-            style={{
-              position: 'absolute',
-              top: 2,
-              right: 4,
-              display: 'flex',
-              gap: 2,
-              alignItems: 'center',
-            }}
-          >
-            {isInternal && (
-              <span
-                style={{
-                  fontSize: 10,
-                  backgroundColor: 'rgba(255,255,255,0.25)',
-                  padding: '1px 4px',
-                  borderRadius: 3,
-                }}
-              >
-                內部
-              </span>
-            )}
-            {scheduleEvent.isRecurring && (
-              <span
-                data-testid={`schedule-recurring-corner-${scheduleEvent.id}`}
-                aria-label={t('alert.recurring')}
-                style={{
-                  fontWeight: 700,
-                  fontSize: 14,
-                  lineHeight: 1,
-                }}
-              >
-                ∞
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
             {isMakeup && (
               <span
                 style={{
@@ -647,16 +617,33 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             )}
             <span
               style={{
+                flex: 1,
+                minWidth: 0,
                 fontWeight: 700,
                 fontSize: 12,
                 lineHeight: 1.2,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                minWidth: 0,
               }}
             >
               {scheduleEvent.groupName}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+              {isInternal && (
+                <span style={{ ...cornerTagStyle, backgroundColor: 'rgba(255,255,255,0.4)' }}>
+                  內部
+                </span>
+              )}
+              {scheduleEvent.isRecurring && (
+                <span
+                  data-testid={`schedule-recurring-corner-${scheduleEvent.id}`}
+                  aria-label={t('alert.recurring')}
+                  style={{ fontWeight: 700, fontSize: 14, lineHeight: 1 }}
+                >
+                  ∞
+                </span>
+              )}
             </span>
           </div>
           <span
@@ -730,7 +717,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             boxSizing: 'border-box',
             width: '100%',
             minHeight: 46,
-            padding: '3px 6px',
+            padding: '1px 5px 1px 6px',
             borderRadius: 8,
             overflow: 'hidden',
             border: `2px dashed ${flexTheme.border}`,
@@ -739,33 +726,57 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             color: flexTheme.color,
           }}
         >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+            {isMakeup && (
+              <span
+                style={{
+                  backgroundColor: '#fa8c16',
+                  color: '#ffffff',
+                  fontSize: 10,
+                  padding: '0 4px',
+                  borderRadius: 3,
+                  fontWeight: 700,
+                }}
+              >
+                補做
+              </span>
+            )}
+            <span
+              style={{
+                flex: 1,
+                minWidth: 0,
+                fontWeight: 700,
+                fontSize: 12,
+                lineHeight: 1.15,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {scheduleEvent.groupName}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+              <span
+                style={{ ...cornerTagStyle, backgroundColor: flexTheme.badgeBg, color: '#ffffff' }}
+              >
+                {t('task.timeModeFlexibleBadge')}
+              </span>
+              {scheduleEvent.isRecurring && (
+                <span style={{ fontWeight: 700, fontSize: 14, lineHeight: 1 }}>∞</span>
+              )}
+            </span>
+          </div>
           <span
             style={{
-              justifySelf: 'start',
-              backgroundColor: flexTheme.badgeBg,
-              color: '#ffffff',
-              fontSize: 11,
-              fontWeight: 700,
-              lineHeight: '15px',
-              padding: '0 8px',
-              borderRadius: 10,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {isMakeup ? '補做・' : ''}
-            {t('task.timeModeFlexibleBadge')}
-          </span>
-          <span
-            style={{
-              fontSize: 12,
               fontWeight: 600,
+              fontSize: 12,
               lineHeight: 1.2,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
             }}
           >
-            {scheduleEvent.groupName} · {scheduleEvent.branchName}
+            {scheduleEvent.branchName}
           </span>
           {timeRemark && (
             <span
@@ -786,20 +797,6 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {timeRemark}
               </span>
-            </span>
-          )}
-          {scheduleEvent.isRecurring && (
-            <span
-              style={{
-                position: 'absolute',
-                top: 2,
-                right: 5,
-                fontWeight: 700,
-                fontSize: 14,
-                lineHeight: 1,
-              }}
-            >
-              ∞
             </span>
           )}
           {onDeleteEvent && (
@@ -1219,7 +1216,9 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         }
         /* 避免時間軸內的事件被撐開超出 64px 高度 */
         .fc-timeline-event-harness {
-          height: 48px !important;
+          height: 52px !important;
+          box-sizing: border-box !important;
+          padding-bottom: 4px !important;
         }
         .fc-timeline-event {
           height: 100% !important;

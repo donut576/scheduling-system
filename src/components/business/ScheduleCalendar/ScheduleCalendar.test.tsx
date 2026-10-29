@@ -188,7 +188,7 @@ describe('ScheduleCalendar', () => {
     });
   });
 
-  it('shows 當日完成 and the time remark for flexible events', async () => {
+  it('shows 當日 badge and the time remark for flexible events', async () => {
     const flexibleEvent: ScheduleEvent = {
       ...normalEvent,
       id: 'evt-flex',
@@ -212,7 +212,7 @@ describe('ScheduleCalendar', () => {
     });
 
     const eventEl = screen.getByTestId('schedule-event-evt-flex');
-    expect(eventEl).toHaveTextContent('當日完成');
+    expect(eventEl).toHaveTextContent('當日');
     expect(eventEl).toHaveTextContent('12:00–14:00 不可施作');
     expect(eventEl).not.toHaveTextContent('3/10 00:00-23:59');
   });
@@ -464,8 +464,7 @@ describe('ScheduleCalendar - Property 19: 行事曆事件方塊資訊完整性',
       }),
       { numRuns: 20 },
     );
-  }, // numRuns or weakening the property. // to give the 20 cumulative runs enough headroom rather than reducing // test's own timeout above the suite-wide default (see vitest.config.ts) // under jsdom, especially under full-suite parallel load. Raise this // and waits (up to 5000ms each) for its async render, which is expensive // Each of the 20 property runs mounts/unmounts a full FullCalendar instance
-  60000);
+  }, 60000); // numRuns or weakening the property. // to give the 20 cumulative runs enough headroom rather than reducing // test's own timeout above the suite-wide default (see vitest.config.ts) // under jsdom, especially under full-suite parallel load. Raise this // and waits (up to 5000ms each) for its async render, which is expensive // Each of the 20 property runs mounts/unmounts a full FullCalendar instance
 });
 
 /**
