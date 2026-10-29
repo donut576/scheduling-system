@@ -511,7 +511,7 @@ const PendingCustomerPage: FC = () => {
       const activeFiltersText: string[] = [];
       if (filters.groupId) {
         const groupName = customerGroups.find((g) => g.id === filters.groupId)?.name;
-        if (groupName) activeFiltersText.push(`集團-${groupName}`);
+        if (groupName) activeFiltersText.push(`集團／公司-${groupName}`);
       }
       if (filters.branchId) {
         const branchName = customerGroups

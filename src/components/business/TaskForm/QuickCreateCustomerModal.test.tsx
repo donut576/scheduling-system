@@ -39,7 +39,7 @@ describe('QuickCreateCustomerModal', () => {
   it('renders modal with initial values for new group', () => {
     render(<QuickCreateCustomerModal {...defaultProps} />);
 
-    expect(screen.getByText('快速建立新客戶集團與分店')).toBeInTheDocument();
+    expect(screen.getByText('快速建立新客戶集團／公司與分店')).toBeInTheDocument();
     const groupInput = screen.getByTestId('quick-create-group-name') as HTMLInputElement;
     expect(groupInput.value).toBe('王品集團');
     expect(groupInput).not.toBeDisabled();
@@ -119,6 +119,8 @@ describe('QuickCreateCustomerModal', () => {
   it('shows similar group inline warning when typing similar group name', async () => {
     render(<QuickCreateCustomerModal {...defaultProps} initialGroupName="王品" />);
 
-    expect(await screen.findByText(/系統中已經有類似的集團了（王品集團）/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/系統中已經有類似的集團／公司了（王品集團）/),
+    ).toBeInTheDocument();
   });
 });

@@ -200,7 +200,7 @@ describe('ScheduleCalendar', () => {
   it('renders customer dimension 2-line resource header with 集團 and 分店', () => {
     renderWithProviders(<ScheduleCalendar {...defaultProps} dimension="customer" />);
     expect(screen.getByTestId('resource-header-customer')).toBeInTheDocument();
-    expect(screen.getByText('集團')).toBeInTheDocument();
+    expect(screen.getByText('集團／公司')).toBeInTheDocument();
     expect(screen.getByText('分店')).toBeInTheDocument();
   });
 
@@ -435,8 +435,7 @@ describe('ScheduleCalendar - Property 19: 行事曆事件方塊資訊完整性',
       }),
       { numRuns: 20 },
     );
-  }, // test's own timeout above the suite-wide default (see vitest.config.ts) // under jsdom, especially under full-suite parallel load. Raise this // and waits (up to 5000ms each) for its async render, which is expensive // Each of the 20 property runs mounts/unmounts a full FullCalendar instance
-  // to give the 20 cumulative runs enough headroom rather than reducing
+  }, // to give the 20 cumulative runs enough headroom rather than reducing // test's own timeout above the suite-wide default (see vitest.config.ts) // under jsdom, especially under full-suite parallel load. Raise this // and waits (up to 5000ms each) for its async render, which is expensive // Each of the 20 property runs mounts/unmounts a full FullCalendar instance
   // numRuns or weakening the property.
   60000);
 });

@@ -153,7 +153,7 @@ describe('TaskForm integration - 完整任務建立流程', () => {
     renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
 
     // 開啟 TaskForm - wait for customer group data (from MSW) to load
-    const groupSelect = screen.getByRole('combobox', { name: '集團' });
+    const groupSelect = screen.getByRole('combobox', { name: '集團／公司' });
     await user.click(groupSelect);
     await user.click(await screen.findByTitle('測試集團X'));
 
@@ -178,8 +178,8 @@ describe('TaskForm integration - 完整任務建立流程', () => {
     await user.type(endHourSelect, '17');
     await user.click(await screen.findByTitle('17'));
 
-    // 班次為必填欄位 (預設已為早班)
-    const shiftSelect = screen.getByRole('combobox', { name: '班次' });
+    // 班別為必填欄位 (預設已為早班)
+    const shiftSelect = screen.getByRole('combobox', { name: '班別' });
     expect(shiftSelect).toBeInTheDocument();
 
     // 人數：設為 2，但不指派任何員工，以確保觸發人數不足違規 (Requirement 7.6)

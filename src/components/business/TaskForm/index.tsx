@@ -758,8 +758,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                               style={{ textAlign: 'left', display: 'flex', alignItems: 'center' }}
                             >
                               {groupSearchText?.trim()
-                                ? `建立新集團「${groupSearchText.trim()}」`
-                                : '建立新客戶集團與分店'}
+                                ? `建立新集團／公司「${groupSearchText.trim()}」`
+                                : '建立新客戶集團／公司與分店'}
                             </Button>
                           </div>
                         </>

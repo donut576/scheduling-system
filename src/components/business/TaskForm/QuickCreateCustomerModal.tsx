@@ -125,7 +125,7 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
         <Space>
           <PlusCircleOutlined style={{ color: '#1677ff' }} />
           <span style={{ fontWeight: 700 }}>
-            {isNewGroup ? '快速建立新客戶集團與分店' : `為「${initialGroupName}」新增分店`}
+            {isNewGroup ? '快速建立新客戶集團／公司與分店' : `為「${initialGroupName}」新增分店`}
           </span>
         </Space>
       }
@@ -150,7 +150,7 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
         <Form.Item
           name="groupName"
           label={t('customer.groupName')}
-          rules={[{ required: true, message: '請輸入集團名稱' }]}
+          rules={[{ required: true, message: '請輸入集團／公司名稱' }]}
           validateStatus={
             isNewGroup &&
             (validationResult.exactGroupMatch || validationResult.similarGroups.length > 0)
@@ -161,19 +161,19 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
             isNewGroup &&
             (validationResult.exactGroupMatch ? (
               <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 4 }}>
-                ⚠️ 系統中已經有這個集團了（共 {validationResult.exactGroupMatch.branchCount}{' '}
+                ⚠️ 系統中已經有這個集團／公司了（共 {validationResult.exactGroupMatch.branchCount}{' '}
                 間分店）
               </div>
             ) : validationResult.similarGroups.length > 0 ? (
               <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 4 }}>
-                ⚠️ 系統中已經有類似的集團了（
+                ⚠️ 系統中已經有類似的集團／公司了（
                 {validationResult.similarGroups.map((g) => g.name).join('、')}）
               </div>
             ) : undefined)
           }
         >
           <Input
-            placeholder="請輸入集團名稱"
+            placeholder="請輸入集團／公司名稱"
             disabled={!isNewGroup}
             data-testid="quick-create-group-name"
           />
@@ -188,7 +188,7 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
           help={
             isNewGroup && validationResult.isExactCustomerDuplicate ? (
               <div style={{ color: '#ff4d4f', fontSize: 13, marginTop: 4 }}>
-                ⚠️ 此集團已存在相同分店名稱（{validationResult.exactCustomerName}）
+                ⚠️ 此集團／公司已存在相同分店名稱（{validationResult.exactCustomerName}）
               </div>
             ) : undefined
           }

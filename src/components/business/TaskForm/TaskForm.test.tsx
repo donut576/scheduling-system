@@ -203,7 +203,7 @@ describe('TaskForm', () => {
     renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
 
     // Use role-based queries for Ant Design Select (combobox)
-    expect(screen.getByRole('combobox', { name: '集團' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '集團／公司' })).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: '分店' })).toBeInTheDocument();
     // 任務類型 is rendered as three mutually-exclusive checkboxes
     expect(screen.getByRole('checkbox', { name: '合約' })).toBeInTheDocument();
