@@ -295,6 +295,23 @@ describe('TaskForm', () => {
     expect(screen.queryByTestId('recurrence-editor')).not.toBeInTheDocument();
   });
 
+  it('hides start/end time when 彈性 is selected and shows them again for 固定時段', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+
+    expect(screen.getByRole('combobox', { name: '開始時間 (小時)' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '結束時間 (小時)' })).toBeInTheDocument();
+
+    // 點文字而非 radio：Radio.Button 的 input 有 pointer-events 限制
+    await user.click(screen.getByText('彈性（當日內完成）'));
+    expect(screen.queryByRole('combobox', { name: '開始時間 (小時)' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: '結束時間 (小時)' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByText('固定時段'));
+    expect(await screen.findByRole('combobox', { name: '開始時間 (小時)' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '結束時間 (小時)' })).toBeInTheDocument();
+  });
+
   it('clears all fields and local state back to defaults when 全部清除 is clicked', async () => {
     const user = userEvent.setup();
     renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);

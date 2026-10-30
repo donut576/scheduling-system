@@ -7,6 +7,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Popover, Tag } from 'antd';
+import { InfoCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { ScheduleDimension, ScheduleEvent, ScheduleFilters } from '@/types/schedule';
@@ -16,6 +17,7 @@ import { useUserStore } from '@/stores/useUserStore';
 import { isHoliday } from '@/utils/date';
 import { getGroupColor } from '@/utils/groupColor';
 import { getAreaShortLabel } from '@/utils/regionMapping';
+import { getFlexibleCardTheme } from '@/utils/flexibleCardTheme';
 import AlertBadge from '@/components/business/AlertBadge';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { toResourceInputs, toEventInputs } from './adapters';
@@ -482,12 +484,23 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
       }
 
       const isOvernight = scheduleEvent.isOvernight;
-      const timeLabel = `${dayjs(scheduleEvent.start).format('M/D HH:mm')}-${dayjs(
-        scheduleEvent.end,
-      ).format('HH:mm')}${isOvernight ? '+1' : ''}`;
+      const isFlexible = scheduleEvent.extendedProps?.timeMode === 'FLEXIBLE';
+      const timeRemark = scheduleEvent.extendedProps?.timeRemark;
+      const timeLabel = isFlexible
+        ? t('task.timeModeFlexibleBadge')
+        : `${dayjs(scheduleEvent.start).format('M/D HH:mm')}-${dayjs(scheduleEvent.end).format(
+            'HH:mm',
+          )}${isOvernight ? '+1' : ''}`;
 
       const showOverridden = scheduleEvent.alertStatus === 'OVERRIDDEN';
       const eventColor = scheduleEvent.backgroundColor || arg.event.backgroundColor || '#7a69c0';
+      const cornerTagStyle: React.CSSProperties = {
+        fontSize: 10,
+        padding: '1px 4px',
+        borderRadius: 3,
+        lineHeight: '12 px',
+      };
+      const flexTheme = isFlexible ? getFlexibleCardTheme(eventColor) : null;
       const isMonthGrid = effectiveView === 'dayGridMonth';
 
       const isMakeup = scheduleEvent.isMakeup || scheduleEvent.extendedProps?.isMakeup;
@@ -496,7 +509,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         scheduleEvent.extendedProps?.isInternalEvent ||
         scheduleEvent.extendedProps?.contents?.includes('TRAINING');
 
-      const eventCard = isMonthGrid ? (
+      const normalCard = isMonthGrid ? (
         <div
           data-testid={`schedule-event-${scheduleEvent.id}`}
           style={{
@@ -515,11 +528,18 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             overflow: 'hidden',
             boxShadow: '0 1px 2px rgba(0, 0, 0, 0.12)',
             cursor: 'pointer',
+            ...(isFlexible && {
+              border: '1px dashed rgba(255,255,255,0.9)',
+              backgroundImage:
+                'repeating-linear-gradient(45deg, rgba(255,255,255,0.18) 0 6px, transparent 6px 12px)',
+            }),
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
             <span style={{ opacity: 0.9, fontSize: 10, flexShrink: 0 }}>
-              {dayjs(scheduleEvent.start).format('HH:mm')}
+              {isFlexible
+                ? t('task.timeModeFlexibleBadge')
+                : dayjs(scheduleEvent.start).format('HH:mm')}
             </span>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {isMakeup ? '【補】' : ''}
@@ -564,7 +584,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             position: 'relative',
             display: 'grid',
             gap: 1,
-            padding: '3px 18px 3px 5px',
+            padding: '3px 5px',
             gridTemplateColumns: 'minmax(0, 1fr)',
             backgroundColor: eventColor,
             borderRadius: 6,
@@ -572,45 +592,14 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             width: '100%',
             minHeight: 46,
             color: '#ffffff',
+            ...(isFlexible && {
+              border: '1px dashed rgba(255,255,255,0.9)',
+              backgroundImage:
+                'repeating-linear-gradient(45deg, rgba(255,255,255,0.18) 0 6px, transparent 6px 12px)',
+            }),
           }}
         >
-          <div
-            style={{
-              position: 'absolute',
-              top: 2,
-              right: 4,
-              display: 'flex',
-              gap: 2,
-              alignItems: 'center',
-            }}
-          >
-            {isInternal && (
-              <span
-                style={{
-                  fontSize: 10,
-                  backgroundColor: 'rgba(255,255,255,0.25)',
-                  padding: '1px 4px',
-                  borderRadius: 3,
-                }}
-              >
-                內部
-              </span>
-            )}
-            {scheduleEvent.isRecurring && (
-              <span
-                data-testid={`schedule-recurring-corner-${scheduleEvent.id}`}
-                aria-label={t('alert.recurring')}
-                style={{
-                  fontWeight: 700,
-                  fontSize: 14,
-                  lineHeight: 1,
-                }}
-              >
-                ∞
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
             {isMakeup && (
               <span
                 style={{
@@ -628,16 +617,33 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             )}
             <span
               style={{
+                flex: 1,
+                minWidth: 0,
                 fontWeight: 700,
                 fontSize: 12,
                 lineHeight: 1.2,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                minWidth: 0,
               }}
             >
               {scheduleEvent.groupName}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+              {isInternal && (
+                <span style={{ ...cornerTagStyle, backgroundColor: 'rgba(255,255,255,0.4)' }}>
+                  內部
+                </span>
+              )}
+              {scheduleEvent.isRecurring && (
+                <span
+                  data-testid={`schedule-recurring-corner-${scheduleEvent.id}`}
+                  aria-label={t('alert.recurring')}
+                  style={{ fontWeight: 700, fontSize: 14, lineHeight: 1 }}
+                >
+                  ∞
+                </span>
+              )}
             </span>
           </div>
           <span
@@ -653,6 +659,28 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             {scheduleEvent.branchName}
           </span>
           <span style={{ fontSize: 11, lineHeight: 1.2, whiteSpace: 'nowrap' }}>{timeLabel}</span>
+          {isFlexible && timeRemark && (
+            <span
+              title={timeRemark}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 3,
+                minWidth: 0,
+                fontSize: 11,
+                lineHeight: 1.2,
+                opacity: 0.9,
+              }}
+            >
+              <InfoCircleOutlined
+                style={{ fontSize: 11, flexShrink: 0 }}
+                aria-label={t('task.timeRemarkShort')}
+              />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {timeRemark}
+              </span>
+            </span>
+          )}
           {showOverridden && (
             <span style={{ marginTop: 2 }}>
               <AlertBadge status="overridden" tooltip={t('alert.overriddenTooltip')} />
@@ -675,6 +703,121 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           )}
         </div>
       );
+
+      const flexCard = flexTheme ? (
+        <div
+          data-testid={`schedule-event-${scheduleEvent.id}`}
+          title={timeRemark || undefined}
+          style={{
+            position: 'relative',
+            display: 'grid',
+            alignContent: 'center',
+            gap: 1,
+            gridTemplateColumns: 'minmax(0, 1fr)',
+            boxSizing: 'border-box',
+            width: '100%',
+            minHeight: 46,
+            padding: '1px 5px 1px 6px',
+            borderRadius: 8,
+            overflow: 'hidden',
+            border: `2px dashed ${flexTheme.border}`,
+            backgroundColor: flexTheme.backgroundColor,
+            backgroundImage: flexTheme.backgroundImage,
+            color: flexTheme.color,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+            {isMakeup && (
+              <span
+                style={{
+                  backgroundColor: '#fa8c16',
+                  color: '#ffffff',
+                  fontSize: 10,
+                  padding: '0 4px',
+                  borderRadius: 3,
+                  fontWeight: 700,
+                }}
+              >
+                補做
+              </span>
+            )}
+            <span
+              style={{
+                flex: 1,
+                minWidth: 0,
+                fontWeight: 700,
+                fontSize: 12,
+                lineHeight: 1.15,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {scheduleEvent.groupName}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+              <span
+                style={{ ...cornerTagStyle, backgroundColor: flexTheme.badgeBg, color: '#ffffff' }}
+              >
+                {t('task.timeModeFlexibleBadge')}
+              </span>
+              {scheduleEvent.isRecurring && (
+                <span style={{ fontWeight: 700, fontSize: 14, lineHeight: 1 }}>∞</span>
+              )}
+            </span>
+          </div>
+          <span
+            style={{
+              fontWeight: 600,
+              fontSize: 12,
+              lineHeight: 1.2,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {scheduleEvent.branchName}
+          </span>
+          {timeRemark && (
+            <span
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 3,
+                minWidth: 0,
+                fontSize: 11,
+                lineHeight: 1.2,
+                opacity: 0.9,
+              }}
+            >
+              <InfoCircleOutlined
+                style={{ fontSize: 11, flexShrink: 0 }}
+                aria-label={t('task.timeRemarkShort')}
+              />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {timeRemark}
+              </span>
+            </span>
+          )}
+          {onDeleteEvent && (
+            <button
+              type="button"
+              className="schedule-event-hover-delete-btn"
+              aria-label="刪除排班任務"
+              title="刪除/移回待排"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onDeleteEvent(scheduleEvent, e);
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      ) : null;
+
+      const eventCard = flexCard ?? normalCard;
 
       if (!renderEventDetail) {
         return eventCard;
@@ -1073,7 +1216,9 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         }
         /* 避免時間軸內的事件被撐開超出 64px 高度 */
         .fc-timeline-event-harness {
-          height: 48px !important;
+          height: 52px !important;
+          box-sizing: border-box !important;
+          padding-bottom: 4px !important;
         }
         .fc-timeline-event {
           height: 100% !important;
@@ -1255,6 +1400,13 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         /* 隱藏 FullCalendar 商業版權提示訊息 */
         .fc-license-message {
           display: none !important;
+        }
+        /* 彈性任務：外層事件框透明，由內層卡片自行繪製虛線框與斜紋底 */
+        .fc-event.flexible-event {
+          background: transparent !important;
+          border-color: transparent !important;
+          box-shadow: none !important;
+          overflow: visible !important;
         }
       `}</style>
       <FullCalendar

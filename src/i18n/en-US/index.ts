@@ -40,6 +40,9 @@ export default {
     clearFilters: 'Clear Filters',
     inputPlaceholder: 'Enter {{label}}',
     selectPlaceholder: 'Select {{label}}',
+    createSuccess: 'Created successfully',
+    saveSuccess: 'Saved successfully',
+    exportFailed: 'Export failed',
   },
   // 錯誤頁面文字（403、頁面錯誤等）
   error: {
@@ -183,6 +186,15 @@ export default {
     makeupTag: 'Make-up',
     basicInfo: 'Basic Information',
     scheduleAndRecurrence: 'Schedule & Recurrence',
+    timeModeSection: 'Task Time Type',
+    timeModeFixed: 'Fixed Time Slot',
+    timeModeFlexible: 'Flexible (Within the Day)',
+    timeModeFlexibleHint:
+      'Flexible tasks have no start/end time; complete within the day. Shown as "Within the day" on the schedule.',
+    timeRemark: 'Note (Optional)',
+    timeRemarkPlaceholder: 'e.g. Not allowed 12:00–14:00 (customer lunch)',
+    timeModeFlexibleBadge: 'Today',
+    timeRemarkShort: 'Note: ',
     contentAndAssignees: 'Content & Assignees',
     remarksSection: 'Remarks',
     reportSection: 'Work Report & Photos',

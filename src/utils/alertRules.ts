@@ -84,11 +84,17 @@ export const checkConsecutiveDays: AlertRuleChecker = (task, context) => {
  * 員工單日工時（含既有任務與新任務加總）不應超過 10 小時。
  */
 export const checkDailyHoursExceeded: AlertRuleChecker = (task, context) => {
+  // 新任務是彈性：不算工時
+  if (task.timeMode === 'FLEXIBLE') return null;
+
   const violations: string[] = [];
 
   for (const empId of task.assignees) {
     const sameDayTasks = context.existingTasks.filter(
-      (t) => t.date === task.date && t.assignees.some((a: TaskAssignee) => a.employeeId === empId),
+      (t) =>
+        t.date === task.date &&
+        t.timeMode !== 'FLEXIBLE' &&
+        t.assignees.some((a: TaskAssignee) => a.employeeId === empId),
     );
 
     // Calculate total minutes including the new task.
@@ -121,11 +127,17 @@ export const checkDailyHoursExceeded: AlertRuleChecker = (task, context) => {
  * 員工於同一天內，不應被排入時間重疊的任務時段。
  */
 export const checkDuplicateSlot: AlertRuleChecker = (task, context) => {
+  // 新任務是彈性：不比對時段
+  if (task.timeMode === 'FLEXIBLE') return null;
+
   const violations: string[] = [];
 
   for (const empId of task.assignees) {
     const sameDayTasks = context.existingTasks.filter(
-      (t) => t.date === task.date && t.assignees.some((a: TaskAssignee) => a.employeeId === empId),
+      (t) =>
+        t.date === task.date &&
+        t.timeMode !== 'FLEXIBLE' &&
+        t.assignees.some((a: TaskAssignee) => a.employeeId === empId),
     );
 
     // 只要與任一筆同日既有任務時段重疊，即視為違反規則
