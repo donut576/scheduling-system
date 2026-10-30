@@ -688,10 +688,10 @@ function TaskPage() {
     async (data: TaskFormData) => {
       if (editingTask) {
         await updateMutation.mutateAsync({ id: editingTask.id, data });
-        message.success(t('common.saveSuccess') || '儲存成功');
+        message.success(t('common.saveSuccess'));
       } else {
         await createMutation.mutateAsync(data);
-        message.success(t('common.createSuccess') || '新增成功');
+        message.success(t('common.createSuccess'));
       }
       setModalOpen(false);
       setEditingTask(null);

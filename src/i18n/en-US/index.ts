@@ -40,6 +40,9 @@ export default {
     clearFilters: 'Clear Filters',
     inputPlaceholder: 'Enter {{label}}',
     selectPlaceholder: 'Select {{label}}',
+    createSuccess: 'Created successfully',
+    saveSuccess: 'Saved successfully',
+    exportFailed: 'Export failed',
   },
   // 錯誤頁面文字（403、頁面錯誤等）
   error: {

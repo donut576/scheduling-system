@@ -40,6 +40,9 @@ export default {
     clearFilters: '一鍵清除篩選條件',
     inputPlaceholder: '請輸入{{label}}',
     selectPlaceholder: '請選擇{{label}}',
+    createSuccess: '新增成功',
+    saveSuccess: '儲存成功',
+    exportFailed: '匯出失敗',
   },
   // 錯誤頁面文字（403、頁面錯誤等）
   error: {
