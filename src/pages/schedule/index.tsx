@@ -1016,6 +1016,9 @@ const SchedulePage: FC = () => {
             <div>{`${t('task.date')}: ${detailRows.date}`}</div>
             <div>{`${t('task.startTime')}: ${detailRows.startTime}`}</div>
             <div>{`${t('task.endTime')}: ${detailRows.endTime}`}</div>
+            {event.extendedProps?.timeMode === 'FLEXIBLE' && (
+              <div>{`${t('task.timeModeFlexible')}${event.extendedProps.timeRemark ? `：${event.extendedProps.timeRemark}` : ''}`}</div>
+            )}
             <div>{`${t('task.headcount')}: ${detailRows.headcount}`}</div>
             <div>{`${t('task.shift')}: ${detailRows.shift}`}</div>
             <div>{`${t('task.assignees')}: ${detailRows.assignees}`}</div>

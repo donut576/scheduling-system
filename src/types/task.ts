@@ -18,6 +18,8 @@ export interface Task {
   startTime: string;
   endTime: string;
   isOvernight: boolean;
+  timeMode?: TimeMode;
+  timeRemark?: string;
   headcount: number;
   shift: ShiftType;
   route: string;
@@ -55,6 +57,8 @@ export interface TaskFormData {
   date: string;
   startTime: string;
   endTime: string;
+  timeMode?: TimeMode;
+  timeRemark?: string;
   headcount: number;
   shift: ShiftType;
   route: string;
@@ -108,6 +112,8 @@ export type TaskStatus =
   'UNSCHEDULED' | 'SCHEDULED' | 'MODIFIED' | 'CONFIRMED' | 'PENDING_APPROVAL' | 'CANCELLED';
 /** 警示狀態：無警示／有違規／已特許 */
 export type AlertStatus = 'CLEAN' | 'VIOLATED' | 'OVERRIDDEN';
+/** 任務時間類型：固定時段／彈性（當日內完成，不指定時段） */
+export type TimeMode = 'FIXED' | 'FLEXIBLE';
 /** 回報方式：APP 填寫／EDM 電子郵件／紙本回報／拍照存證 */
 export type ReportType = 'APP' | 'EDM' | 'PAPER' | 'PHOTO';
 /** 班次類型（由後端動態提供，例如 '台北早班'、'台北晚班'） */

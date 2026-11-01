@@ -183,6 +183,28 @@ describe('checkDuplicateSlot', () => {
   });
 });
 
+describe('彈性任務 (timeMode: FLEXIBLE)', () => {
+  it('新任務為彈性時，不因同員工既有固定任務回報工時超時或時段重複', () => {
+    const task = makeTask({ timeMode: 'FLEXIBLE', startTime: '', endTime: '' });
+    const existingTasks = [makeExistingTask({ startTime: '08:00', endTime: '20:00' })]; // 12 hours
+    const context = makeContext({ existingTasks });
+    expect(checkDailyHoursExceeded(task, context)).toBeNull();
+    expect(checkDuplicateSlot(task, context)).toBeNull();
+
+    const ruleIds = runAlertChecks(task, context).violations.map((v) => v.ruleId);
+    expect(ruleIds).not.toContain('DAILY_HOURS_EXCEEDED');
+    expect(ruleIds).not.toContain('DUPLICATE_SLOT');
+  });
+
+  it('既有彈性任務不計入新固定任務的工時與時段比對', () => {
+    const task = makeTask({ startTime: '09:00', endTime: '17:00' }); // 8 hours
+    const existingTasks = [makeExistingTask({ timeMode: 'FLEXIBLE', startTime: '', endTime: '' })];
+    const context = makeContext({ existingTasks });
+    expect(checkDailyHoursExceeded(task, context)).toBeNull();
+    expect(checkDuplicateSlot(task, context)).toBeNull();
+  });
+});
+
 describe('checkDesignatedLeave', () => {
   it('returns null when no employee is on leave', () => {
     const task = makeTask();

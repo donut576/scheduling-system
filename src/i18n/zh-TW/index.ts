@@ -40,6 +40,9 @@ export default {
     clearFilters: '一鍵清除篩選條件',
     inputPlaceholder: '請輸入{{label}}',
     selectPlaceholder: '請選擇{{label}}',
+    createSuccess: '新增成功',
+    saveSuccess: '儲存成功',
+    exportFailed: '匯出失敗',
   },
   // 錯誤頁面文字（403、頁面錯誤等）
   error: {
@@ -187,6 +190,15 @@ export default {
     makeupTag: '補做',
     basicInfo: '基本資訊',
     scheduleAndRecurrence: '排程與循環',
+    timeModeSection: '任務時間類型',
+    timeModeFixed: '固定時段',
+    timeModeFlexible: '彈性（當日內完成）',
+    timeModeFlexibleHint:
+      '彈性任務不指定開始／結束時間，當日內完成即可；班表上以「當日完成」標示。',
+    timeRemark: '說明（選填）',
+    timeRemarkPlaceholder: '例如：12:00–14:00 客戶用餐，不可施作',
+    timeModeFlexibleBadge: '當日',
+    timeRemarkShort: '說明：',
     contentAndAssignees: '內容與指派人員',
     remarksSection: '備註說明',
     reportSection: '施作回報與照片要求',

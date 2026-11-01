@@ -9,6 +9,7 @@ import type {
   TaskType,
   TaskStatus,
   RecurrenceRule,
+  TimeMode,
 } from '@/types/task';
 import type { Employee } from '@/types/employee';
 import type { Customer, CustomerGroup, CustomerBranch, PendingCustomer } from '@/types/customer';
@@ -2262,6 +2263,20 @@ mockTasks = mockTasks.map((t) => {
   return t;
 });
 
+/** 彈性任務在班表上以整天橫條呈現（00:00–23:59） */
+const eventTimeRange = (t: {
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  timeMode?: TimeMode;
+}) =>
+  t.timeMode === 'FLEXIBLE'
+    ? { start: `${t.date}T00:00:00+08:00`, end: `${t.date}T23:59:00+08:00` }
+    : {
+        start: `${t.date}T${t.startTime}:00+08:00`,
+        end: `${t.date}T${t.endTime || '16:00'}:00+08:00`,
+      };
+
 /** 依表單資料建立新任務（依日期、時間與指派人員判定 SCHEDULED 或 UNSCHEDULED） */
 const buildNewTask = (data: TaskFormData): Task => {
   const resolved = resolveGroupBranchNames(data.groupId, data.branchId);
@@ -2275,7 +2290,7 @@ const buildNewTask = (data: TaskFormData): Task => {
   const assignees = resolveAssignees(data.assignees);
   const isFullyStaffed = assignees.length > 0 && assignees.length >= (data.headcount || 1);
   const hasDate = Boolean(data.date);
-  const hasTime = Boolean(data.startTime || data.endTime);
+  const hasTime = data.timeMode === 'FLEXIBLE' || Boolean(data.startTime || data.endTime);
   const computedStatus: TaskStatus =
     data.status || (isFullyStaffed && hasDate && hasTime ? 'SCHEDULED' : 'UNSCHEDULED');
   return {
@@ -2288,7 +2303,10 @@ const buildNewTask = (data: TaskFormData): Task => {
     date: data.date,
     startTime: data.startTime,
     endTime: data.endTime,
-    isOvernight: isOvernightRange(data.startTime, data.endTime),
+    isOvernight:
+      data.timeMode === 'FLEXIBLE' ? false : isOvernightRange(data.startTime, data.endTime),
+    timeMode: data.timeMode,
+    timeRemark: data.timeRemark,
     headcount: data.headcount,
     shift: data.shift,
     route: data.route,
@@ -2338,7 +2356,8 @@ const applyTaskUpdate = (existing: Task, data: Partial<TaskFormData>): Task => {
     data.assignees !== undefined ? resolveAssignees(data.assignees) : existing.assignees;
   const isFullyStaffed = assignees.length > 0 && assignees.length >= (headcount || 1);
   const hasDate = Boolean(date);
-  const hasTime = Boolean(startTime || endTime);
+  const timeMode = data.timeMode ?? existing.timeMode;
+  const hasTime = timeMode === 'FLEXIBLE' || Boolean(startTime || endTime);
 
   let newStatus: TaskStatus;
   if (data.status) {
@@ -2362,7 +2381,14 @@ const applyTaskUpdate = (existing: Task, data: Partial<TaskFormData>): Task => {
     startTime,
     endTime,
     headcount,
-    isOvernight: isOvernightRange(startTime, endTime),
+    isOvernight: timeMode === 'FLEXIBLE' ? false : isOvernightRange(startTime, endTime),
+    timeMode,
+    timeRemark:
+      timeMode !== 'FLEXIBLE'
+        ? undefined
+        : data.timeRemark !== undefined
+          ? data.timeRemark
+          : existing.timeRemark,
     assignees,
     requirePhotos: data.requirePhotos !== undefined ? data.requirePhotos : existing.requirePhotos,
     photoCount: data.photoCount !== undefined ? data.photoCount : existing.photoCount,
@@ -4229,7 +4255,10 @@ export const handlers = [
           e.id !== `event-${params.id}` &&
           e.taskId !== `task-${params.id}`,
       );
-    } else if (updated.date && updated.startTime && updated.endTime) {
+    } else if (
+      updated.date &&
+      (updated.timeMode === 'FLEXIBLE' || (updated.startTime && updated.endTime))
+    ) {
       const existingIdx = mockScheduleEvents.findIndex(
         (e) =>
           e.taskId === updated.id || e.taskId === params.id || e.taskId === `task-${params.id}`,
@@ -4242,8 +4271,7 @@ export const handlers = [
         taskId: updated.id,
         resourceId: updated.branchId || 'branch-001',
         title: `${updated.groupName} - ${updated.branchName}`,
-        start: `${updated.date}T${updated.startTime}:00+08:00`,
-        end: `${updated.date}T${updated.endTime}:00+08:00`,
+        ...eventTimeRange(updated),
         groupName: updated.groupName,
         branchName: updated.branchName,
         alertStatus: updated.alertStatus || 'CLEAN',
@@ -4268,6 +4296,8 @@ export const handlers = [
           reportTypes: updated.reportTypes,
           photos: updated.photos,
           reportNotes: updated.reportNotes,
+          timeMode: updated.timeMode,
+          timeRemark: updated.timeRemark,
         },
       };
       if (existingIdx >= 0) {
@@ -4378,7 +4408,12 @@ export const handlers = [
 
     // 將 mockTasks 中已排班的任務動態轉為 ScheduleEvent 並與 mockScheduleEvents 合併去重
     const taskEvents: ScheduleEvent[] = mockTasks
-      .filter((t) => (t.status === 'SCHEDULED' || t.status === 'MODIFIED') && t.date && t.startTime)
+      .filter(
+        (t) =>
+          (t.status === 'SCHEDULED' || t.status === 'MODIFIED') &&
+          t.date &&
+          (t.startTime || t.timeMode === 'FLEXIBLE'),
+      )
       .map((t) => {
         const { groupName, branchName } = resolveGroupBranchNames(t.groupId, t.branchId);
         const resolvedGroupName =
@@ -4390,8 +4425,7 @@ export const handlers = [
           taskId: t.id,
           resourceId: t.branchId,
           title: `${resolvedGroupName} - ${resolvedBranchName}`,
-          start: `${t.date}T${t.startTime}:00+08:00`,
-          end: `${t.date}T${t.endTime || '16:00'}:00+08:00`,
+          ...eventTimeRange(t),
           groupName: resolvedGroupName,
           branchName: resolvedBranchName,
           alertStatus: t.alertStatus || 'CLEAN',
@@ -4402,6 +4436,8 @@ export const handlers = [
             shift: t.shift,
             assignees: t.assignees || [],
             contents: t.contents || [],
+            timeMode: t.timeMode,
+            timeRemark: t.timeRemark,
           },
         };
       });

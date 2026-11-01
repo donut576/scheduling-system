@@ -12,6 +12,7 @@ import type {
   TaskAssignee,
   AlertStatus,
   ReportType,
+  TimeMode,
 } from './task';
 
 /** 排班日曆上的單一事件（對應一筆任務排班） */
@@ -51,6 +52,8 @@ export interface ScheduleEvent {
     overrideReason?: string;
     headcount?: number;
     remarks?: string;
+    timeMode?: TimeMode;
+    timeRemark?: string;
     route?: string;
     task?: Task;
   };

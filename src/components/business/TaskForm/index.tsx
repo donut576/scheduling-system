@@ -36,6 +36,7 @@ import type {
   TaskContent,
   RecurrenceRule,
   TaskStatus,
+  TimeMode,
 } from '@/types/task';
 import type { AlertValidationResult, AlertContext } from '@/types/alert';
 import type { Customer, CustomerGroup } from '@/types/customer';
@@ -299,6 +300,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
   const watchBranchId = Form.useWatch('branchId', form);
   const assigneesValue: string[] = Form.useWatch('assignees', form) ?? [];
   const contentsValue: TaskContent[] = Form.useWatch('contents', form) ?? [];
+  const timeModeValue: TimeMode | undefined = Form.useWatch('timeMode', form);
+  const isFlexible = timeModeValue === 'FLEXIBLE';
   const currentDate = watchDate ? dayjs(watchDate).format('YYYY-MM-DD') : undefined;
   const activeGroupId = watchGroupId || selectedGroupId;
 
@@ -432,6 +435,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         date: raw.date ? dayjs(raw.date) : undefined,
         startTime: raw.startTime,
         endTime: raw.endTime,
+        timeMode: initialData.timeMode ?? 'FIXED',
+        timeRemark: initialData.timeRemark,
         headcount: raw.headcount,
         shift: raw.shift ?? raw.shiftType,
         route: raw.route,
@@ -463,6 +468,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     }
     return {
       taskType: 'CONTRACT',
+      timeMode: 'FIXED',
       headcount: 1,
       shift: shifts[0]?.value as string,
       route: routes[0]?.value as string,
@@ -514,8 +520,9 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         Array.isArray(values.assignees) &&
         values.assignees.length > 0 &&
         values.assignees.length >= (values.headcount ?? 1);
+      const isFlexibleTask = values.timeMode === 'FLEXIBLE';
       const hasDate = Boolean(values.date);
-      const hasTime = Boolean(values.startTime || values.endTime);
+      const hasTime = isFlexibleTask || Boolean(values.startTime || values.endTime);
       const computedStatus: TaskStatus =
         isFullyStaffed && hasDate && hasTime ? 'SCHEDULED' : 'UNSCHEDULED';
 
@@ -540,8 +547,10 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         branchName,
         taskType: values.taskType || 'CONTRACT',
         date: values.date ? dayjs(values.date).format('YYYY-MM-DD') : '',
-        startTime: values.startTime || '',
-        endTime: values.endTime || '',
+        startTime: isFlexibleTask ? '' : values.startTime || '',
+        endTime: isFlexibleTask ? '' : values.endTime || '',
+        timeMode: isFlexibleTask ? 'FLEXIBLE' : 'FIXED',
+        timeRemark: isFlexibleTask ? values.timeRemark : undefined,
         headcount: values.headcount ?? 1,
         shift: values.shift || (shifts[0]?.value as string) || '早班',
         route: values.route ?? '',
@@ -657,7 +666,10 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     }
 
     // 當已填寫日期與時間時，執行排班預檢（含人數不足、證照不符、連續上班等）
-    if (formData.date && (formData.startTime || formData.endTime)) {
+    if (
+      formData.date &&
+      (formData.startTime || formData.endTime || formData.timeMode === 'FLEXIBLE')
+    ) {
       const alertContext: AlertContext = {
         employees,
         existingTasks,
@@ -848,6 +860,41 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
               </Form.Item>
             </Card>
 
+            {/* 區塊 1.5: 任務時間類型（固定／彈性） */}
+            <Card
+              size="small"
+              title={t('task.timeModeSection')}
+              style={{ marginBottom: 16, borderRadius: 8 }}
+            >
+              <Form.Item name="timeMode" style={{ marginBottom: isFlexible ? 12 : 0 }}>
+                <Radio.Group
+                  onChange={(e) => {
+                    // 切到彈性時清掉已填的開始/結束時間，避免隱藏欄位殘留舊值
+                    if (e.target.value === 'FLEXIBLE') {
+                      form.setFieldsValue({ startTime: undefined, endTime: undefined });
+                    }
+                  }}
+                >
+                  <Radio.Button value="FIXED">{t('task.timeModeFixed')}</Radio.Button>
+                  <Radio.Button value="FLEXIBLE">{t('task.timeModeFlexible')}</Radio.Button>
+                </Radio.Group>
+              </Form.Item>
+              {isFlexible && (
+                <>
+                  <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+                    {t('task.timeModeFlexibleHint')}
+                  </Text>
+                  <Form.Item
+                    name="timeRemark"
+                    label={t('task.timeRemark')}
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Input maxLength={100} placeholder={t('task.timeRemarkPlaceholder')} />
+                  </Form.Item>
+                </>
+              )}
+            </Card>
+
             {/* 區塊 2: 排程與循環頻率 */}
             <Card size="small" title={t('task.scheduleAndRecurrence')} style={{ borderRadius: 8 }}>
               <Row gutter={12}>
@@ -918,48 +965,52 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                 />
               </Form.Item>
 
-              <Row gutter={12}>
-                <Col span={12}>
-                  <Form.Item
-                    name="startTime"
-                    label={t('task.startTime')}
-                    dependencies={['date']}
-                    rules={[
-                      {
-                        validator: (_, value) => {
-                          if (mode === 'create' && value) {
-                            const dateVal = form.getFieldValue('date');
-                            if (dateVal && dayjs(dateVal).isSame(dayjs(), 'day')) {
-                              const [h, m] = value.split(':').map(Number);
-                              const taskStartTime = dayjs()
-                                .hour(h ?? 0)
-                                .minute(m ?? 0)
-                                .second(0);
-                              if (taskStartTime.isBefore(dayjs())) {
-                                return Promise.reject(new Error(t('task.pastTimeError')));
+              {!isFlexible && (
+                <>
+                  <Row gutter={12}>
+                    <Col span={12}>
+                      <Form.Item
+                        name="startTime"
+                        label={t('task.startTime')}
+                        dependencies={['date']}
+                        rules={[
+                          {
+                            validator: (_, value) => {
+                              if (mode === 'create' && value) {
+                                const dateVal = form.getFieldValue('date');
+                                if (dateVal && dayjs(dateVal).isSame(dayjs(), 'day')) {
+                                  const [h, m] = value.split(':').map(Number);
+                                  const taskStartTime = dayjs()
+                                    .hour(h ?? 0)
+                                    .minute(m ?? 0)
+                                    .second(0);
+                                  if (taskStartTime.isBefore(dayjs())) {
+                                    return Promise.reject(new Error(t('task.pastTimeError')));
+                                  }
+                                }
                               }
-                            }
-                          }
-                          return Promise.resolve();
-                        },
-                      },
-                    ]}
+                              return Promise.resolve();
+                            },
+                          },
+                        ]}
+                      >
+                        <TimeSelect aria-label={t('task.startTime')} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item name="endTime" label={t('task.endTime')}>
+                        <TimeSelect aria-label={t('task.endTime')} />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Text
+                    type="secondary"
+                    style={{ display: 'block', marginTop: -8, marginBottom: 12, fontSize: 12 }}
                   >
-                    <TimeSelect aria-label={t('task.startTime')} />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item name="endTime" label={t('task.endTime')}>
-                    <TimeSelect aria-label={t('task.endTime')} />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Text
-                type="secondary"
-                style={{ display: 'block', marginTop: -8, marginBottom: 12, fontSize: 12 }}
-              >
-                {t('task.overnightHint')}
-              </Text>
+                    {t('task.overnightHint')}
+                  </Text>
+                </>
+              )}
 
               <Divider style={{ margin: '12px 0' }} />
 

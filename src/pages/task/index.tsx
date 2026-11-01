@@ -406,13 +406,21 @@ function renderTaskCard(record: Task, t: (key: string) => string) {
           </Space>
         </Space>
         <span>
-          {record.date || record.startTime || record.endTime ? (
+          {record.date || record.startTime || record.endTime || record.timeMode === 'FLEXIBLE' ? (
             <>
               {record.date ? `${record.date} ` : ''}
-              {record.startTime && record.endTime
-                ? `${record.startTime} ~ ${record.endTime}`
-                : record.startTime || record.endTime || ''}
-              {record.isOvernight ? ` (${t('task.overnight')})` : ''}
+              {record.timeMode === 'FLEXIBLE' ? (
+                <Tag color="orange" style={{ margin: 0 }}>
+                  {t('task.timeModeFlexibleBadge')}
+                </Tag>
+              ) : (
+                <>
+                  {record.startTime && record.endTime
+                    ? `${record.startTime} ~ ${record.endTime}`
+                    : record.startTime || record.endTime || ''}
+                  {record.isOvernight ? ` (${t('task.overnight')})` : ''}
+                </>
+              )}
             </>
           ) : (
             <Tag color="warning" style={{ margin: 0, fontSize: 11 }}>
@@ -680,10 +688,10 @@ function TaskPage() {
     async (data: TaskFormData) => {
       if (editingTask) {
         await updateMutation.mutateAsync({ id: editingTask.id, data });
-        message.success(t('common.saveSuccess') || '儲存成功');
+        message.success(t('common.saveSuccess'));
       } else {
         await createMutation.mutateAsync(data);
-        message.success(t('common.createSuccess') || '新增成功');
+        message.success(t('common.createSuccess'));
       }
       setModalOpen(false);
       setEditingTask(null);
