@@ -35,7 +35,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"account\": \"請填員工編號\",\n  \"password\": \"請填密碼\"\n}",
+              "raw": "{\n  \"account\": \"admin\",\n  \"password\": \"admin123\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -53,7 +53,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "const j = pm.response.json();",
-                  "if (j.code === 0 && j.data && j.data.token) { pm.environment.set('token', j.data.token); }",
+                  "if (j.code === 0 && j.data && j.data.accessToken) { pm.environment.set('token', j.data.accessToken); }",
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
                   "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
                 ]
