@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Ecolab PE 排班系統 API",
-    "description": "依前端 src/api 與 MSW 整理的 API 草稿（共 34 支）。路徑與回應格式 {code,message,data} 取自前端現況；請求內容為空的項目，待後端定案後補範例。先執行「登入」，token 會自動存入環境變數。",
+    "description": "依前端 src/api 與 MSW 整理的 API 草稿（共 35 支）。路徑與回應格式 {code,message,data} 取自前端現況；請求內容為空的項目，待後端定案後補範例。先執行「登入」，token 會自動存入環境變數。",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -80,6 +80,36 @@
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
                   "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "字典",
+      "item": [
+        {
+          "name": "字典（下拉選項）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dict",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "dict"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));",
+                  "pm.test('內容、班別、證照、職位都有資料', () => {const d = pm.response.json().data; ['contents','shifts','licenses','positions'].forEach(k => pm.expect(d[k].length).to.be.above(0));});"
                 ]
               }
             }
