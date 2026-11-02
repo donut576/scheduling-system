@@ -15,9 +15,11 @@ export const ERROR_CODES = {
 };
 
 export class AppError extends Error {
-  constructor(status, code, message) {
+  // details：驗證失敗時列出每個欄位的問題，放在回應的 data.errors（可省略）
+  constructor(status, code, message, details = null) {
     super(message);
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
