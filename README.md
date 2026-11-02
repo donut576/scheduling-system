@@ -20,10 +20,10 @@
 | 角色                   | 帳號      | 密碼         |
 | ---------------------- | --------- | ------------ |
 | 👑 系統管理員（Admin） | `admin`   | `admin123`   |
-| 👔 單位主管（Manager） | `manager` | `manager123` |
-| 🧑‍💼 排班組長（Leader）  | `leader`  | `leader123`  |
-| 👨‍⚕️ 現場專員（Staff）   | `staff`   | `staff123`   |
-| 🧑‍🔧 現場專員（蔡孟潔）  | `TPA02`   | `staff123`   |
+| 👔 副理（Manager） | `manager` | `manager123` |
+| 🧑‍💼 主任（Leader）  | `leader`  | `leader123`  |
+| 👨‍⚕️ 組員（Staff）   | `staff`   | `staff123`   |
+| 🧑‍🔧 組員（蔡孟潔）  | `TPA02`   | `staff123`   |
 
 > 不同角色登入後會看到不同的工作台與選單，建議各切換一次體驗權限差異。
 
