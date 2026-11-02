@@ -49,3 +49,8 @@ test('profile 需要 token，帶 token 可取得資料，一般員工權限較�
   assert.equal(body.data.role, 'STAFF');
   assert.ok(!body.data.permissions.includes('task:create'));
 });
+
+test('字典 /dict 需要登入（未帶 token 回 401）', async (t) => {
+  const base = start(t);
+  assert.equal((await fetch(`${base}/dict`)).status, 401);
+});
