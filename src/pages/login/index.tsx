@@ -114,14 +114,14 @@ const LoginPage: FC = () => {
           },
           manager: {
             role: 'MANAGER',
-            name: 'Demo 經理',
+            name: 'Demo 副理',
             employeeNo: 'MGR01',
             validPass: ['manager123', 'admin123'],
             area: '台北',
           },
           leader: {
             role: 'LEADER',
-            name: 'Demo 台北組長',
+            name: 'Demo 台北主任',
             employeeNo: 'LDR01',
             validPass: ['leader123', 'staff123'],
             area: '台北',
@@ -402,7 +402,7 @@ const LoginPage: FC = () => {
                 size="small"
                 onClick={() => handleQuickFillAndLogin('manager', 'manager123')}
               >
-                經理 (manager)
+                副理 (manager)
               </Button>
             </Col>
             <Col span={12}>
@@ -411,7 +411,7 @@ const LoginPage: FC = () => {
                 size="small"
                 onClick={() => handleQuickFillAndLogin('leader', 'leader123')}
               >
-                組長 (leader)
+                主任 (leader)
               </Button>
             </Col>
             <Col span={12}>

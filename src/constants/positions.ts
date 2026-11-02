@@ -10,8 +10,8 @@ import type { SelectOption } from '@/types/common';
 export const POSITION_MAP: Record<PositionType, string> = {
   STAFF: '一般員工',
   CONTRACT_STAFF: '約聘員工',
-  LEADER: '組長',
-  MANAGER: '經理',
+  LEADER: '主任',
+  MANAGER: '副理',
   ADMIN_STAFF: '行政',
 };
 

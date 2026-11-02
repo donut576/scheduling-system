@@ -17,8 +17,8 @@ const { Text } = Typography;
 
 const ROLE_LABEL_MAP: Record<string, string> = {
   ADMIN: '系統管理員',
-  MANAGER: '經理',
-  LEADER: '組長',
+  MANAGER: '副理',
+  LEADER: '主任',
   STAFF: '員工',
 };
 

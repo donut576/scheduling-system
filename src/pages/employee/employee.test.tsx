@@ -377,7 +377,7 @@ describe('EmployeePage', () => {
       });
 
       expect(screen.getByLabelText('新增指定休假日期')).toBeDisabled();
-      expect(screen.getByText('僅組長、經理或管理員可鍵入指定排休日期')).toBeInTheDocument();
+      expect(screen.getByText('僅主任、副理或管理員可鍵入指定排休日期')).toBeInTheDocument();
     });
   });
 
@@ -463,7 +463,7 @@ describe('EmployeePage', () => {
       render(<EmployeePage />);
 
       expect(screen.getByText('員工個人資料')).toBeInTheDocument();
-      expect(screen.getByText('此欄位僅限組長以上職位編輯')).toBeInTheDocument();
+      expect(screen.getByText('此欄位僅限主任以上職位編輯')).toBeInTheDocument();
       expect(screen.getByText('儲存個人資料')).toBeInTheDocument();
     });
   });

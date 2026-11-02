@@ -81,7 +81,7 @@ const mockAdminUser: UserProfile = {
 // Demo manager account (login: manager / manager123)
 const mockManagerUser: UserProfile = {
   id: 'emp-manager',
-  name: 'Demo 經理',
+  name: 'Demo 副理',
   employeeNo: 'MGR01',
   role: 'MANAGER',
   permissions: ROLE_PERMISSIONS.MANAGER!,
@@ -91,7 +91,7 @@ const mockManagerUser: UserProfile = {
 // Demo leader account (login: leader / leader123)
 const mockLeaderUser: UserProfile = {
   id: 'emp-leader',
-  name: 'Demo 台北組長',
+  name: 'Demo 台北主任',
   employeeNo: 'LDR01',
   role: 'LEADER',
   permissions: ROLE_PERMISSIONS.LEADER!,
@@ -555,7 +555,7 @@ const demoEmployees: Employee[] = [
   // ===================== 台北 早班 (06:00 ~ 18:00) =====================
   {
     id: 'emp-leader',
-    name: 'Demo 台北組長',
+    name: 'Demo 台北主任',
     phone: '0912-345-678',
     employeeNo: 'LDR01',
     position: 'LEADER',
@@ -1396,7 +1396,7 @@ const demoTasks: Task[] = [
     status: 'MODIFIED',
     isApproved: true,
     alertStatus: 'OVERRIDDEN',
-    overrideRemark: '經理核准特種環境作業人員調派',
+    overrideRemark: '副理核准特種環境作業人員調派',
     createdBy: 'emp-001',
     createdAt: '2026-08-05T10:30:00+08:00',
     updatedAt: '2026-08-05T10:30:00+08:00',
@@ -1525,7 +1525,7 @@ const demoTasks: Task[] = [
       { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL', 'FIRE_ANT'] },
       { employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] },
     ],
-    remarks: '宴會廳、廚房後場與指定客房深度清消（組長已核准）',
+    remarks: '宴會廳、廚房後場與指定客房深度清消（主任已核准）',
     status: 'MODIFIED',
     isApproved: true,
     alertStatus: 'CLEAN',
@@ -2717,7 +2717,7 @@ const mockNotifications: Notification[] = [
 若有任何時間調整需求，請隨時與我們聯絡。`,
     status: 'NOTIFIED',
     sentBy: 'emp-leader',
-    senderName: 'Demo 組長',
+    senderName: 'Demo 主任',
     senderRole: 'LEADER',
     createdAt: '2026-08-18T08:30:00+08:00',
   },
@@ -2738,7 +2738,7 @@ const mockNotifications: Notification[] = [
 請準時前往處理並於完成後更新任務狀態。`,
     status: 'NOTIFIED',
     sentBy: 'emp-leader',
-    senderName: 'Demo 組長',
+    senderName: 'Demo 主任',
     senderRole: 'LEADER',
     createdAt: '2026-08-18T08:35:00+08:00',
   },
@@ -2761,7 +2761,7 @@ const mockNotifications: Notification[] = [
 若有任何時間調整需求，請隨時與我們聯絡。`,
     status: 'NOTIFIED',
     sentBy: 'emp-manager',
-    senderName: 'Demo 經理',
+    senderName: 'Demo 副理',
     senderRole: 'MANAGER',
     createdAt: '2026-08-17T15:20:00+08:00',
   },
@@ -2783,7 +2783,7 @@ const mockNotifications: Notification[] = [
 請準時前往處理並於完成後更新狀態。`,
     status: 'NOTIFIED',
     sentBy: 'emp-manager',
-    senderName: 'Demo 經理',
+    senderName: 'Demo 副理',
     senderRole: 'MANAGER',
     createdAt: '2026-08-17T11:00:00+08:00',
   },
@@ -2820,7 +2820,7 @@ const mockNotifications: Notification[] = [
     content: `Demo 員工 您好：\n\n系統已指派您一項新的服務任務，請確認以下資訊：\n\n客戶名稱：鼎泰美食王國 - 台北信義旗艦店\n服務時間：2026-08-18 09:00 ~ 12:00\n服務地址：台北市大安區信義路二段194號\n施作項目：定期病媒防治（P）\n\n請準時前往處理並於完成後更新任務狀態。`,
     status: 'NOTIFIED',
     sentBy: 'emp-leader',
-    senderName: 'Demo 組長',
+    senderName: 'Demo 主任',
     senderRole: 'LEADER',
     createdAt: '2026-08-18T08:00:00+08:00',
   },
@@ -2834,7 +2834,7 @@ const mockNotifications: Notification[] = [
     content: `Demo 員工 您好：\n\n提醒您今日（2026-08-18）有 1 項既定服務行程，首站為 09:00 鼎泰豐信義店，請攜帶安全護具準時前往。`,
     status: 'NOTIFIED',
     sentBy: 'emp-leader',
-    senderName: 'Demo 組長',
+    senderName: 'Demo 主任',
     senderRole: 'LEADER',
     createdAt: '2026-08-18T08:15:00+08:00',
   },
@@ -2880,7 +2880,7 @@ let mockApprovals: Approval[] = [
     type: 'TASK_CHANGE',
     status: 'PENDING',
     requestedBy: 'emp-leader',
-    requestedByName: '林志豪 (組長)',
+    requestedByName: '林志豪 (主任)',
     changeSummary: '調整施作項目與服務時段（改為臭蟲緊急熱處理）',
     diff: [
       { field: 'contents', label: '工作內容', before: '病媒、鼠害', after: '臭蟲' },
@@ -2903,7 +2903,7 @@ let mockApprovals: Approval[] = [
     type: 'TASK_CHANGE',
     status: 'PENDING',
     requestedBy: 'emp-leader',
-    requestedByName: '吳建宏 (組長)',
+    requestedByName: '吳建宏 (主任)',
     changeSummary: '商場打烊後深度清消時段微調',
     diff: [
       { field: 'time', label: '時段', before: '22:00 ~ 01:00', after: '23:00 ~ 02:00' },
@@ -2926,7 +2926,7 @@ let mockApprovals: Approval[] = [
     type: 'TASK_CHANGE',
     status: 'PENDING',
     requestedBy: 'emp-leader',
-    requestedByName: 'Demo 組長',
+    requestedByName: 'Demo 主任',
     changeSummary: '客戶要求調整施作路線與指派人員',
     diff: [{ field: 'route', label: '路次', before: '第二路', after: '第四路' }],
     approvers: [
@@ -2948,7 +2948,7 @@ let mockApprovals: Approval[] = [
     requestedBy: 'emp-003',
     requestedByName: '黃俊傑',
     changeSummary: '夜間跨日排班工安證照特許',
-    overrideRemark: '經理評估現場有主管陪同施作，核准證照特許',
+    overrideRemark: '副理評估現場有主管陪同施作，核准證照特許',
     violatedRules: ['該任務需至少一人持有病媒防治專業技術人員證照', '夜間工時連續超過限制'],
     approvers: [
       {
@@ -2969,7 +2969,7 @@ let mockApprovals: Approval[] = [
     requestedBy: 'emp-005',
     requestedByName: '陳雅婷',
     changeSummary: '竹科八廠年度環境消毒特種作業',
-    overrideRemark: '經理核准特種環境作業人員調派',
+    overrideRemark: '副理核准特種環境作業人員調派',
     violatedRules: ['連續工作天數達上限警示'],
     approvers: [
       {
