@@ -799,8 +799,8 @@ const EmployeePage: FC = () => {
                 <Alert
                   type="info"
                   showIcon
-                  message="此欄位僅限組長以上職位編輯"
-                  description="員工個人如需安排指定排休或特休，請向直屬組長提出申請由組長統一排定。"
+                  message="此欄位僅限主任以上職位編輯"
+                  description="員工個人如需安排指定排休或特休，請向直屬主任提出申請由主任統一排定。"
                   style={{ marginBottom: 12 }}
                 />
                 <Form.Item name="leaveType" noStyle initialValue="REGULAR_LEAVE">

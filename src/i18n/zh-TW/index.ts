@@ -479,7 +479,7 @@ export default {
     onlyPestControlWarningTitle: '證照提醒',
     onlyPestControlWarningContent:
       '此員工僅持有施藥證，缺乏其他安全衛生相關證照，指派任務前請留意資格是否足夠。',
-    designatedLeavePermissionHint: '僅組長、經理或管理員可鍵入指定排休日期',
+    designatedLeavePermissionHint: '僅主任、副理或管理員可鍵入指定排休日期',
     groupRequired: '請選擇組別',
     groupPlaceholder: '請選擇組別',
     licensesPlaceholder: '請選擇證照',
@@ -500,8 +500,8 @@ export default {
     positions: {
       staff: '一般員工',
       contractStaff: '約聘員工',
-      leader: '組長',
-      manager: '經理',
+      leader: '主任',
+      manager: '副理',
       adminStaff: '行政',
     },
     tags: {
@@ -603,7 +603,7 @@ export default {
     sentMessage: '通知已發送',
     templateUpdated: '通知範本已更新',
     scheduleReminder: '排班提醒',
-    scheduleReminderDescription: '今日為每月 15 日，請各組組長進行下月排班作業。',
+    scheduleReminderDescription: '今日為每月 15 日，請各組主任進行下月排班作業。',
     noNotifications: '尚無通知',
     unread: '未讀',
     types: {

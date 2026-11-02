@@ -324,7 +324,7 @@ describe('DashboardPage', () => {
       useUserStore.setState({
         user: {
           id: 'emp-leader',
-          name: 'Demo 組長',
+          name: 'Demo 主任',
           employeeNo: 'LEADER01',
           role: 'LEADER',
           permissions: [],
@@ -332,7 +332,7 @@ describe('DashboardPage', () => {
       });
 
       render(<DashboardPage />);
-      expect(screen.getByText('Hi, Demo 組長！')).toBeInTheDocument();
+      expect(screen.getByText('Hi, Demo 主任！')).toBeInTheDocument();
       expect(screen.getByText('查看進度')).toBeInTheDocument();
     });
 
@@ -340,7 +340,7 @@ describe('DashboardPage', () => {
       useUserStore.setState({
         user: {
           id: 'emp-manager',
-          name: '經理主管',
+          name: '副理主管',
           employeeNo: 'MGR01',
           role: 'MANAGER',
           permissions: ['approval:approve'],
@@ -348,7 +348,7 @@ describe('DashboardPage', () => {
       });
 
       render(<DashboardPage />);
-      expect(screen.getByText('Hi, 經理主管！')).toBeInTheDocument();
+      expect(screen.getByText('Hi, 副理主管！')).toBeInTheDocument();
       expect(screen.getByText('前往審核')).toBeInTheDocument();
     });
   });
