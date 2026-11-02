@@ -20,3 +20,8 @@ Node.js + Express + PostgreSQL 16。API 基底路徑 `/api/v1`，回應格式 `{
 - `src/`：程式（`app.js` 組裝、`routes/` 路由、`middleware/` 錯誤處理、`utils/response.js` 統一回應）
 - `db/`：`schema.sql`（30 張表）、`seed.sql`（初始資料）
 - `postman/`：API 測試集合
+
+## 暫時固定登入（僅開發用）
+
+`.env` 設 `ENABLE_DEV_LOGIN=true` 後，可用固定帳號登入（`admin`/`admin123`、`manager`/`manager123`、`leader`/`leader123`、`staff`/`staff123`、`TPA02`/`staff123`）。
+正式環境不要設定這個變數（預設關閉）；正式登入完成後移除 `src/data/devUsers.js`。
