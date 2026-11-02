@@ -471,7 +471,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
       timeMode: 'FIXED',
       headcount: 1,
       shift: shifts[0]?.value as string,
-      route: routes[0]?.value as string,
+      route: undefined,
       contents: [],
       isMakeup: false,
       photoCount: undefined,
