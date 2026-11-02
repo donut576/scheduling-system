@@ -1,0 +1,1214 @@
+{
+  "info": {
+    "name": "Ecolab PE 排班系統 API",
+    "description": "依前端 src/api 與 MSW 整理的 API 草稿（共 34 支）。路徑與回應格式 {code,message,data} 取自前端現況；請求內容為空的項目，待後端定案後補範例。先執行「登入」，token 會自動存入環境變數。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "登入",
+      "item": [
+        {
+          "name": "登入",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account\": \"請填員工編號\",\n  \"password\": \"請填密碼\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.code === 0 && j.data && j.data.token) { pm.environment.set('token', j.data.token); }",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "目前使用者資料",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "profile"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "任務",
+      "item": [
+        {
+          "name": "任務列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks?page=1&pageSize=20&status=&startDate=2026-11-01&endDate=2026-11-30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": ""
+                },
+                {
+                  "key": "startDate",
+                  "value": "2026-11-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2026-11-30"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "任務詳情",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks", "{{taskId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "新增任務",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"說明\": \"欄位依前端 TaskFormData；後端定案後補範例\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "修改任務（取消＝status 改 CANCELLED）",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks", "{{taskId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CANCELLED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "任務預檢",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/validate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks", "{{taskId}}", "validate"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "覆蓋警示",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/override-warning",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks", "{{taskId}}", "override-warning"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"remark\": \"特許原因\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "排班",
+      "item": [
+        {
+          "name": "查詢班表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/schedule?startDate=2026-11-01&endDate=2026-11-30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "schedule"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2026-11-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2026-11-30"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "異動班表",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/schedule",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "schedule"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"changes\": [\n    {\n      \"type\": \"update\",\n      \"taskId\": \"{{taskId}}\",\n      \"data\": {}\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "複製班表",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/schedule/copy",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "schedule", "copy"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"說明\": \"欄位依前端 CopyScheduleData；後端定案後補範例\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "客戶",
+      "item": [
+        {
+          "name": "客戶列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers?page=1&pageSize=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "customers"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "集團／公司列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/groups",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "customers", "groups"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "新增客戶",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "customers"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "修改客戶",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "customers", "{{customerId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "停用客戶（DELETE）",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "customers", "{{customerId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "員工",
+      "item": [
+        {
+          "name": "員工列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees?page=1&pageSize=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "employees"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "員工詳情",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees/{{employeeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "employees", "{{employeeId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "新增員工",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "employees"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "修改員工",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees/{{employeeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "employees", "{{employeeId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "停用員工（DELETE）",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees/{{employeeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "employees", "{{employeeId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "通知",
+      "item": [
+        {
+          "name": "通知列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications?page=1&pageSize=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "notifications"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "手動發送通知",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "notifications", "send"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "通知範本列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/templates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "notifications", "templates"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "修改通知範本",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/templates/{{templateId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "notifications", "templates", "{{templateId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "核准",
+      "item": [
+        {
+          "name": "核准列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/approvals?page=1&pageSize=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "approvals"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "核准",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/approvals/{{approvalId}}/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "approvals", "{{approvalId}}", "approve"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "駁回",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/approvals/{{approvalId}}/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "approvals", "{{approvalId}}", "reject"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"原因\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "撤回",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/approvals/{{approvalId}}/withdraw",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "approvals", "{{approvalId}}", "withdraw"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "待排任務",
+      "item": [
+        {
+          "name": "待排任務列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pending-customers?page=1&pageSize=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "pending-customers"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "新增待排任務",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pending-customers",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "pending-customers"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "修改待排任務",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pending-customers/{{pendingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "pending-customers", "{{pendingId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "排定任務（轉成正式任務）",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pending-customers/{{pendingId}}/convert",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "pending-customers", "{{pendingId}}", "convert"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "刪除待排任務",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pending-customers/{{pendingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "pending-customers", "{{pendingId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
