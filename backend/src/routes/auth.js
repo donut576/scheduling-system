@@ -30,7 +30,7 @@ authRouter.post('/auth/login', (req, res, next) => {
   if (!user) {
     return next(new AppError(401, ERROR_CODES.INVALID_CREDENTIALS, '帳號或密碼錯誤'));
   }
-  const accessToken = signToken({ sub: user.id, role: user.role }, config.jwtSecret, config.tokenTtlSec);
+  const accessToken = signToken({ sub: user.id, role: user.role, no: user.employeeNo }, config.jwtSecret, config.tokenTtlSec);
   ok(res, { accessToken, expiresIn: config.tokenTtlSec, user: toProfile(user) });
 });
 
