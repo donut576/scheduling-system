@@ -1108,7 +1108,7 @@
       "name": "待排任務",
       "item": [
         {
-          "name": "待排任務列表",
+          "name": "待排任務列表（就是未排班任務；會自動存第一筆 id 為 pendingId）",
           "request": {
             "method": "GET",
             "header": [],
@@ -1135,52 +1135,17 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));",
+                  "const d = pm.response.json().data; pm.test('回傳分頁結構', () => ['list','total','page','pageSize'].forEach(k => pm.expect(d).to.have.property(k)));",
+                  "pm.test('每筆都是待處理', () => d.list.forEach(p => pm.expect(p.status).to.eql('PENDING')));",
+                  "if (d.list.length) { pm.environment.set('pendingId', d.list[0].id); }"
                 ]
               }
             }
           ]
         },
         {
-          "name": "新增待排任務",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/pending-customers",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "pending-customers"]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "修改待排任務",
+          "name": "修改待排任務（用列表帶入的 pendingId）",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1196,7 +1161,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\n  \"route\": \"第一路\",\n  \"remarks\": \"Postman 修改\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1211,14 +1176,15 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));",
+                  "pm.test('欄位已更新', () => pm.expect(pm.response.json().data.route).to.eql('第一路'));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "排定任務（轉成正式任務）",
+          "name": "排定任務（補日期、時間、人員 → 變已排班；人員 id 先跑員工列表帶入 employeeId）",
           "request": {
             "method": "POST",
             "header": [
@@ -1234,7 +1200,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\n  \"date\": \"2026-12-22\",\n  \"startTime\": \"09:00\",\n  \"endTime\": \"11:00\",\n  \"assignees\": [\n    {\n      \"employeeId\": \"{{employeeId}}\",\n      \"employeeName\": \"\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1249,14 +1215,15 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));",
+                  "pm.test('任務已變成已排班', () => pm.expect(pm.response.json().data.status).to.eql('SCHEDULED'));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "刪除待排任務",
+          "name": "刪除待排任務（＝取消任務；先重跑「待排任務列表」取新的 pendingId）",
           "request": {
             "method": "DELETE",
             "header": [],

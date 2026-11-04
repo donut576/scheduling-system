@@ -225,4 +225,19 @@ INSERT INTO task_assignees (task_id, user_id, assigned_by) SELECT t.id, u.id, (S
   ('範例16','CT001'),
   ('範例17','E0011')) AS v(tag, no) JOIN tasks t ON t.remarks=v.tag JOIN users u ON u.employee_no=v.no;
 
+-- 範例「未排班」任務（待排任務頁顯示的就是這些）：沒日期、有日期沒人員、人數不足
+INSERT INTO tasks (customer_id, task_type, status, task_date, time_mode, start_time, end_time, headcount, shift_id, route, remarks, created_by)
+SELECT c.id, v.task_type, 'UNSCHEDULED', v.d, 'FIXED', v.st::time, v.et::time, v.hc, s.id, v.route, v.tag, (SELECT id FROM users WHERE employee_no='ADMIN01')
+FROM (VALUES
+  ('範例19','內湖三期辦公室','ONETIME',NULL::date,'09:00','11:00',1,'早班','第一路'),
+  ('範例20','台北晶華酒店','CONTRACT',current_date + 10,'09:00','11:00',2,'早班','第二路'),
+  ('範例21','竹科八廠','ESR',NULL::date,'13:00','17:00',1,'午班',NULL),
+  ('範例22','中科十五廠','ONETIME',current_date + 14,'22:00','06:00',1,'大夜班','第一路'),
+  ('範例23','南科十八廠','CONTRACT',NULL::date,'08:00','12:00',2,'早班','第一路')
+) AS v(tag, cname, task_type, d, st, et, hc, shift, route)
+JOIN customers c ON c.name = v.cname JOIN shifts s ON s.name = v.shift;
+INSERT INTO task_contents (task_id, content_id) SELECT t.id, s.id FROM tasks t JOIN service_contents s ON s.code = 'P' WHERE t.remarks IN ('範例19','範例20','範例21','範例22','範例23');
+INSERT INTO task_assignees (task_id, user_id, assigned_by) SELECT t.id, u.id, (SELECT id FROM users WHERE employee_no='ADMIN01') FROM (VALUES
+  ('範例20','TPM01'),('範例22','E0009')) AS v(tag, no) JOIN tasks t ON t.remarks = v.tag JOIN users u ON u.employee_no = v.no;
+
 COMMIT;
