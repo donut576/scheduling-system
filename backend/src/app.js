@@ -5,6 +5,8 @@ import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
 import { dictRouter } from './routes/dict.js';
 import { tasksRouter } from './routes/tasks.js';
+import { customersRouter } from './routes/customers.js';
+import { employeesRouter } from './routes/employees.js';
 import { notFound, errorHandler } from './middleware/error.js';
 
 export const createApp = () => {
@@ -17,6 +19,8 @@ export const createApp = () => {
   app.use('/api/v1', authRouter);
   app.use('/api/v1', dictRouter);
   app.use('/api/v1', tasksRouter);
+  app.use('/api/v1', customersRouter);
+  app.use('/api/v1', employeesRouter);
 
   app.use(notFound);
   app.use(errorHandler);
