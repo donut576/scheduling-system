@@ -34,7 +34,7 @@ const BODY_SCHEMA = {
 const CLEARABLE = ['date', 'startTime', 'endTime', 'timeRemark', 'shift', 'route', 'otherContentNote',
   'remarks', 'originalDate', 'makeupReason', 'reportNotes', 'overrideRemark'];
 
-const fail = (msg) => new AppError(422, ERROR_CODES.VALIDATION_ERROR, msg);
+export const fail = (msg) => new AppError(422, ERROR_CODES.VALIDATION_ERROR, msg);
 
 // 前端「已排班」的判斷：人數到齊、有日期、時間齊全（彈性任務不需要時間）。其餘都是未排班。
 export const isFullyScheduled = ({ date, timeMode, startTime, endTime, headcount, assigneeCount }) =>
