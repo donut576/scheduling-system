@@ -5,6 +5,6 @@ export const DEV_USERS = [
   { id: '1', account: 'admin', password: 'admin123', name: '系統管理員', employeeNo: 'ADMIN01', role: 'ADMIN' },
   { id: '2', account: 'manager', password: 'manager123', name: '副理', employeeNo: 'MGR01', role: 'MANAGER' },
   { id: '3', account: 'leader', password: 'leader123', name: '主任', employeeNo: 'LDR01', role: 'LEADER' },
-  { id: '4', account: 'staff', password: 'staff123', name: '組員', employeeNo: 'STF01', role: 'STAFF' },
+  { id: '4', account: 'staff', password: 'staff123', name: '組員', employeeNo: 'STAFF01', role: 'STAFF' },
   { id: '5', account: 'TPA02', password: 'staff123', name: '蔡孟潔', employeeNo: 'TPA02', role: 'STAFF' },
 ];

@@ -121,12 +121,12 @@
       "name": "任務",
       "item": [
         {
-          "name": "任務列表",
+          "name": "任務列表（依登入角色顯示不同範圍）",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/tasks?page=1&pageSize=20&status=&startDate=2026-11-01&endDate=2026-11-30",
+              "raw": "{{baseUrl}}/api/v1/tasks?page=1&pageSize=20",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "tasks"],
               "query": [
@@ -137,18 +137,6 @@
                 {
                   "key": "pageSize",
                   "value": "20"
-                },
-                {
-                  "key": "status",
-                  "value": ""
-                },
-                {
-                  "key": "startDate",
-                  "value": "2026-11-01"
-                },
-                {
-                  "key": "endDate",
-                  "value": "2026-11-30"
                 }
               ]
             }
@@ -160,14 +148,16 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));",
+                  "pm.test('回傳分頁結構', () => {const d = pm.response.json().data; ['list','total','page','pageSize'].forEach(k => pm.expect(d).to.have.property(k)); pm.expect(d.list).to.be.an('array');});",
+                  "const d = pm.response.json().data; if (d && d.list && d.list.length) { pm.environment.set('taskId', d.list[0].id); }"
                 ]
               }
             }
           ]
         },
         {
-          "name": "任務詳情",
+          "name": "任務詳情（先跑列表以帶入 taskId）",
           "request": {
             "method": "GET",
             "header": [],
@@ -184,7 +174,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));",
+                  "pm.test('id 與請求一致', () => pm.expect(pm.response.json().data.id).to.eql(pm.environment.get('taskId')));"
                 ]
               }
             }

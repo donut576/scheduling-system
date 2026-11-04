@@ -25,3 +25,9 @@ Node.js + Express + PostgreSQL 16。API 基底路徑 `/api/v1`，回應格式 `{
 
 `.env` 設 `ENABLE_DEV_LOGIN=true` 後，可用固定帳號登入（`admin`/`admin123`、`manager`/`manager123`、`leader`/`leader123`、`staff`/`staff123`、`TPA02`/`staff123`）。
 正式環境不要設定這個變數（預設關閉）；正式登入完成後移除 `src/data/devUsers.js`。
+
+## 開發用範例資料（上線前必須移除）
+
+`db/dev-sample.sql` 是虛構的範例資料（暫時四個轄區、員工、客戶、任務），每個轄區與班別至少有一位員工。
+執行順序：`schema.sql` → `seed.sql` → `dev-sample.sql`。固定登入帳號（admin、manager、leader、staff、TPA02）對應其中的員工編號。
+**打包 Docker 或部署前，整份刪除，不要放進正式資料庫。**
