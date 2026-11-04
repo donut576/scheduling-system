@@ -23,8 +23,10 @@ import dayjs from 'dayjs';
  *
  * The HEADCOUNT_BELOW_MIN rule (Requirement 7.6) is used to deterministically
  * trigger the front-end pre-check (Requirement 3.7) violation: headcount is
- * set to 2 while no assignees are selected, which requires no additional
- * license/existing-task setup to reliably fire.
+ * set to 2 while only one employee (test-emp-1) is assigned, which requires
+ * no additional license/existing-task setup to reliably fire. (With no
+ * assignees the pre-check is skipped entirely, since that is the
+ * unscheduled state.)
  *
  * Validates: Requirements 3.1, 3.7, 3.8, 7.7
  */
@@ -182,10 +184,13 @@ describe('TaskForm integration - 完整任務建立流程', () => {
     const shiftSelect = screen.getByRole('combobox', { name: '班別' });
     expect(shiftSelect).toBeInTheDocument();
 
-    // 人數：設為 2，但不指派任何員工，以確保觸發人數不足違規 (Requirement 7.6)
+    // 人數：設為 2，但只指派 1 位員工，以確保觸發人數不足違規 (Requirement 7.6)
     const headcountInput = screen.getByRole('spinbutton', { name: '人數需求' });
     await user.clear(headcountInput);
     await user.type(headcountInput, '2');
+
+    // 指派員工：點選測試員工（1 人對 2 人）
+    await user.click(await screen.findByTestId('employee-tag-test-emp-1'));
 
     // 內容：至少勾選一項
     await user.click(screen.getByRole('checkbox', { name: 'P' }));
@@ -222,7 +227,7 @@ describe('TaskForm integration - 完整任務建立流程', () => {
       endTime: '17:00',
       headcount: 2,
       contents: ['P'],
-      assignees: [],
+      assignees: ['test-emp-1'],
     });
   }, 30000);
 });
