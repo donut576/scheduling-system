@@ -182,7 +182,7 @@
           ]
         },
         {
-          "name": "新增任務",
+          "name": "新增任務（先跑客戶列表以帶入 branchId）",
           "request": {
             "method": "POST",
             "header": [
@@ -198,7 +198,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"說明\": \"欄位依前端 TaskFormData；後端定案後補範例\"\n}",
+              "raw": "{\n  \"branchId\": \"{{branchId}}\",\n  \"taskType\": \"CONTRACT\",\n  \"date\": \"2026-12-15\",\n  \"startTime\": \"09:00\",\n  \"endTime\": \"11:00\",\n  \"timeMode\": \"FIXED\",\n  \"headcount\": 1,\n  \"shift\": \"早班\",\n  \"route\": \"\",\n  \"contents\": [\n    \"P\",\n    \"R\"\n  ],\n  \"assignees\": [],\n  \"remarks\": \"Postman 測試\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -213,14 +213,16 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));",
+                  "const t = pm.response.json().data; pm.test('沒有指派人員時為未排班', () => pm.expect(t.status).to.eql('UNSCHEDULED'));",
+                  "pm.environment.set('newTaskId', t.id);"
                 ]
               }
             }
           ]
         },
         {
-          "name": "修改任務（取消＝status 改 CANCELLED）",
+          "name": "修改任務（用新增任務建立的 newTaskId）",
           "request": {
             "method": "PATCH",
             "header": [
@@ -230,13 +232,13 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
+              "raw": "{{baseUrl}}/api/v1/tasks/{{newTaskId}}",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks", "{{taskId}}"]
+              "path": ["api", "v1", "tasks", "{{newTaskId}}"]
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"status\": \"CANCELLED\"\n}",
+              "raw": "{\n  \"route\": \"A路\",\n  \"remarks\": \"Postman 修改\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -251,7 +253,47 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));",
+                  "pm.test('欄位已更新', () => pm.expect(pm.response.json().data.route).to.eql('A路'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "取消任務（status 改 CANCELLED，可帶取消原因）",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{newTaskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks", "{{newTaskId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CANCELLED\",\n  \"remarks\": \"颱風停班（Postman 測試）\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));",
+                  "pm.test('狀態為已取消', () => pm.expect(pm.response.json().data.status).to.eql('CANCELLED'));"
                 ]
               }
             }
@@ -481,7 +523,9 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));",
+                  "pm.test('回傳分頁結構', () => {const d = pm.response.json().data; ['list','total','page','pageSize'].forEach(k => pm.expect(d).to.have.property(k));});",
+                  "const d = pm.response.json().data; if (d.list.length) { pm.environment.set('customerId', d.list[0].id); pm.environment.set('branchId', d.list[0].branchId); }"
                 ]
               }
             }
@@ -505,7 +549,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));",
+                  "pm.test('每個集團都有分店清單', () => {const d = pm.response.json().data; pm.expect(d).to.be.an('array'); d.forEach(x => pm.expect(x.branches).to.be.an('array'));});"
                 ]
               }
             }
@@ -635,7 +680,8 @@
                   "value": "20"
                 }
               ]
-            }
+            },
+            "description": "可加 keyword、area、shift、position、license、groupId 篩選"
           },
           "event": [
             {
@@ -644,14 +690,17 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));",
+                  "pm.test('回傳分頁結構', () => {const d = pm.response.json().data; ['list','total','page','pageSize'].forEach(k => pm.expect(d).to.have.property(k));});",
+                  "pm.test('不含密碼欄位', () => pm.response.json().data.list.forEach(e => pm.expect(e).to.not.have.property('password')));",
+                  "const d = pm.response.json().data; if (d.list.length) { pm.environment.set('employeeId', d.list[0].id); }"
                 ]
               }
             }
           ]
         },
         {
-          "name": "員工詳情",
+          "name": "員工詳情（先跑列表以帶入 employeeId）",
           "request": {
             "method": "GET",
             "header": [],
@@ -668,7 +717,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));",
+                  "pm.test('id 與請求一致', () => pm.expect(pm.response.json().data.id).to.eql(pm.environment.get('employeeId')));"
                 ]
               }
             }

@@ -2,7 +2,7 @@ import { query } from '../db.js';
 import { validate, parseId } from '../utils/validate.js';
 import { parsePaging, toPage } from '../utils/pagination.js';
 import { AppError, ERROR_CODES } from '../utils/response.js';
-import { resolveTaskScope } from './taskScope.js';
+import { getScope } from './scope.js';
 
 export const TASK_TYPES = ['CONTRACT', 'ONETIME', 'ESR'];
 export const TASK_STATUSES = ['UNSCHEDULED', 'SCHEDULED', 'MODIFIED', 'CONFIRMED', 'PENDING_APPROVAL', 'CANCELLED'];
@@ -153,15 +153,10 @@ const loadRelations = async (rows) => {
   return { contents, assignees, series };
 };
 
-const regionOfUser = async (employeeNo) => {
-  const r = await query('SELECT rg.name FROM users u JOIN regions rg ON rg.id = u.region_id WHERE u.employee_no = $1', [employeeNo]);
-  return r.rows[0]?.name ?? null;
-};
-
 export const listTasks = async (user, rawQuery) => {
   const filters = validate(rawQuery, LIST_SCHEMA);
   const paging = parsePaging(rawQuery);
-  const scope = await resolveTaskScope(user, regionOfUser);
+  const scope = await getScope(user);
   const { whereSql, values } = buildTaskFilter(filters, scope);
   const n = values.length;
   const sql = `${BASE_SELECT} ${whereSql} ${ORDER_SQL} LIMIT $${n + 1} OFFSET $${n + 2}`;
@@ -181,7 +176,7 @@ export const listTasks = async (user, rawQuery) => {
 
 export const getTask = async (user, id) => {
   const taskId = parseId(id);
-  const scope = await resolveTaskScope(user, regionOfUser);
+  const scope = await getScope(user);
   const { whereSql, values } = buildTaskFilter({}, scope);
   const idCond = `${whereSql ? `${whereSql} AND` : 'WHERE'} t.id = $${values.length + 1}::bigint`;
   const rows = await query(`${BASE_SELECT} ${idCond}`, [...values, taskId]);
