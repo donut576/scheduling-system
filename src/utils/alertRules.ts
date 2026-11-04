@@ -240,3 +240,23 @@ export const runAlertChecks = (
     canOverride: true, // 實際是否允許覆蓋由後端決定
   };
 };
+
+/**
+ * 與日期無關的檢查：證照要求、人數不足。
+ * 任務還沒有日期（待排任務）時，只執行這兩項；其餘規則（連續工作日、每日工時、
+ * 時段重疊、指定休假）需要日期與時間才有意義，等補上日期後再檢查。
+ */
+export const runDateIndependentChecks = (
+  task: TaskFormData,
+  context: AlertContext,
+): AlertValidationResult => {
+  const violations = [checkLicenseRequired, checkHeadcountBelowMin]
+    .map((checker) => checker(task, context))
+    .filter((v): v is AlertViolation => v !== null);
+
+  return {
+    isValid: violations.length === 0,
+    violations,
+    canOverride: true, // 實際是否允許覆蓋由後端決定
+  };
+};

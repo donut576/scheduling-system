@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import ConflictPanel from './index';
 import type { AlertViolation } from '@/types/alert';
+import type { Employee } from '@/types/employee';
 
 // Mock window.matchMedia for Ant Design responsive components
 beforeAll(() => {
@@ -85,7 +86,24 @@ describe('ConflictPanel', () => {
     expect(screen.getByText('影響員工：emp-001、emp-002')).toBeInTheDocument();
     expect(screen.getByText('影響員工：emp-001')).toBeInTheDocument();
   });
+  it('shows employee name and employee number when the employees list is provided', () => {
+    // 只放測試需要的欄位，其餘欄位用 as 轉型略過
+    const employees = [{ id: 'emp-001', name: '王小明', employeeNo: 'E0001' }] as Employee[];
 
+    render(
+      <ConflictPanel
+        violations={mockViolations}
+        onOverride={onOverride}
+        canOverride={true}
+        employees={employees}
+      />,
+    );
+
+    // emp-001 有在清單內 → 顯示「姓名（員工編號）」
+    expect(screen.getByText('影響員工：王小明（E0001）')).toBeInTheDocument();
+    // emp-002 不在清單內 → 退回顯示原本的 id
+    expect(screen.getByText('影響員工：王小明（E0001）、emp-002')).toBeInTheDocument();
+  });
   it('does not render affected employees when the array is absent', () => {
     const violationsWithout: AlertViolation[] = [
       {

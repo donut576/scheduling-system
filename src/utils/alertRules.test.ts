@@ -13,6 +13,7 @@ import {
   checkDesignatedLeave,
   checkHeadcountBelowMin,
   runAlertChecks,
+  runDateIndependentChecks,
 } from './alertRules';
 import type { TaskFormData, Task } from '@/types/task';
 import type { AlertContext } from '@/types/alert';
@@ -261,6 +262,48 @@ describe('runAlertChecks', () => {
     const result = runAlertChecks(task, context);
     expect(result.isValid).toBe(false);
     expect(result.violations.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('runDateIndependentChecks', () => {
+  it('沒有日期也會檢查證照要求', () => {
+    const task = makeTask({
+      date: '',
+      startTime: '',
+      endTime: '',
+      assignees: ['emp1'],
+      headcount: 1,
+    });
+    const context = makeContext({
+      customerLicenses: ['PROFESSIONAL'],
+      employees: [makeEmployee('emp1', { licenses: ['PEST_CONTROL'] })],
+    });
+    const result = runDateIndependentChecks(task, context);
+    expect(result.isValid).toBe(false);
+    expect(result.violations.map((v) => v.ruleId)).toEqual(['LICENSE_REQUIRED']);
+  });
+
+  it('沒有日期也會檢查人數不足', () => {
+    const task = makeTask({ date: '', headcount: 3, assignees: ['emp1'] });
+    const result = runDateIndependentChecks(task, makeContext());
+    expect(result.violations.map((v) => v.ruleId)).toEqual(['HEADCOUNT_BELOW_MIN']);
+  });
+
+  it('不檢查需要日期的規則（例如指定休假）', () => {
+    const task = makeTask({ date: '', headcount: 1, assignees: ['emp1'] });
+    const context = makeContext({
+      employees: [makeEmployee('emp1', { designatedLeaves: [''] })],
+    });
+    expect(runDateIndependentChecks(task, context).isValid).toBe(true);
+  });
+
+  it('證照與人數都符合時通過', () => {
+    const task = makeTask({ date: '', headcount: 1, assignees: ['emp1'] });
+    const context = makeContext({
+      customerLicenses: ['PROFESSIONAL'],
+      employees: [makeEmployee('emp1', { licenses: ['PROFESSIONAL'] })],
+    });
+    expect(runDateIndependentChecks(task, context).isValid).toBe(true);
   });
 });
 
