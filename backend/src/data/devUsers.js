@@ -1,6 +1,5 @@
 // 開發用固定帳號（暫時固定登入）。只在 ENABLE_DEV_LOGIN=true 時使用，正式環境務必關閉。
 // 密碼寫在程式碼中，僅限這種測試密碼；正式登入完成後整個檔案移除。
-// 「蔡孟潔」為前端 demo 帳號中的真實姓名，上線前請移除或改為虛構姓名。
 export const DEV_USERS = [
   { id: '1', account: 'admin', password: 'admin123', name: '系統管理員', employeeNo: 'ADMIN01', role: 'ADMIN' },
   { id: '2', account: 'manager', password: 'manager123', name: '副理', employeeNo: 'MGR01', role: 'MANAGER' },
