@@ -45,7 +45,7 @@ import { useTaskStore } from '@/stores/useTaskStore';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useEmployeeList } from '@/queries/useEmployeeQueries';
 import { useTaskList } from '@/queries/useTaskQueries';
-import { runAlertChecks } from '@/utils/alertRules';
+import { runAlertChecks, runDateIndependentChecks } from '@/utils/alertRules';
 import { isHoliday } from '@/utils/date';
 import { getBranchLabel } from '@/utils/branchLabel';
 import { HOLIDAYS_2026 } from '@/constants/holidays';
@@ -665,11 +665,9 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
       }
     }
 
-    // 當已填寫日期與時間時，執行排班預檢（含人數不足、證照不符、連續上班等）
-    if (
-      formData.date &&
-      (formData.startTime || formData.endTime || formData.timeMode === 'FLEXIBLE')
-    ) {
+    // 有指派員工才做預檢（沒指派員工是未排班狀態，不需檢查）。
+    // 日期與時間都填了 → 執行全部規則；還沒有日期 → 只檢查證照與人數
+    if (formData.assignees.length > 0) {
       const alertContext: AlertContext = {
         employees,
         existingTasks,
@@ -677,7 +675,12 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         holidays,
       };
 
-      const result = runAlertChecks(formData, alertContext);
+      const hasSchedule =
+        Boolean(formData.date) &&
+        Boolean(formData.startTime || formData.endTime || formData.timeMode === 'FLEXIBLE');
+      const result = hasSchedule
+        ? runAlertChecks(formData, alertContext)
+        : runDateIndependentChecks(formData, alertContext);
 
       if (!result.isValid) {
         setAlertResults(result);
@@ -1229,6 +1232,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
               violations={alertResults.violations}
               onOverride={handleOverride}
               canOverride={alertResults.canOverride}
+              employees={employees}
             />
           </div>
         )}

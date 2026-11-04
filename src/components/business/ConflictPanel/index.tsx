@@ -10,6 +10,7 @@ import { Alert, List, Input, Button, Space, Tag, Typography } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { AlertViolation, AlertRuleId } from '@/types/alert';
+import type { Employee } from '@/types/employee';
 
 /**
  * ConflictPanelProps
@@ -21,6 +22,8 @@ export interface ConflictPanelProps {
   violations: AlertViolation[];
   onOverride: (remark: string) => void;
   canOverride: boolean;
+  /** 員工清單：用來把違規裡的員工 id 顯示成「姓名（員工編號）」；沒傳時顯示 id */
+  employees?: Employee[];
 }
 
 const { TextArea } = Input;
@@ -56,10 +59,22 @@ const SEVERITY_TAG_COLOR: Record<string, string> = {
  *
  * Validates: Requirements 3.8, 7.7
  */
-const ConflictPanel: React.FC<ConflictPanelProps> = ({ violations, onOverride, canOverride }) => {
+const ConflictPanel: React.FC<ConflictPanelProps> = ({
+  violations,
+  onOverride,
+  canOverride,
+  employees,
+}) => {
   const { t } = useTranslation();
   const [remark, setRemark] = useState('');
-
+  // 員工 id 轉成「姓名（員工編號）」；找不到時退回顯示 id
+  const formatEmployee = useCallback(
+    (id: string) => {
+      const emp = employees?.find((e) => e.id === id);
+      return emp ? `${emp.name}（${emp.employeeNo}）` : id;
+    },
+    [employees],
+  );
   // 送出覆蓋：僅在備註非空白時才觸發，避免無說明之覆蓋操作
   const handleOverride = useCallback(() => {
     if (remark.trim()) {
@@ -103,7 +118,8 @@ const ConflictPanel: React.FC<ConflictPanelProps> = ({ violations, onOverride, c
               <Text>{violation.message}</Text>
               {violation.affectedEmployees && violation.affectedEmployees.length > 0 && (
                 <Text type="secondary">
-                  {t('alert.affectedEmployees')}：{violation.affectedEmployees.join('、')}
+                  {t('alert.affectedEmployees')}：
+                  {violation.affectedEmployees.map(formatEmployee).join('、')}
                 </Text>
               )}
             </Space>
