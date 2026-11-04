@@ -311,7 +311,14 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     startDate: currentDate,
     endDate: currentDate,
   });
-  const existingTasks = useMemo(() => existingTaskData?.list ?? [], [existingTaskData]);
+  // 比對衝突時，排除正在編輯的這筆任務本身，以及已取消的任務（已取消不再佔用員工時間）
+  const existingTasks = useMemo(
+    () =>
+      (existingTaskData?.list ?? []).filter(
+        (task) => task.id !== initialData?.id && task.status !== 'CANCELLED',
+      ),
+    [existingTaskData, initialData?.id],
+  );
 
   // 國定假日列表，用於日期選擇器紅字標示
   const holidays: string[] = HOLIDAYS_2026;
