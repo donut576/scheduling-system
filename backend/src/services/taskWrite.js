@@ -3,11 +3,12 @@ import { validate, parseId } from '../utils/validate.js';
 import { AppError, ERROR_CODES } from '../utils/response.js';
 import { getScope, scopeCondition } from './scope.js';
 import { TASK_TYPES, getTask } from './tasks.js';
+import { enforceAlerts, recordAlerts } from './alerts.js';
 
 const REPORT_TYPES = ['APP', 'EDM', 'PAPER', 'PHOTO'];
 
 // 前端 TaskFormData 的欄位（沒列在這裡的，例如照片欄位、前端自己算的 status，會被忽略）
-const BODY_SCHEMA = {
+export const BODY_SCHEMA = {
   branchId: { type: 'string', max: 18 },
   taskType: { type: 'enum', values: TASK_TYPES },
   date: { type: 'date' },
@@ -67,13 +68,13 @@ const parseIds = (list, label) => list.map((v) => {
   try { return parseId(v); } catch { throw fail(`資料驗證失敗：${label} id 格式錯誤`); }
 });
 
-const currentUserId = async (q, user) => {
+export const currentUserId = async (q, user) => {
   const r = await q('SELECT id FROM users WHERE employee_no = $1', [user.no ?? '']);
   return r.rows[0]?.id ?? null;
 };
 
 // 客戶必須啟用中、且在登入者可看的轄區內；否則一律回「找不到客戶」
-const requireCustomer = async (q, scope, customerId) => {
+export const requireCustomer = async (q, scope, customerId) => {
   const values = [customerId];
   const cond = scopeCondition(scope, 'r.name', values);
   const r = await q(`SELECT c.id FROM customers c LEFT JOIN regions r ON r.id = c.region_id
@@ -97,7 +98,7 @@ const contentIdsByCode = async (q, codes) => {
   return r.rows.map((x) => x.id);
 };
 
-const assigneeIds = async (q, ids) => {
+export const assigneeIds = async (q, ids) => {
   const uniq = [...new Set(parseIds(ids, '指派人員'))];
   if (uniq.length === 0) return [];
   const r = await q('SELECT id FROM users WHERE id = ANY($1::bigint[]) AND is_active', [uniq]);
@@ -144,6 +145,11 @@ export const createTask = async (user, raw) => {
     const status = statusForCreate({
       date: b.date, timeMode, startTime: times.startTime, endTime: times.endTime, headcount, assigneeCount: assigneeIdList.length,
     });
+    // 排班警示：有違規又沒帶特許備註 → 422，整筆不會寫入
+    const enforced = await enforceAlerts(q, user, {
+      taskId: null, customerId: String(branchId), date: b.date || null, timeMode,
+      startTime: times.startTime, endTime: times.endTime, headcount, assigneeIds: assigneeIdList.map(String),
+    }, b.overrideRemark);
     const ins = await q(`INSERT INTO tasks (customer_id, task_type, status, task_date, time_mode, start_time, end_time,
         is_overnight, time_remark, headcount, shift_id, route, other_content_note, remarks, is_makeup, original_date,
         makeup_reason, report_types, report_notes, override_remark, created_by)
@@ -155,6 +161,7 @@ export const createTask = async (user, raw) => {
       b.overrideRemark ?? null, by]);
     const id = ins.rows[0].id;
     await replaceRelations(q, id, { contentIds, assigneeIdList, by });
+    await recordAlerts(q, by, id, enforced, b.overrideRemark);
     return id;
   });
   return getTask(user, String(taskId));
@@ -204,10 +211,24 @@ export const updateTask = async (user, id, raw) => {
     if (b.contents && b.contents.length === 0) throw fail('資料驗證失敗：contents 至少選一個任務內容');
     const contentIds = b.contents ? await contentIdsByCode(q, b.contents) : null;
     const assigneeIdList = b.assignees ? await assigneeIds(q, b.assignees) : null;
-    const assigneeCount = assigneeIdList
-      ? assigneeIdList.length
-      : (await q('SELECT count(*)::int AS n FROM task_assignees WHERE task_id = $1::bigint', [taskId])).rows[0].n;
+    const oldAssigneeIds = (await q('SELECT user_id::text AS id FROM task_assignees WHERE task_id = $1::bigint', [taskId]))
+      .rows.map((r) => r.id);
+    const finalAssigneeIds = assigneeIdList ? assigneeIdList.map(String) : oldAssigneeIds;
+    const assigneeCount = finalAssigneeIds.length;
     const status = statusForUpdate(old.status, { date, timeMode, startTime: times.startTime, endTime: times.endTime, headcount, assigneeCount });
+
+    // 排班警示：只有「客戶、日期、時間、人數、指派人員」其中之一有變動才重新檢查，
+    // 這樣只改備註之類的欄位，不會被舊的、已特許過的警示擋住
+    const customerId = b.branchId ? String(parseId(b.branchId)) : String(old.customer_id);
+    const sameAssignees = finalAssigneeIds.length === oldAssigneeIds.length
+      && finalAssigneeIds.every((x) => oldAssigneeIds.includes(x));
+    const unchanged = customerId === String(old.customer_id) && (date || null) === (old.date || null)
+      && timeMode === old.time_mode && times.startTime === (old.start_time || null)
+      && times.endTime === (old.end_time || null) && headcount === old.headcount && sameAssignees;
+    const enforced = unchanged ? null : await enforceAlerts(q, user, {
+      taskId: String(taskId), customerId, date: date || null, timeMode,
+      startTime: times.startTime, endTime: times.endTime, headcount, assigneeIds: finalAssigneeIds,
+    }, cleared.has('overrideRemark') ? null : b.overrideRemark);
 
     let shiftId = old.shift_id;
     if (cleared.has('shift')) shiftId = null;
@@ -238,6 +259,7 @@ export const updateTask = async (user, id, raw) => {
       cleared.has('makeupReason'), b.makeupReason ?? null, b.reportTypes ?? null,
       cleared.has('reportNotes'), b.reportNotes ?? null, cleared.has('overrideRemark'), b.overrideRemark ?? null]);
     await replaceRelations(q, taskId, { contentIds, assigneeIdList, by });
+    if (enforced) await recordAlerts(q, by, taskId, enforced, b.overrideRemark);
   });
   return getTask(user, taskId);
 };

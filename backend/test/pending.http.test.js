@@ -52,10 +52,10 @@ test('未排班的任務出現在待排；排定後（日期、時間、人員�
   assert.equal(edited.data.status, 'PENDING');
 
   assert.equal((await call(base, 'POST', `/pending-customers/${id}/convert`, token, { startTime: '09:00', endTime: '11:00' })).status, 422); // 缺日期
-  assert.equal((await call(base, 'POST', `/pending-customers/${id}/convert`, token, { date: '2026-12-22', startTime: '09:00', endTime: '11:00' })).status, 422); // 沒人員
+  assert.equal((await call(base, 'POST', `/pending-customers/${id}/convert`, token, { date: '2031-03-17', startTime: '09:00', endTime: '11:00' })).status, 422); // 沒人員
   const emp = String(await anEmployee());
   const done = await (await call(base, 'POST', `/pending-customers/${id}/convert`, token,
-    { date: '2026-12-22', startTime: '09:00', endTime: '11:00', assignees: [{ employeeId: emp, employeeName: 'x' }] })).json();
+    { date: '2031-03-17', startTime: '09:00', endTime: '11:00', assignees: [{ employeeId: emp, employeeName: 'x' }] })).json();
   assert.equal(done.data.status, 'SCHEDULED');
   assert.equal(await inPending(base, token, id), false);
   assert.equal((await call(base, 'PATCH', `/pending-customers/${id}`, token, { route: 'x' })).status, 404); // 已不是待排
