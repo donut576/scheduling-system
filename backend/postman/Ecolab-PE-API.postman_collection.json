@@ -300,7 +300,7 @@
           ]
         },
         {
-          "name": "任務預檢",
+          "name": "任務預檢（修改前；body 沒帶的欄位用資料庫現有的值，只檢查不寫入）",
           "request": {
             "method": "POST",
             "header": [
@@ -331,14 +331,16 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));"
+                  "pm.test('code 為 0（成功）', () => pm.expect(pm.response.json().code).to.eql(0));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('回傳 isValid、violations、canOverride', () => { pm.expect(d.isValid).to.be.a('boolean'); pm.expect(d.violations).to.be.an('array'); pm.expect(d.canOverride).to.be.a('boolean'); });"
                 ]
               }
             }
           ]
         },
         {
-          "name": "覆蓋警示",
+          "name": "新增任務預檢（還沒有 id；先跑客戶列表、員工列表；只檢查不寫入）",
           "request": {
             "method": "POST",
             "header": [
@@ -348,13 +350,133 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/override-warning",
+              "raw": "{{baseUrl}}/api/v1/tasks/validate",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks", "{{taskId}}", "override-warning"]
+              "path": ["api", "v1", "tasks", "validate"]
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"remark\": \"特許原因\"\n}",
+              "raw": "{\n  \"branchId\": \"{{branchId}}\",\n  \"taskType\": \"CONTRACT\",\n  \"date\": \"2031-03-17\",\n  \"startTime\": \"09:00\",\n  \"endTime\": \"11:00\",\n  \"timeMode\": \"FIXED\",\n  \"headcount\": 2,\n  \"assignees\": [\"{{employeeId}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('回傳 isValid、violations、canOverride', () => { pm.expect(d.isValid).to.be.a('boolean'); pm.expect(d.violations).to.be.an('array'); pm.expect(d.canOverride).to.be.a('boolean'); });",
+                  "pm.test('人數 2、只指派 1 人 → 有「人數不足」', () => pm.expect(d.violations.map(x => x.ruleId)).to.include('HEADCOUNT_BELOW_MIN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "新增任務（有警示要帶特許備註；先跑員工列表）",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchId\": \"{{branchId}}\",\n  \"taskType\": \"CONTRACT\",\n  \"date\": \"2031-03-17\",\n  \"startTime\": \"09:00\",\n  \"endTime\": \"11:00\",\n  \"timeMode\": \"FIXED\",\n  \"headcount\": 2,\n  \"shift\": \"早班\",\n  \"contents\": [\"P\"],\n  \"assignees\": [\"{{employeeId}}\"],\n  \"overrideRemark\": \"Postman 特許測試\",\n  \"remarks\": \"Postman 特許測試\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200（有特許權限）', () => pm.response.to.have.status(200));",
+                  "const t = pm.response.json().data;",
+                  "pm.test('人數不足但帶了特許備註 → 警示狀態 OVERRIDDEN', () => pm.expect(t.alertStatus).to.eql('OVERRIDDEN'));",
+                  "pm.environment.set('overrideTaskId', t.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "新增任務（有警示但沒帶特許備註 → 預期 422）",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchId\": \"{{branchId}}\",\n  \"taskType\": \"CONTRACT\",\n  \"date\": \"2031-03-18\",\n  \"startTime\": \"09:00\",\n  \"endTime\": \"11:00\",\n  \"timeMode\": \"FIXED\",\n  \"headcount\": 2,\n  \"shift\": \"早班\",\n  \"contents\": [\"P\"],\n  \"assignees\": [\"{{employeeId}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422', () => pm.response.to.have.status(422));",
+                  "const r = pm.response.json();",
+                  "pm.test('錯誤碼為 42202（排班衝突）或 42203（證照衝突）', () => pm.expect([42202, 42203]).to.include(r.code));",
+                  "pm.test('data.errors 列出違規項目', () => pm.expect(r.data.errors).to.be.an('array').that.is.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "覆蓋警示（補特許備註；任務目前必須有警示，否則 422；先跑「新增任務（有警示要帶特許備註）」）",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{overrideTaskId}}/override-warning",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks", "{{overrideTaskId}}", "override-warning"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"remark\": \"主管同意，補充特許原因\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
