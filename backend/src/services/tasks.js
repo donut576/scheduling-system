@@ -3,6 +3,7 @@ import { validate, parseId } from '../utils/validate.js';
 import { parsePaging, toPage } from '../utils/pagination.js';
 import { AppError, ERROR_CODES } from '../utils/response.js';
 import { getScope } from './scope.js';
+import { hasPermission } from '../middleware/permission.js';
 
 export const TASK_TYPES = ['CONTRACT', 'ONETIME', 'ESR'];
 export const TASK_STATUSES = ['UNSCHEDULED', 'SCHEDULED', 'MODIFIED', 'CONFIRMED', 'PENDING_APPROVAL', 'CANCELLED'];
@@ -22,7 +23,7 @@ const LIST_SCHEMA = {
 const likeEscape = (s) => s.replace(/[\\%_]/g, (m) => `\\${m}`);
 
 // 組出 WHERE 條件。全部用參數（$1、$2…），使用者輸入不會直接進 SQL 字串。
-export const buildTaskFilter = (filters, scope) => {
+export const buildTaskFilter = (filters, scope, { onlyScheduled = false } = {}) => {
   const where = [];
   const values = [];
   const add = (sql, v) => { values.push(v); where.push(sql.replace('?', `$${values.length}`)); };
@@ -31,6 +32,7 @@ export const buildTaskFilter = (filters, scope) => {
     if (scope.regionNames.length === 0) where.push('FALSE');
     else add('r.name = ANY(?::text[])', scope.regionNames);
   }
+  if (onlyScheduled) where.push("t.status NOT IN ('UNSCHEDULED', 'CANCELLED')");
   if (filters.keyword) {
     values.push(`%${likeEscape(filters.keyword)}%`);
     const p = `$${values.length}`;
@@ -57,10 +59,10 @@ const ORDER_SQL = `ORDER BY
   t.start_time ASC NULLS LAST,
   t.id ASC`;
 
-const BASE_SELECT = `SELECT t.id, t.task_type, t.status, t.alert_status,
+export const BASE_SELECT = `SELECT t.id, t.task_type, t.status, t.alert_status,
   to_char(t.task_date, 'YYYY-MM-DD') AS date, t.time_mode,
   to_char(t.start_time, 'HH24:MI') AS start_time, to_char(t.end_time, 'HH24:MI') AS end_time,
-  t.is_overnight, t.time_remark, t.headcount, s.name AS shift, t.route, t.other_content_note, t.remarks,
+  (t.is_overnight OR COALESCE(t.end_time < t.start_time, FALSE)) AS is_overnight, t.time_remark, t.headcount, s.name AS shift, t.route, t.other_content_note, t.remarks,
   t.is_makeup, to_char(t.original_date, 'YYYY-MM-DD') AS original_date, t.makeup_reason,
   t.report_types, t.report_notes, t.override_remark, t.from_pending_id, t.series_id,
   t.created_by, t.created_at, t.updated_at,
@@ -112,7 +114,7 @@ export const mapTask = (row, { contents = [], assignees = [], series = null } = 
 });
 
 // 一次補齊多筆任務的內容、指派人員、循環規則（避免每筆各查一次）
-const loadRelations = async (rows) => {
+export const loadRelations = async (rows) => {
   if (rows.length === 0) return { contents: new Map(), assignees: new Map(), series: new Map() };
   const ids = rows.map((r) => r.id);
   const seriesIds = [...new Set(rows.map((r) => r.series_id).filter(Boolean))];
@@ -157,7 +159,7 @@ export const listTasks = async (user, rawQuery) => {
   const filters = validate(rawQuery, LIST_SCHEMA);
   const paging = parsePaging(rawQuery);
   const scope = await getScope(user);
-  const { whereSql, values } = buildTaskFilter(filters, scope);
+  const { whereSql, values } = buildTaskFilter(filters, scope, { onlyScheduled: !hasPermission(user, 'task:view') });
   const n = values.length;
   const sql = `${BASE_SELECT} ${whereSql} ${ORDER_SQL} LIMIT $${n + 1} OFFSET $${n + 2}`;
   const countSql = `SELECT count(*)::int AS total FROM tasks t
@@ -177,7 +179,7 @@ export const listTasks = async (user, rawQuery) => {
 export const getTask = async (user, id) => {
   const taskId = parseId(id);
   const scope = await getScope(user);
-  const { whereSql, values } = buildTaskFilter({}, scope);
+  const { whereSql, values } = buildTaskFilter({}, scope, { onlyScheduled: !hasPermission(user, 'task:view') });
   const idCond = `${whereSql ? `${whereSql} AND` : 'WHERE'} t.id = $${values.length + 1}::bigint`;
   const rows = await query(`${BASE_SELECT} ${idCond}`, [...values, taskId]);
   if (rows.rows.length === 0) {

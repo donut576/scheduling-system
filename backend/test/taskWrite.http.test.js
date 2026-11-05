@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 process.env.ENABLE_DEV_LOGIN = 'true';
 const { createApp } = await import('../src/app.js');
 const { pool } = await import('../src/db.js');
-const MARK = '__自動測試__';
+const MARK = '__任務寫入自動測試__';
 test.after(async () => {
   await pool.query('DELETE FROM tasks WHERE remarks = $1', [MARK]);
   await pool.end();

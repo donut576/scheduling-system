@@ -22,10 +22,20 @@ test('任務列表需要登入', async (t) => {
   assert.equal((await get(start(t), '/tasks')).status, 401);
 });
 
-test('一般員工沒有任務檢視權限，回 403', async (t) => {
+test('一般員工可以讀任務（班表用），但只看得到已排班的，看不到待排與已取消', async (t) => {
   const base = start(t);
   const token = await login(base, 'staff', 'staff123');
-  assert.equal((await get(base, '/tasks', token)).status, 403);
+  const res = await get(base, '/tasks?pageSize=100', token);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.ok(body.data.list.every((x) => x.status !== 'UNSCHEDULED' && x.status !== 'CANCELLED'));
+  // 指定要看待排也查不到
+  const pending = await (await get(base, '/tasks?status=UNSCHEDULED', token)).json();
+  assert.equal(pending.data.total, 0);
+  // 單筆：已排班的可以看
+  if (body.data.list.length) {
+    assert.equal((await get(base, `/tasks/${body.data.list[0].id}`, token)).status, 200);
+  }
 });
 
 test('管理員取得任務列表，格式為分頁結構', async (t) => {
