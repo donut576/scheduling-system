@@ -111,11 +111,15 @@ const SchedulePage: FC = () => {
   const updateTaskMutation = useUpdateTask();
 
   // 查詢未排班任務數量（用於頂部工具列徽章提示，組長模式下僅算所屬轄區）
-  const { data: unscheduledData } = useTaskList({
-    status: 'UNSCHEDULED',
-    pageSize: 100,
-    area: isLeader ? leaderArea : undefined,
-  });
+  // 待排任務只有能排班的人才看得到，一般員工不送這個請求
+  const { data: unscheduledData } = useTaskList(
+    {
+      status: 'UNSCHEDULED',
+      pageSize: 100,
+      area: isLeader ? leaderArea : undefined,
+    },
+    { enabled: hasScheduleEdit },
+  );
   const unscheduledCount = unscheduledData?.total ?? unscheduledData?.list?.length ?? 0;
 
   // 判斷分店是否屬於該組長所屬責任轄區（支援全台22縣市自動歸屬，台北組管轄北基宜花）

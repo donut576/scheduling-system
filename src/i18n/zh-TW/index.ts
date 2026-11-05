@@ -193,11 +193,10 @@ export default {
     timeModeSection: '任務時間類型',
     timeModeFixed: '固定時段',
     timeModeFlexible: '彈性（當日內完成）',
-    timeModeFlexibleHint:
-      '彈性任務不指定開始／結束時間，當日內完成即可；班表上以「當日完成」標示。',
+    timeModeFlexibleHint: '彈性任務不指定開始／結束時間，當日內完成即可；班表上以「彈性」標示。',
     timeRemark: '說明（選填）',
     timeRemarkPlaceholder: '例如：12:00–14:00 客戶用餐，不可施作',
-    timeModeFlexibleBadge: '當日',
+    timeModeFlexibleBadge: '彈性',
     timeRemarkShort: '說明：',
     contentAndAssignees: '內容與指派人員',
     remarksSection: '備註說明',

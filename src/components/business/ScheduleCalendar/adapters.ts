@@ -6,8 +6,16 @@ import { getGroupColor, AREA_COLOR_MAP } from '@/utils/groupColor';
 
 const ECOLAB_BLUE = '#0067a0';
 
+// 傳給 FullCalendar 的資源 id 加上前綴。FullCalendar 內部用物件存資源，id 若是純數字，
+// JavaScript 會把它們依數字大小重新排序，我們排好的順序（例如「自己排第一個」）就會被打亂。
+const RESOURCE_ID_PREFIX = 'r-';
+export const toCalendarResourceId = (id: string): string => `${RESOURCE_ID_PREFIX}${id}`;
+export const fromCalendarResourceId = (id?: string): string | undefined =>
+  id?.startsWith(RESOURCE_ID_PREFIX) ? id.slice(RESOURCE_ID_PREFIX.length) : id;
+
 export interface FlattenedResource {
   id: string;
+  employeeNo?: string;
   title: string;
   mainTitle: string;
   subTitle?: string;
@@ -60,6 +68,7 @@ export const flattenResourcesWithParentTitle = (
 
       result.push({
         id: node.id,
+        employeeNo: node.employeeNo,
         title: parentTitle ? `${parentTitle} ${node.title}` : node.title,
         mainTitle,
         subTitle,
@@ -75,46 +84,30 @@ export const flattenResourcesWithParentTitle = (
 export const toResourceInputs = (
   resources: ScheduleResource[],
   dimension: ScheduleDimension,
-  currentUserId?: string,
-  currentUserName?: string,
+  currentEmployeeNo?: string,
 ): ResourceInput[] => {
   let list = flattenResourcesWithParentTitle(resources, dimension);
 
-  if (dimension === 'employee') {
-    list = [...list].sort((a, b) => {
-      const aSelf = Boolean(
-        (currentUserId && a.id === currentUserId) ||
-        (currentUserName && a.mainTitle === currentUserName),
-      );
-      const bSelf = Boolean(
-        (currentUserId && b.id === currentUserId) ||
-        (currentUserName && b.mainTitle === currentUserName),
-      );
+  // 只有員工維度才有「自己」；用工號比對（客戶維度的 id 可能剛好和登入者 id 相同，不能拿來比）
+  const isSelfOf = (r: FlattenedResource) =>
+    dimension === 'employee' && Boolean(currentEmployeeNo && r.employeeNo === currentEmployeeNo);
 
-      if (aSelf && !bSelf) return -1;
-      if (!aSelf && bSelf) return 1;
-      return 0;
-    });
+  if (dimension === 'employee') {
+    // 自己排第一個；其他人維持原順序（Array.sort 為穩定排序）
+    list = [...list].sort((a, b) => Number(isSelfOf(b)) - Number(isSelfOf(a)));
   }
 
-  return list.map((resource) => {
-    const isSelf = Boolean(
-      (currentUserId && resource.id === currentUserId) ||
-      (currentUserName && resource.mainTitle === currentUserName),
-    );
-
-    return {
-      id: resource.id,
-      title: resource.title,
-      eventColor: resource.groupColor,
-      extendedProps: {
-        mainTitle: resource.mainTitle,
-        subTitle: resource.subTitle,
-        groupColor: resource.groupColor,
-        isSelf,
-      },
-    };
-  });
+  return list.map((resource) => ({
+    id: toCalendarResourceId(resource.id),
+    title: resource.title,
+    eventColor: resource.groupColor,
+    extendedProps: {
+      mainTitle: resource.mainTitle,
+      subTitle: resource.subTitle,
+      groupColor: resource.groupColor,
+      isSelf: isSelfOf(resource),
+    },
+  }));
 };
 
 export const toEventInputs = (
@@ -169,7 +162,7 @@ export const toEventInputs = (
 
     return {
       id: event.id,
-      resourceId: event.resourceId,
+      resourceId: toCalendarResourceId(event.resourceId),
       title,
       start: event.start,
       end,
