@@ -1,13 +1,11 @@
 import React, { useEffect, useMemo } from 'react';
-import { Modal, Form, Input, Typography, Tag, Space, Alert, message } from 'antd';
+import { Modal, Form, Input, Space, Alert, message } from 'antd';
 import { PlusCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useCreateCustomer, useCustomerGroups } from '@/queries/useCustomerQueries';
-import { getRegionByAddress, REGION_NAMES_MAP } from '@/utils/regionMapping';
+import CityDistrictFields, { AddressHint } from '@/components/business/CityDistrictFields';
 import { checkCustomerDuplicate } from '@/utils/customerValidation';
 import type { Customer } from '@/types/customer';
-
-const { Text } = Typography;
 
 export interface QuickCreateCustomerModalProps {
   open: boolean;
@@ -23,6 +21,8 @@ export interface QuickCreateCustomerModalProps {
 interface QuickCreateFormValues {
   groupName: string;
   branchName: string;
+  city?: string;
+  district?: string;
   address: string;
   contactName?: string;
   contactPhone?: string;
@@ -42,13 +42,8 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
   const createCustomerMutation = useCreateCustomer();
   const { data: customerGroups = [] } = useCustomerGroups();
 
-  const watchAddress = Form.useWatch('address', form);
   const watchGroupName = Form.useWatch('groupName', form) || '';
   const watchBranchName = Form.useWatch('branchName', form) || '';
-
-  const detectedRegion = useMemo(() => {
-    return getRegionByAddress(watchAddress);
-  }, [watchAddress]);
 
   const validationResult = useMemo(() => {
     if (!isNewGroup || !watchGroupName) {
@@ -73,6 +68,8 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
     groupId?: string;
     groupName: string;
     branchName: string;
+    city?: string;
+    district?: string;
     address: string;
     contactName: string;
     contactPhone: string;
@@ -97,6 +94,8 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
         groupId: !isNewGroup ? initialGroupId : undefined,
         groupName: values.groupName.trim(),
         branchName: (values.branchName ?? '').trim(),
+        city: values.city || undefined,
+        district: values.district || undefined,
         address: values.address.trim(),
         contactName: values.contactName?.trim() || '現場負責人',
         contactPhone: values.contactPhone?.trim() || '02-23456789',
@@ -196,28 +195,13 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
           <Input placeholder="請輸入分店名稱" data-testid="quick-create-branch-name" />
         </Form.Item>
 
+        <CityDistrictFields />
+
         <Form.Item
           name="address"
           label={t('customer.address')}
           rules={[{ required: true, message: '請輸入地址' }]}
-          extra={
-            <div style={{ marginBottom: 12 }}>
-              {detectedRegion ? (
-                <div style={{ marginTop: 4 }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    系統自動識別所屬轄區：
-                  </Text>
-                  <Tag color="geekblue" style={{ marginLeft: 6 }}>
-                    {REGION_NAMES_MAP[detectedRegion] || `${detectedRegion}組`}
-                  </Tag>
-                </div>
-              ) : (
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  請包含縣市（如台北市），以利辨識轄區與地圖標記
-                </Text>
-              )}
-            </div>
-          }
+          extra={<AddressHint />}
         >
           <Input placeholder="請輸入地址" data-testid="quick-create-address" />
         </Form.Item>

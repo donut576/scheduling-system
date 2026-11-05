@@ -125,7 +125,7 @@ describe('MainLayout', () => {
   it('renders top navbar with hamburger, brand, and user dropdown', () => {
     renderLayout();
     expect(screen.getByRole('button', { name: 'Open sidebar' })).toBeInTheDocument();
-    expect(screen.getByText('Ecolab')).toBeInTheDocument();
+    expect(screen.getAllByAltText('Ecolab').length).toBeGreaterThan(0);
     expect(screen.getByText('測試用戶')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /登出/ })).not.toBeInTheDocument();
   });
@@ -175,7 +175,7 @@ describe('MainLayout', () => {
     it('renders the matched child route content inside the layout shell', () => {
       renderLayout('/dashboard');
       expect(screen.getByText('Dashboard Content')).toBeInTheDocument();
-      expect(screen.getByText('Ecolab')).toBeInTheDocument();
+      expect(screen.getAllByAltText('Ecolab').length).toBeGreaterThan(0);
     });
 
     it('renders different child content when navigating to another nested route', () => {

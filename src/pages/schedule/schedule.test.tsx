@@ -431,6 +431,7 @@ describe('SchedulePage', () => {
             status: 'UNSCHEDULED',
             assignees: [],
             isFromPending: true,
+            restorePending: true,
           },
         });
       });

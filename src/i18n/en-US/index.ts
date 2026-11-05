@@ -334,7 +334,7 @@ export default {
     copySchedule: 'Copy Schedule',
     copyScheduleTitle: 'Quick Copy Schedule',
     copyScheduleDesc:
-      'Batch copy schedules and assignees from a source period to a future target period',
+      'Batch copy tasks (date, location, time and requirements) from a source period to a target period. Assignees are left empty to be assigned later',
     sourcePeriod: 'Source Period',
     targetPeriod: 'Target Period',
     nextWeek: 'Next Week',

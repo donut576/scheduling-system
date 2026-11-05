@@ -43,6 +43,8 @@ export const restrictionFrom = (b) => {
   if (!b.requiredLicenses) return undefined;
   if (b.requiredLicenses.includes('PROFESSIONAL')) return 'PROFESSIONAL';
   if (b.requiredLicenses.includes('PEST_CONTROL')) return 'PEST_CONTROL';
+  // 沒有指定證照，但有填「其他」的說明，視為自訂限制
+  if (b.licenseRestrictionNote) return 'CUSTOM';
   return 'NONE';
 };
 

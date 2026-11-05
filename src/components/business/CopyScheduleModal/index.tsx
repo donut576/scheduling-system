@@ -77,7 +77,6 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({
         target: [sStart.add(durationDays + 1, 'day'), sEnd.add(durationDays + 1, 'day')],
         employeeScope: 'all',
         taskTypes: ['CONTRACT', 'ONETIME'],
-        overwrite: false,
       });
     }
   }, [open, defaultSourceRange, form]);
@@ -131,7 +130,6 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({
         targetStartDate: tgtStart.format('YYYY-MM-DD'),
         targetEndDate: tgtEnd.format('YYYY-MM-DD'),
         taskTypes: values.taskTypes as TaskType[],
-        overwrite: values.overwrite ?? false,
         area: values.employeeScope === 'area' ? values.area : undefined,
         employeeIds: values.employeeScope === 'custom' ? values.employeeIds : undefined,
       };
@@ -186,7 +184,7 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({
       <Alert
         message={
           t('schedule.copyScheduleDesc') ||
-          '將指定區間的排班與指派人員批量複製至未來目標週期，大幅節省常態班表排定時間。'
+          '將指定區間任務基本資訊（日期、地點、時間與需求）批量複製至目標週期，指派人員預設留空以待後續排定。'
         }
         type="info"
         showIcon
@@ -201,7 +199,6 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({
           target: targetRange,
           employeeScope: 'all',
           taskTypes: ['CONTRACT', 'ONETIME'],
-          overwrite: false,
         }}
       >
         {/* 1. 來源區間 */}
@@ -337,25 +334,6 @@ export const CopyScheduleModal: React.FC<CopyScheduleModalProps> = ({
               <Checkbox value="ESR">{t('task.esr') || 'ESR 急件'}</Checkbox>
             </Space>
           </Checkbox.Group>
-        </Form.Item>
-
-        {/* 5. 衝突與覆蓋策略 */}
-        <Form.Item
-          label={
-            <span style={{ fontWeight: 600 }}>{t('schedule.overwriteStrategy') || '覆蓋策略'}</span>
-          }
-          name="overwrite"
-        >
-          <Radio.Group>
-            <Space direction="vertical">
-              <Radio value={false}>
-                {t('schedule.skipConflicts') || '僅填補空檔（若目標時段已有排班則略過，防呆安全）'}
-              </Radio>
-              <Radio value={true}>
-                {t('schedule.overwriteAll') || '完整覆蓋（目標時段已有排班亦強制新增）'}
-              </Radio>
-            </Space>
-          </Radio.Group>
         </Form.Item>
       </Form>
     </Modal>

@@ -88,7 +88,7 @@ export const listCustomerGroups = async (user) => {
     const c = mapCustomer(row);
     if (!groups.has(c.groupId)) groups.set(c.groupId, { id: c.groupId, name: c.groupName, branches: [] });
     groups.get(c.groupId).branches.push({
-      id: c.id, groupId: c.groupId, name: c.branchName, address: c.address,
+      id: c.id, groupId: c.groupId, name: c.branchName, city: c.city, district: c.district, regions: c.regions, address: c.address,
       latitude: c.latitude, longitude: c.longitude, contactName: c.contactName, contactPhone: c.contactPhone,
       requiredLicenses: c.requiredLicenses, licenseRestrictionNote: c.licenseRestrictionNote,
     });

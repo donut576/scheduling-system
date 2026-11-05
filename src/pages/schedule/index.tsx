@@ -39,6 +39,7 @@ import { useEmployeeList } from '@/queries/useEmployeeQueries';
 import { useTaskDetail, useUpdateTask, useTaskList } from '@/queries/useTaskQueries';
 import { AREA_OPTIONS, EMPLOYEE_SHIFT_OPTIONS } from '@/constants/groups';
 import { isAddressInRegion, normalizeRegion } from '@/utils/regionMapping';
+import { isRealApi, LEGACY_DEFAULT_AREA } from '@/utils/dataSource';
 import { formatTaskContents } from '@/constants/taskStatus';
 import { ASSIGNABLE_POSITIONS } from '@/constants/positions';
 
@@ -77,6 +78,7 @@ const SchedulePage: FC = () => {
   // 組長模式：鎖定所屬責任轄區（例如：台北組）
   const leaderArea = useMemo(() => {
     if (!isLeader) return undefined;
+    if (isRealApi) return undefined; // 真後端：範圍由後端決定
     return normalizeRegion((user as unknown as { area?: string })?.area || user?.groupId);
   }, [isLeader, user]);
 
@@ -89,7 +91,8 @@ const SchedulePage: FC = () => {
 
   // 員工模式下鎖定為 'employee' 維度；組長與員工模式下依所屬組別（例如：台北）呈現同組班表
   const effectiveDimension: ScheduleDimension = isStaff ? 'employee' : dimension;
-  const effectiveArea = isStaff || isLeader ? selectedArea || leaderArea || '台北' : selectedArea;
+  const effectiveArea =
+    isStaff || isLeader ? selectedArea || leaderArea || LEGACY_DEFAULT_AREA : selectedArea;
 
   // 彈出詳情小框與編輯狀態
   const [selectedEvent, setSelectedEvent] = useState<ScheduleEvent | null>(null);
@@ -331,7 +334,7 @@ const SchedulePage: FC = () => {
   const filters: ScheduleFilters = useMemo(() => {
     if (isStaff) {
       return {
-        area: effectiveArea || '台北',
+        area: effectiveArea || LEGACY_DEFAULT_AREA,
       };
     }
 
@@ -339,20 +342,20 @@ const SchedulePage: FC = () => {
       // 組長模式：鎖定僅看所屬組別（例如：台北組）的相關排班任務
       if (dimension === 'overview') {
         return {
-          area: leaderArea || '台北',
+          area: leaderArea || LEGACY_DEFAULT_AREA,
         };
       }
       if (dimension === 'customer') {
         return {
           groupId: groupId || undefined,
           branchId: branchId || undefined,
-          area: leaderArea || '台北',
+          area: leaderArea || LEGACY_DEFAULT_AREA,
         };
       }
       // employee dimension
       return {
         employeeId: employeeId || undefined,
-        area: leaderArea || '台北',
+        area: leaderArea || LEGACY_DEFAULT_AREA,
         shift: selectedShift || undefined,
       };
     }
@@ -535,6 +538,7 @@ const SchedulePage: FC = () => {
             originalDate,
             makeupReason,
             isFromPending: true,
+            snapshotPending: true, // 後端第一次排班時保存待排原本的排班欄位，移回待排時還原
             status: newStatus,
           },
         });
@@ -638,6 +642,8 @@ const SchedulePage: FC = () => {
               assignees: remainingAssigneeIds,
               status: isFullyStaffed ? 'SCHEDULED' : 'UNSCHEDULED',
               isFromPending: true,
+              // 最後一位也被移除 = 整筆回到待排，還原排班欄位
+              ...(remainingAssigneeIds.length === 0 ? { restorePending: true } : {}),
             },
           });
 
@@ -661,6 +667,7 @@ const SchedulePage: FC = () => {
             status: 'UNSCHEDULED',
             assignees: [],
             isFromPending: true,
+            restorePending: true, // 還原成原本在待排區的排班欄位
           },
         });
         message.success(

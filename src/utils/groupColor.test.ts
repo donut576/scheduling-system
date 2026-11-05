@@ -118,3 +118,31 @@ describe('Property 21: 群組色彩唯一性', () => {
     });
   });
 });
+
+describe('PE 新規則 12 個群組的顏色', () => {
+  it('每個群組名稱對到自己的顏色，且 12 個顏色互不相同（桃、北各自同色系但不同深淺）', () => {
+    const names = [
+      '北早',
+      '北一晚',
+      '北二晚',
+      '桃一早',
+      '桃二早',
+      '桃竹晚',
+      '中區早',
+      '中區晚',
+      '嘉義早',
+      '嘉義晚',
+      '南區早',
+      '南區晚',
+    ];
+    const colors = names.map((n) => getGroupColor(n));
+    names.forEach((n, i) => expect(colors[i]).toBe(AREA_COLOR_MAP[n]));
+    // 北早與中區、南區等不會撞色；北早與台北舊色相同是刻意的（沿用既有紫色）
+    expect(new Set(colors).size).toBe(names.length);
+  });
+
+  it('名稱帶其他字也能比對（例如「北一晚 大夜班」）；北一晚不會被「北早」搶走', () => {
+    expect(getGroupColor('北一晚 大夜班')).toBe(AREA_COLOR_MAP['北一晚']);
+    expect(getGroupColor('桃竹晚')).toBe(AREA_COLOR_MAP['桃竹晚']);
+  });
+});

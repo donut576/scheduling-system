@@ -45,11 +45,12 @@ import { useTaskStore } from '@/stores/useTaskStore';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useEmployeeList } from '@/queries/useEmployeeQueries';
 import { useTaskList } from '@/queries/useTaskQueries';
-import { runAlertChecks, runDateIndependentChecks } from '@/utils/alertRules';
+import { runAlertChecks } from '@/utils/alertRules';
 import { isHoliday } from '@/utils/date';
 import { getBranchLabel } from '@/utils/branchLabel';
 import { HOLIDAYS_2026 } from '@/constants/holidays';
 import { getRegionByAddress, REGION_NAMES_MAP } from '@/utils/regionMapping';
+import { getGroupColor } from '@/utils/groupColor';
 import EmployeeSelect from '@/components/business/EmployeeSelect';
 import TimeSelect from '@/components/business/TimeSelect';
 import RecurrenceEditor from '@/components/business/RecurrenceEditor';
@@ -311,14 +312,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     startDate: currentDate,
     endDate: currentDate,
   });
-  // 比對衝突時，排除正在編輯的這筆任務本身，以及已取消的任務（已取消不再佔用員工時間）
-  const existingTasks = useMemo(
-    () =>
-      (existingTaskData?.list ?? []).filter(
-        (task) => task.id !== initialData?.id && task.status !== 'CANCELLED',
-      ),
-    [existingTaskData, initialData?.id],
-  );
+  const existingTasks = useMemo(() => existingTaskData?.list ?? [], [existingTaskData]);
 
   // 國定假日列表，用於日期選擇器紅字標示
   const holidays: string[] = HOLIDAYS_2026;
@@ -672,9 +666,11 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
       }
     }
 
-    // 有指派員工才做預檢（沒指派員工是未排班狀態，不需檢查）。
-    // 日期與時間都填了 → 執行全部規則；還沒有日期 → 只檢查證照與人數
-    if (formData.assignees.length > 0) {
+    // 當已填寫日期與時間時，執行排班預檢（含人數不足、證照不符、連續上班等）
+    if (
+      formData.date &&
+      (formData.startTime || formData.endTime || formData.timeMode === 'FLEXIBLE')
+    ) {
       const alertContext: AlertContext = {
         employees,
         existingTasks,
@@ -682,12 +678,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         holidays,
       };
 
-      const hasSchedule =
-        Boolean(formData.date) &&
-        Boolean(formData.startTime || formData.endTime || formData.timeMode === 'FLEXIBLE');
-      const result = hasSchedule
-        ? runAlertChecks(formData, alertContext)
-        : runDateIndependentChecks(formData, alertContext);
+      const result = runAlertChecks(formData, alertContext);
 
       if (!result.isValid) {
         setAlertResults(result);
@@ -841,7 +832,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                 </Col>
               </Row>
 
-              {selectedBranch && detectedRegion && (
+              {selectedBranch && (selectedBranch.regions?.length || detectedRegion) && (
                 <div
                   style={{
                     marginTop: -8,
@@ -853,9 +844,17 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                 >
                   <Text type="secondary" style={{ fontSize: 13 }}>
                     責任轄區歸屬：
-                    <Tag color="geekblue" style={{ marginLeft: 6 }}>
-                      {REGION_NAMES_MAP[detectedRegion]}
-                    </Tag>
+                    {selectedBranch.regions?.length ? (
+                      selectedBranch.regions.map((name) => (
+                        <Tag key={name} color={getGroupColor(name)} style={{ marginLeft: 6 }}>
+                          {name}
+                        </Tag>
+                      ))
+                    ) : (
+                      <Tag color="geekblue" style={{ marginLeft: 6 }}>
+                        {detectedRegion ? REGION_NAMES_MAP[detectedRegion] : ''}
+                      </Tag>
+                    )}
                   </Text>
                 </div>
               )}
@@ -1239,7 +1238,6 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
               violations={alertResults.violations}
               onOverride={handleOverride}
               canOverride={alertResults.canOverride}
-              employees={employees}
             />
           </div>
         )}

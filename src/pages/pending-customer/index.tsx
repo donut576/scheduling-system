@@ -51,6 +51,7 @@ import { formatTaskContents } from '@/constants/taskStatus';
 import { HOLIDAYS_2026 } from '@/constants/holidays';
 import { isHoliday } from '@/utils/date';
 import { normalizeRegion, isAddressInRegion } from '@/utils/regionMapping';
+import { isRealApi } from '@/utils/dataSource';
 import { pendingCustomerApi } from '@/api/pending-customer';
 import type {
   PendingCustomerListParams,
@@ -394,6 +395,7 @@ const PendingCustomerPage: FC = () => {
   const isLeader = user?.role === 'LEADER';
   const leaderArea = useMemo(() => {
     if (!isLeader) return undefined;
+    if (isRealApi) return undefined; // 真後端：範圍由後端決定
     return normalizeRegion((user as unknown as { area?: string })?.area || user?.groupId);
   }, [isLeader, user]);
 

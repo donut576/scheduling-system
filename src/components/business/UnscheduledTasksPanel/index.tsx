@@ -8,6 +8,7 @@ import { useTaskList } from '@/queries/useTaskQueries';
 import { useCustomerGroups } from '@/queries/useCustomerQueries';
 import { useUserStore } from '@/stores/useUserStore';
 import { isAddressInRegion, normalizeRegion } from '@/utils/regionMapping';
+import { isRealApi } from '@/utils/dataSource';
 import type { Task, TaskType } from '@/types/task';
 
 export interface UnscheduledTasksPanelProps {
@@ -108,6 +109,7 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
   const isLeader = user?.role === 'LEADER';
   const leaderArea = useMemo(() => {
     if (!isLeader) return undefined;
+    if (isRealApi) return undefined; // 真後端：範圍由後端決定
     return normalizeRegion((user as unknown as { area?: string })?.area || user?.groupId);
   }, [isLeader, user]);
 

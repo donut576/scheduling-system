@@ -22,7 +22,36 @@ export const AREA_COLOR_MAP: Record<string, string> = {
   新竹: '#69c0a5',
   台中: '#c09569',
   台南: '#c06984',
+  // PE 新規則的 12 個群組（同區同色系：北＝紫、桃＝綠、中＝褐、嘉＝藍、南＝紅；與後端 seed.sql 的 regions.color 一致）
+  北早: '#7a69c0',
+  北一晚: '#5d4ba8',
+  北二晚: '#9a8bd6',
+  桃一早: '#69c0a5',
+  桃二早: '#4fa88c',
+  桃竹晚: '#8fd3bd',
+  中區早: '#c09569',
+  中區晚: '#a87a4d',
+  嘉義早: '#69a5c0',
+  嘉義晚: '#4a87a3',
+  南區早: '#c06984',
+  南區晚: '#a24a67',
 };
+
+/** 12 個群組名稱（北三、桃三、中嘉南各分早晚）。比對時長的名稱放前面 */
+const GROUP_NAMES_9 = [
+  '北一晚',
+  '北二晚',
+  '桃一早',
+  '桃二早',
+  '桃竹晚',
+  '北早',
+  '中區早',
+  '中區晚',
+  '嘉義早',
+  '嘉義晚',
+  '南區早',
+  '南區晚',
+] as const;
 
 /**
  * 群組色彩指派所使用之現代高質感固定調色盤。
@@ -96,6 +125,8 @@ export function getGroupColor(groupId: string): string {
   if (!groupId) return AREA_COLOR_MAP['台北'] || '#7a69c0';
 
   const text = String(groupId).trim().replace(/臺/g, '台');
+  const matched9 = GROUP_NAMES_9.find((name) => text.includes(name));
+  if (matched9) return AREA_COLOR_MAP[matched9] as string;
   if (
     text.includes('台北') ||
     text.includes('taipei') ||

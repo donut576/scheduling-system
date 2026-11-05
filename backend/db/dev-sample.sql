@@ -33,22 +33,22 @@ INSERT INTO users (employee_no, name, phone, email, role_id, position_id, region
   ('E0005','陳雅婷','0955667788','e0005@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='桃二早'),(SELECT id FROM shifts WHERE name='午班'),false),
   ('E0006','張家豪','0955667799','e0006@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='桃一早'),(SELECT id FROM shifts WHERE name='早班'),false),
   ('E0007','李佩珊','0955667700','e0007@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='桃二早'),(SELECT id FROM shifts WHERE name='午班'),false),
-  ('E0008','王文欽','0966778811','e0008@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='中區'),(SELECT id FROM shifts WHERE name='早班'),false),
-  ('E0009','周冠宇','0966778822','e0009@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='中區'),(SELECT id FROM shifts WHERE name='大夜班'),false),
-  ('E0010','劉美玲','0977889933','e0010@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='南區'),(SELECT id FROM shifts WHERE name='早班'),false),
-  ('E0011','許維倫','0977889944','e0011@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='南區'),(SELECT id FROM shifts WHERE name='午班'),false),
+  ('E0008','王文欽','0966778811','e0008@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='中區早'),(SELECT id FROM shifts WHERE name='早班'),false),
+  ('E0009','周冠宇','0966778822','e0009@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='中區晚'),(SELECT id FROM shifts WHERE name='大夜班'),false),
+  ('E0010','劉美玲','0977889933','e0010@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='南區早'),(SELECT id FROM shifts WHERE name='早班'),false),
+  ('E0011','許維倫','0977889944','e0011@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='南區早'),(SELECT id FROM shifts WHERE name='午班'),false),
   ('HCN01','許志豪','0900-000-001','hcn01@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='桃竹晚'),(SELECT id FROM shifts WHERE name='大夜班'),false),
-  ('TCA01','蔡淑芬','0900-000-002','tca01@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='中區'),(SELECT id FROM shifts WHERE name='午班'),false),
-  ('TNN01','吳俊宏','0900-000-003','tnn01@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='南區'),(SELECT id FROM shifts WHERE name='大夜班'),false),
+  ('TCA01','蔡淑芬','0900-000-002','tca01@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='中區早'),(SELECT id FROM shifts WHERE name='午班'),false),
+  ('TNN01','吳俊宏','0900-000-003','tnn01@example.com',(SELECT id FROM roles WHERE code='EMPLOYEE'),(SELECT id FROM positions WHERE code='STAFF'),(SELECT id FROM regions WHERE name='南區晚'),(SELECT id FROM shifts WHERE name='大夜班'),false),
   ('LDRHC','Demo 新竹主任','0900-111-004','ldrhc@example.com',(SELECT id FROM roles WHERE code='LEADER'),(SELECT id FROM positions WHERE code='LEADER'),(SELECT id FROM regions WHERE name='桃一早'),(SELECT id FROM shifts WHERE name='早班'),false),
-  ('LDRTC','Demo 台中主任','0900-111-005','ldrtc@example.com',(SELECT id FROM roles WHERE code='LEADER'),(SELECT id FROM positions WHERE code='LEADER'),(SELECT id FROM regions WHERE name='中區'),(SELECT id FROM shifts WHERE name='早班'),false),
-  ('LDRTN','Demo 台南主任','0900-111-006','ldrtn@example.com',(SELECT id FROM roles WHERE code='LEADER'),(SELECT id FROM positions WHERE code='LEADER'),(SELECT id FROM regions WHERE name='南區'),(SELECT id FROM shifts WHERE name='早班'),false);
+  ('LDRTC','Demo 台中主任','0900-111-005','ldrtc@example.com',(SELECT id FROM roles WHERE code='LEADER'),(SELECT id FROM positions WHERE code='LEADER'),(SELECT id FROM regions WHERE name='中區早'),(SELECT id FROM shifts WHERE name='早班'),false),
+  ('LDRTN','Demo 台南主任','0900-111-006','ldrtn@example.com',(SELECT id FROM roles WHERE code='LEADER'),(SELECT id FROM positions WHERE code='LEADER'),(SELECT id FROM regions WHERE name='南區早'),(SELECT id FROM shifts WHERE name='早班'),false);
 UPDATE regions SET leader_id=(SELECT id FROM users WHERE employee_no='LDR01') WHERE name='北早';
 UPDATE regions SET leader_id=(SELECT id FROM users WHERE employee_no='E0002') WHERE name='北一晚';
 UPDATE regions SET leader_id=(SELECT id FROM users WHERE employee_no='TPN01') WHERE name='北二晚';
 UPDATE regions SET leader_id=(SELECT id FROM users WHERE employee_no='LDRHC') WHERE name='桃一早';
-UPDATE regions SET leader_id=(SELECT id FROM users WHERE employee_no='LDRTC') WHERE name='中區';
-UPDATE regions SET leader_id=(SELECT id FROM users WHERE employee_no='LDRTN') WHERE name='南區';
+UPDATE regions SET leader_id=(SELECT id FROM users WHERE employee_no='LDRTC') WHERE name='中區早';
+UPDATE regions SET leader_id=(SELECT id FROM users WHERE employee_no='LDRTN') WHERE name='南區早';
 
 -- 每區指定一位主任
 
@@ -158,7 +158,8 @@ INSERT INTO customers (group_id, name, city, district, address, latitude, longit
   ((SELECT id FROM customer_groups WHERE name='台灣麥當勞餐廳股份有限公司'),'台北桂林店','台北市','萬華區','台北市萬華區桂林路1號',25.0381,121.5065,'PEST_CONTROL'),
   ((SELECT id FROM customer_groups WHERE name='全家便利商店股份有限公司'),'桃園龜山門市','桃園市','龜山區','桃園市龜山區文化一路100號',25.0197,121.3647,'PEST_CONTROL'),
   ((SELECT id FROM customer_groups WHERE name='全家便利商店股份有限公司'),'基隆海洋門市','基隆市','仁愛區','基隆市仁愛區忠一路1號',25.1312,121.7415,'PEST_CONTROL'),
-  ((SELECT id FROM customer_groups WHERE name='全家便利商店股份有限公司'),'嘉義東區門市','嘉義市','東區','嘉義市東區中山路550號',23.4801,120.4491,'PEST_CONTROL');
+  ((SELECT id FROM customer_groups WHERE name='全家便利商店股份有限公司'),'嘉義東區門市','嘉義市','東區','嘉義市東區中山路550號',23.4801,120.4491,'PEST_CONTROL'),
+  ((SELECT id FROM customer_groups WHERE name='誠品生活股份有限公司'),'嘉義市立美術館限定店','嘉義市','西區','嘉義市西區廣寧街101號',23.47688713234141,120.44087130787683,'NONE');
 INSERT INTO customer_contacts (customer_id, slot, name, phone, email) SELECT c.id, 1, v.contact, v.phone, v.email FROM (VALUES
   ('星耀科技股份有限公司','內湖三期辦公室','林志豪','02-87911234','contact01@example.com'),
   ('星耀科技股份有限公司','新竹科學園區廠','陳雅婷','03-5781234','contact02@example.com'),
@@ -238,7 +239,7 @@ FROM (VALUES
 JOIN customers c ON c.name = v.cname JOIN shifts s ON s.name = v.shift;
 INSERT INTO task_contents (task_id, content_id) SELECT t.id, s.id FROM tasks t JOIN service_contents s ON s.code = 'P' WHERE t.remarks IN ('範例19','範例20','範例21','範例22','範例23');
 INSERT INTO task_assignees (task_id, user_id, assigned_by) SELECT t.id, u.id, (SELECT id FROM users WHERE employee_no='ADMIN01') FROM (VALUES
-  ('範例20','TPM01'),('範例22','E0009')) AS v(tag, no) JOIN tasks t ON t.remarks = v.tag JOIN users u ON u.employee_no = v.no;
+  ('範例20','TPM01')) AS v(tag, no) JOIN tasks t ON t.remarks = v.tag JOIN users u ON u.employee_no = v.no;
 
 -- 範例資料直接用 SQL 寫入，沒有經過 API，所以跨夜任務（結束早於開始）要補上 is_overnight
 UPDATE tasks SET is_overnight = TRUE WHERE time_mode = 'FIXED' AND end_time < start_time;

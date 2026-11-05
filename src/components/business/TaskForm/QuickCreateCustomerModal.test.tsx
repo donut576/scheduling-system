@@ -5,6 +5,19 @@ import QuickCreateCustomerModal from './QuickCreateCustomerModal';
 
 const mockMutateAsync = vi.fn();
 
+vi.mock('@/queries/useRegionQueries', () => ({
+  useRegionAreas: () => ({
+    data: {
+      regions: [],
+      cities: [
+        { city: '台北市', districts: [{ district: '士林區', regions: ['北早', '北一晚'] }] },
+        { city: '嘉義市', districts: [{ district: '西區', regions: ['嘉義早', '嘉義晚'] }] },
+      ],
+    },
+    isLoading: false,
+  }),
+}));
+
 vi.mock('@/queries/useCustomerQueries', () => ({
   useCreateCustomer: () => ({
     mutateAsync: mockMutateAsync,
@@ -70,14 +83,14 @@ describe('QuickCreateCustomerModal', () => {
     expect(branchInput.value).toBe('微風店');
   });
 
-  it('detects and shows region when address is typed', async () => {
+  it('shows the address hint and no longer guesses a group from the address', async () => {
     const user = userEvent.setup();
     render(<QuickCreateCustomerModal {...defaultProps} />);
 
-    const addressInput = screen.getByTestId('quick-create-address');
-    await user.type(addressInput, '新竹市科學園區研新二路1號');
+    expect(screen.getByText(/所屬群組依上方「縣市、行政區」計算/)).toBeInTheDocument();
 
-    expect(await screen.findByText(/新竹組/)).toBeInTheDocument();
+    await user.type(screen.getByTestId('quick-create-address'), '新竹市科學園區研新二路1號');
+    expect(screen.queryByText(/新竹組/)).not.toBeInTheDocument();
   });
 
   it('validates fields and calls create mutation and onSuccess when submitted', async () => {

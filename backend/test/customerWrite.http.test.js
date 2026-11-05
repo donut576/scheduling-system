@@ -27,12 +27,12 @@ const call = (base, method, path, token, body) => fetch(`${base}${path}`, {
 });
 const BODY = { groupName: '誠品生活股份有限公司', branchName: `${MARK}美術館店`, city: '嘉義市', district: '西區', address: '嘉義市西區廣寧街101號' };
 
-test('GET /regions/areas：需登入，回 9 個群組與縣市行政區', async (t) => {
+test('GET /regions/areas：需登入，回 12 個群組與縣市行政區', async (t) => {
   const base = start(t);
   assert.equal((await call(base, 'GET', '/regions/areas')).status, 401);
   const token = await login(base, 'staff', 'staff123');
   const d = (await (await call(base, 'GET', '/regions/areas', token)).json()).data;
-  assert.equal(d.regions.length, 9);
+  assert.equal(d.regions.length, 12);
   const chiayi = d.cities.find((c) => c.city === '嘉義市');
   assert.deepEqual(chiayi.districts.map((x) => x.district), ['東區', '西區']);
 });
@@ -49,7 +49,7 @@ test('客戶新增／修改／停用：權限、驗證、群組自動計算', as
   const created = await call(base, 'POST', '/customers', admin, BODY);
   assert.equal(created.status, 200);
   const c = (await created.json()).data;
-  assert.deepEqual(c.regions, ['嘉義']);
+  assert.deepEqual(c.regions, ['嘉義早', '嘉義晚']);
   assert.equal((await call(base, 'POST', '/customers', admin, BODY)).status, 422); // 同集團同名
 
   const moved = (await (await call(base, 'PATCH', `/customers/${c.id}`, admin, { city: '台北市', district: '士林區' })).json()).data;

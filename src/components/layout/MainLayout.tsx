@@ -51,7 +51,11 @@ const MainLayout: React.FC = () => {
             borderBottom: '1px solid #f0f0f0',
           }}
         >
-          Ecolab
+          <img
+            src={`${import.meta.env.BASE_URL}company-logo.png`}
+            alt="Ecolab"
+            style={{ height: 32, width: 'auto', display: 'block' }}
+          />
         </div>
         <SideMenu onNavigate={handleDrawerClose} />
       </Drawer>

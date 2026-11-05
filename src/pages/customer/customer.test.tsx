@@ -34,6 +34,18 @@ const mockCreateMutateAsync = vi.fn().mockResolvedValue(undefined);
 const mockUpdateMutateAsync = vi.fn().mockResolvedValue(undefined);
 const mockDeleteMutateAsync = vi.fn().mockResolvedValue(undefined);
 
+vi.mock('@/queries/useRegionQueries', () => ({
+  useRegionAreas: () => ({
+    data: {
+      regions: [],
+      cities: [
+        { city: '台北市', districts: [{ district: '士林區', regions: ['北早', '北一晚'] }] },
+        { city: '嘉義市', districts: [{ district: '西區', regions: ['嘉義'] }] },
+      ],
+    },
+    isLoading: false,
+  }),
+}));
 vi.mock('@/queries/useCustomerQueries', () => ({
   useCustomerList: vi.fn(),
   useCustomerGroups: vi.fn(),

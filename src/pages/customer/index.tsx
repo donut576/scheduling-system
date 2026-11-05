@@ -29,6 +29,7 @@ import { usePermissionStore } from '@/stores/usePermissionStore';
 import { LICENSE_TYPE_MAP } from '@/constants/licenseTypes';
 import { getGroupColor } from '@/utils/groupColor';
 import { checkCustomerDuplicate } from '@/utils/customerValidation';
+import CityDistrictFields, { AddressHint } from '@/components/business/CityDistrictFields';
 import type { CustomerListParams, CustomerFormData } from '@/api/customer';
 import type { Customer } from '@/types/customer';
 import type { PaginatedResponse } from '@/types/common';
@@ -251,6 +252,8 @@ const CustomerPage: FC = () => {
       form.setFieldsValue({
         groupName: record.groupName,
         branchName: record.branchName,
+        city: record.city,
+        district: record.district,
         address: record.address,
         contactName: record.contactName,
         contactPhone: record.contactPhone,
@@ -301,10 +304,13 @@ const CustomerPage: FC = () => {
     const payload: CustomerFormData = {
       groupName: values.groupName.trim(),
       branchName: (values.branchName ?? '').trim(),
+      city: values.city || undefined,
+      district: values.district || undefined,
       address: values.address.trim(),
       contactName: values.contactName.trim(),
       contactPhone: values.contactPhone.trim(),
       requiredLicenses,
+      licenseRestriction: values.licenseRestriction,
       licenseRestrictionNote:
         values.licenseRestriction === 'CUSTOM' ? values.licenseRestrictionNote?.trim() : undefined,
       remarks: values.remarks?.trim(),
@@ -555,10 +561,12 @@ const CustomerPage: FC = () => {
           >
             <Input placeholder={t('customer.branchNamePlaceholder')} />
           </Form.Item>
+          <CityDistrictFields />
           <Form.Item
             name="address"
             label={t('customer.address')}
             rules={[{ required: true, message: t('customer.addressRequired') }]}
+            extra={<AddressHint />}
           >
             <Input placeholder={t('customer.addressPlaceholder')} />
           </Form.Item>
