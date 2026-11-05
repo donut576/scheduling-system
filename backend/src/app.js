@@ -9,6 +9,7 @@ import { customersRouter } from './routes/customers.js';
 import { employeesRouter } from './routes/employees.js';
 import { pendingRouter } from './routes/pending.js';
 import { scheduleRouter } from './routes/schedule.js';
+import { regionsRouter } from './routes/regions.js';
 import { notFound, errorHandler } from './middleware/error.js';
 
 export const createApp = () => {
@@ -25,6 +26,7 @@ export const createApp = () => {
   app.use('/api/v1', employeesRouter);
   app.use('/api/v1', pendingRouter);
   app.use('/api/v1', scheduleRouter);
+  app.use('/api/v1', regionsRouter);
 
   app.use(notFound);
   app.use(errorHandler);
