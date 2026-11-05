@@ -2,7 +2,7 @@ import { withTransaction } from '../db.js';
 import { validate, parseId } from '../utils/validate.js';
 import { AppError, ERROR_CODES } from '../utils/response.js';
 import { hasPermission } from '../middleware/permission.js';
-import { getScope, scopeCondition } from './scope.js';
+import { getScope, customerScopeCondition } from './scope.js';
 import { runAlerts, recordAlerts, OVERRIDE_PERMISSION } from './alerts.js';
 import { BODY_SCHEMA, fail, requireCustomer, assigneeIds, currentUserId } from './taskWrite.js';
 
@@ -11,10 +11,10 @@ const notFound = () => new AppError(404, ERROR_CODES.TASK_NOT_FOUND, '找不到�
 // 讀出資料庫裡目前的任務狀態（含可視範圍檢查）
 const loadTaskState = async (q, scope, taskId, lock) => {
   const values = [taskId];
-  const cond = scopeCondition(scope, 'r.name', values);
+  const cond = customerScopeCondition(scope, values);
   const found = await q(`SELECT t.id::text AS id, t.status, t.customer_id::text AS customer_id, t.task_date::text AS date,
       t.time_mode, to_char(t.start_time, 'HH24:MI') AS start_time, to_char(t.end_time, 'HH24:MI') AS end_time, t.headcount
-    FROM tasks t JOIN customers c ON c.id = t.customer_id LEFT JOIN regions r ON r.id = c.region_id
+    FROM tasks t JOIN customers c ON c.id = t.customer_id
     WHERE t.id = $1::bigint ${cond ? `AND ${cond}` : ''} ${lock ? 'FOR UPDATE OF t' : ''}`, values);
   if (found.rows.length === 0) throw notFound();
   const row = found.rows[0];

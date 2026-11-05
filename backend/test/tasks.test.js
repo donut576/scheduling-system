@@ -4,20 +4,20 @@ import { buildTaskFilter, mapTask } from '../src/services/tasks.js';
 import { resolveTaskScope } from '../src/services/taskScope.js';
 
 const regionOf = (map) => async (no) => map[no] ?? null;
-const lookup = regionOf({ L1: '台北', L2: '台中', S1: '台南', S2: '新竹' });
+const lookup = regionOf({ L1: '北早', L2: '中區', S1: '南區', S2: '桃二早' });
 
 test('範圍：副理與管理員看全部', async () => {
   assert.deepEqual(await resolveTaskScope({ role: 'MANAGER', no: 'X' }, lookup), { all: true });
   assert.deepEqual(await resolveTaskScope({ role: 'ADMIN' }, lookup), { all: true });
 });
 
-test('範圍：主任看自己轄區加配對轄區（台北新竹、台中台南）', async () => {
-  assert.deepEqual((await resolveTaskScope({ role: 'LEADER', no: 'L1' }, lookup)).regionNames.sort(), ['台北', '新竹']);
-  assert.deepEqual((await resolveTaskScope({ role: 'LEADER', no: 'L2' }, lookup)).regionNames.sort(), ['台中', '台南']);
+test('範圍：主任看自己轄區加配對轄區（北／桃各群組互通、中嘉南互通）', async () => {
+  assert.deepEqual((await resolveTaskScope({ role: 'LEADER', no: 'L1' }, lookup)).regionNames.sort(), ['北一晚', '北二晚', '北早', '桃一早', '桃二早', '桃竹晚'].sort());
+  assert.deepEqual((await resolveTaskScope({ role: 'LEADER', no: 'L2' }, lookup)).regionNames.sort(), ['中區', '嘉義', '南區'].sort());
 });
 
 test('範圍：一般員工只看自己轄區；查無轄區什麼都看不到', async () => {
-  assert.deepEqual(await resolveTaskScope({ role: 'STAFF', no: 'S1' }, lookup), { regionNames: ['台南'] });
+  assert.deepEqual(await resolveTaskScope({ role: 'STAFF', no: 'S1' }, lookup), { regionNames: ['南區'] });
   assert.deepEqual(await resolveTaskScope({ role: 'STAFF', no: 'NOPE' }, lookup), { regionNames: [] });
   assert.deepEqual(await resolveTaskScope({ role: 'STAFF' }, lookup), { regionNames: [] });
 });

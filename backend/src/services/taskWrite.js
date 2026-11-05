@@ -1,7 +1,7 @@
 import { withTransaction } from '../db.js';
 import { validate, parseId } from '../utils/validate.js';
 import { AppError, ERROR_CODES } from '../utils/response.js';
-import { getScope, scopeCondition } from './scope.js';
+import { getScope, customerScopeCondition } from './scope.js';
 import { TASK_TYPES, getTask } from './tasks.js';
 import { enforceAlerts, recordAlerts } from './alerts.js';
 
@@ -76,8 +76,8 @@ export const currentUserId = async (q, user) => {
 // 客戶必須啟用中、且在登入者可看的轄區內；否則一律回「找不到客戶」
 export const requireCustomer = async (q, scope, customerId) => {
   const values = [customerId];
-  const cond = scopeCondition(scope, 'r.name', values);
-  const r = await q(`SELECT c.id FROM customers c LEFT JOIN regions r ON r.id = c.region_id
+  const cond = customerScopeCondition(scope, values);
+  const r = await q(`SELECT c.id FROM customers c
     WHERE c.id = $1::bigint AND c.is_active ${cond ? `AND ${cond}` : ''}`, values);
   if (r.rows.length === 0) throw new AppError(404, ERROR_CODES.CUSTOMER_NOT_FOUND, '找不到此客戶');
 };
@@ -180,12 +180,12 @@ export const updateTask = async (user, id, raw) => {
   await withTransaction(async (q) => {
     // 鎖住這筆任務，避免兩個人同時修改；同時檢查它在登入者的轄區範圍內
     const values = [taskId];
-    const cond = scopeCondition(scope, 'r.name', values);
+    const cond = customerScopeCondition(scope, values);
     const found = await q(`SELECT t.id, t.status, t.customer_id, t.task_date::text AS date, t.time_mode,
         to_char(t.start_time, 'HH24:MI') AS start_time, to_char(t.end_time, 'HH24:MI') AS end_time,
         t.headcount, t.shift_id, s.name AS shift
       FROM tasks t JOIN customers c ON c.id = t.customer_id
-      LEFT JOIN regions r ON r.id = c.region_id LEFT JOIN shifts s ON s.id = t.shift_id
+      LEFT JOIN shifts s ON s.id = t.shift_id
       WHERE t.id = $1::bigint ${cond ? `AND ${cond}` : ''} FOR UPDATE OF t`, values);
     if (found.rows.length === 0) throw notFound();
     const old = found.rows[0];
