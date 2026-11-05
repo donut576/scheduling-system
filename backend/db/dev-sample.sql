@@ -3,7 +3,7 @@
 -- 轄區為暫時的四個（台北、新竹、台中、台南），待 PE 提供正式規則後替換。
 BEGIN;
 
-INSERT INTO regions (name, color) VALUES ('台北','#7a69c0'),('新竹','#2f9e8f'),('台中','#e08a2c'),('台南','#d9534f');
+INSERT INTO regions (name, color) VALUES ('台北','#7a69c0'),('新竹','#69c0a5'),('台中','#c09569'),('台南','#c06984');
 
 -- 員工（登入帳號 = 員工編號）。必須含固定登入對應的 ADMIN01、MGR01、LDR01、STAFF01、TPA02
 INSERT INTO users (employee_no, name, phone, email, role_id, position_id, region_id, shift_id, must_change_password) VALUES
@@ -239,5 +239,8 @@ JOIN customers c ON c.name = v.cname JOIN shifts s ON s.name = v.shift;
 INSERT INTO task_contents (task_id, content_id) SELECT t.id, s.id FROM tasks t JOIN service_contents s ON s.code = 'P' WHERE t.remarks IN ('範例19','範例20','範例21','範例22','範例23');
 INSERT INTO task_assignees (task_id, user_id, assigned_by) SELECT t.id, u.id, (SELECT id FROM users WHERE employee_no='ADMIN01') FROM (VALUES
   ('範例20','TPM01'),('範例22','E0009')) AS v(tag, no) JOIN tasks t ON t.remarks = v.tag JOIN users u ON u.employee_no = v.no;
+
+-- 範例資料直接用 SQL 寫入，沒有經過 API，所以跨夜任務（結束早於開始）要補上 is_overnight
+UPDATE tasks SET is_overnight = TRUE WHERE time_mode = 'FIXED' AND end_time < start_time;
 
 COMMIT;
