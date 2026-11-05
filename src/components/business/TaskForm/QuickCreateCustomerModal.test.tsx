@@ -5,6 +5,19 @@ import QuickCreateCustomerModal from './QuickCreateCustomerModal';
 
 const mockMutateAsync = vi.fn();
 
+vi.mock('@/queries/useRegionQueries', () => ({
+  useRegionAreas: () => ({
+    data: {
+      regions: [],
+      cities: [
+        { city: '台北市', districts: [{ district: '士林區', regions: ['北早', '北一晚'] }] },
+        { city: '嘉義市', districts: [{ district: '西區', regions: ['嘉義早', '嘉義晚'] }] },
+      ],
+    },
+    isLoading: false,
+  }),
+}));
+
 vi.mock('@/queries/useCustomerQueries', () => ({
   useCreateCustomer: () => ({
     mutateAsync: mockMutateAsync,

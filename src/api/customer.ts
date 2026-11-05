@@ -16,6 +16,8 @@ export interface CustomerListParams {
 export interface CustomerFormData {
   groupName: string; // 客戶群組名稱
   branchName: string; // 分店/據點名稱
+  city?: string; // 縣市（與行政區一起決定所屬群組）
+  district?: string; // 行政區
   address: string; // 地址
   latitude?: number; // 緯度（用於地圖顯示）
   longitude?: number; // 經度（用於地圖顯示）

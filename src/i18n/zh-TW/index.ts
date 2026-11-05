@@ -9,7 +9,7 @@ export default {
   // 應用程式標題／使用者選單等全站共用文字
   app: {
     title: '藝康排班系統',
-    subtitle: 'EcoLab Scheduling System',
+    subtitle: 'Ecolab Scheduling System',
     userMenu: '使用者選單：{{name}}',
   },
   // 通用操作按鈕與提示文字（確認、取消、儲存、載入中等）

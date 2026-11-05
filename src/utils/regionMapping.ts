@@ -221,6 +221,22 @@ export function isAddressInRegion(
   return detected === normTarget;
 }
 
+/** PE 新規則 12 個群組的單字縮寫（桃一早、桃二早、桃竹晚都縮寫為「桃」）。順序：長名稱在前 */
+const GROUP_SHORT_9: Record<string, string> = {
+  北一晚: '北',
+  北二晚: '北',
+  桃一早: '桃',
+  桃二早: '桃',
+  桃竹晚: '桃',
+  北早: '北',
+  中區早: '中',
+  中區晚: '中',
+  嘉義早: '嘉',
+  嘉義晚: '嘉',
+  南區早: '南',
+  南區晚: '南',
+};
+
 /** 四大責任轄區單字縮寫標籤（台北->北、新竹->竹、台中->中、台南->南，避免首字重複） */
 export const AREA_SHORT_MAP: Record<OperationalRegion, string> = {
   台北: '北',
@@ -236,6 +252,8 @@ export const AREA_SHORT_MAP: Record<OperationalRegion, string> = {
  */
 export function getAreaShortLabel(regionOrText?: string): string {
   if (!regionOrText) return '北';
+  const group9 = Object.entries(GROUP_SHORT_9).find(([name]) => regionOrText.includes(name));
+  if (group9) return group9[1];
   const norm = normalizeRegion(regionOrText);
   return AREA_SHORT_MAP[norm] || '北';
 }

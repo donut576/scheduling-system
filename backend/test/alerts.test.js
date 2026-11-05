@@ -38,10 +38,11 @@ test('沒有指派人員就不檢查', () => {
   assert.deepEqual(r, { isValid: true, violations: [], canOverride: true });
 });
 
-test('人數不足', () => {
-  const r = evaluateAlerts({ ...base, headcount: 2 }, ctx());
-  assert.deepEqual(ids(r), ['HEADCOUNT_BELOW_MIN']);
-  assert.deepEqual(r.violations[0].details, { required: 2, actual: 1 });
+test('人數還沒湊滿：不檢查人數與證照，其他規則照常檢查', () => {
+  const t = { ...base, headcount: 2, requiredLicenses: ['PEST_CONTROL'] };
+  assert.deepEqual(ids(evaluateAlerts(t, ctx())), []);
+  assert.deepEqual(ids(evaluateAlerts(t, ctx({ onLeave: ['1'] }))), ['DESIGNATED_LEAVE']);
+  assert.deepEqual(ids(evaluateAlerts(t, ctx({ otherTasks: [other('2026-12-10', '10:00', '12:00')] }))), ['DUPLICATE_SLOT']);
 });
 
 test('證照：只要有一位同時持有全部要求證照就通過', () => {
@@ -50,9 +51,10 @@ test('證照：只要有一位同時持有全部要求證照就通過', () => {
   assert.deepEqual(ids(evaluateAlerts(t, ctx({ licensesByEmployee: { 1: ['PEST_CONTROL', 'PROFESSIONAL'] } }))), []);
 });
 
-test('沒有日期時只檢查證照與人數', () => {
-  const t = { ...base, date: null, headcount: 2, requiredLicenses: ['PEST_CONTROL'] };
-  assert.deepEqual(ids(evaluateAlerts(t, ctx())), ['LICENSE_REQUIRED', 'HEADCOUNT_BELOW_MIN']);
+test('沒有日期時只檢查證照（且要湊滿人數才檢查）', () => {
+  const t = { ...base, date: null, headcount: 1, requiredLicenses: ['PEST_CONTROL'] };
+  assert.deepEqual(ids(evaluateAlerts(t, ctx())), ['LICENSE_REQUIRED']);
+  assert.deepEqual(ids(evaluateAlerts({ ...t, headcount: 2 }, ctx())), []);
 });
 
 test('指定休假', () => {
@@ -95,7 +97,8 @@ test('連續上班：第 7 天可以、第 8 天違規', () => {
 });
 
 test('所有違規都是 BLOCKING，且 canOverride 為 true', () => {
-  const r = evaluateAlerts({ ...base, headcount: 2 }, ctx({ onLeave: ['1'] }));
+  const r = evaluateAlerts({ ...base, requiredLicenses: ['PEST_CONTROL'] },
+    ctx({ onLeave: ['1'], otherTasks: [other('2026-12-10', '10:00', '12:00')] }));
   assert.ok(r.violations.length >= 2);
   assert.ok(r.violations.every((v) => v.severity === 'BLOCKING'));
   assert.equal(r.canOverride, true);

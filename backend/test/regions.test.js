@@ -17,14 +17,14 @@ test('縣市行政區：部分行政區的縣市只列出規則內的區，並�
 });
 
 test('縣市行政區：整個縣市的規則展開成該縣市所有行政區', () => {
-  const tree = buildAreaTree([{ city: '嘉義市', district: null, region: '嘉義' }]);
+  const tree = buildAreaTree([{ city: '嘉義市', district: null, region: '嘉義早' }]);
   assert.deepEqual(tree[0].districts.map((d) => d.district), ['東區', '西區']);
-  assert.deepEqual(tree[0].districts[0].regions, ['嘉義']);
+  assert.deepEqual(tree[0].districts[0].regions, ['嘉義早']);
 });
 
 test('縣市行政區：縣市由北到南排序，行政區清單數量正確', () => {
   const tree = buildAreaTree([
-    { city: '台南市', district: null, region: '南區' },
+    { city: '台南市', district: null, region: '南區早' },
     { city: '台北市', district: '士林區', region: '北早' },
     { city: '基隆市', district: null, region: '北早' },
   ]);
@@ -40,4 +40,8 @@ test('證照限制：前端傳證照清單時換成單一限制，專技優先�
   assert.equal(restrictionFrom({ requiredLicenses: ['PEST_CONTROL', 'PROFESSIONAL'] }), 'PROFESSIONAL');
   assert.equal(restrictionFrom({ licenseRestriction: 'CUSTOM', requiredLicenses: [] }), 'CUSTOM');
   assert.equal(restrictionFrom({}), undefined);
+});
+
+test('證照限制：只填「其他」說明時視為自訂（CUSTOM）', () => {
+  assert.equal(restrictionFrom({ requiredLicenses: [], licenseRestrictionNote: '需要消防證照' }), 'CUSTOM');
 });

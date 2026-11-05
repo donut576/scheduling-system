@@ -44,7 +44,7 @@ INSERT INTO role_permissions (role_id, permission_id) SELECT r.id, p.id FROM rol
 INSERT INTO system_settings (key, value, description) VALUES ('notify_default_time','17:00','預設每日通知發送時間（主任沒有自己的設定時使用）');
 
 
--- 群組（轄區）與行政區對照：PE 提供的新規則（2026-11）。沒有列到的縣市、行政區，系統視為不存在。
+-- 群組（轄區）與行政區對照：PE 提供的新規則（2026-11）。中區、嘉義、南區各分早、晚班，行政區範圍相同，只有人員與主任不同。沒有列到的縣市、行政區，系統視為不存在。
 -- 林口區依指示只放桃區（桃一早、桃竹晚）。「東區」暫定為新竹市東區，待 PE 確認。
 INSERT INTO regions (name, color) VALUES
   ('北早','#7a69c0'),
@@ -53,9 +53,12 @@ INSERT INTO regions (name, color) VALUES
   ('桃一早','#69c0a5'),
   ('桃二早','#4fa88c'),
   ('桃竹晚','#8fd3bd'),
-  ('中區','#c09569'),
-  ('嘉義','#69a5c0'),
-  ('南區','#c06984');
+  ('中區早','#c09569'),
+  ('中區晚','#a87a4d'),
+  ('嘉義早','#69a5c0'),
+  ('嘉義晚','#4a87a3'),
+  ('南區早','#c06984'),
+  ('南區晚','#a24a67');
 INSERT INTO region_areas (region_id, city, district) VALUES
   ((SELECT id FROM regions WHERE name='北早'),'台北市','士林區'),
   ((SELECT id FROM regions WHERE name='北早'),'台北市','北投區'),
@@ -159,18 +162,29 @@ INSERT INTO region_areas (region_id, city, district) VALUES
   ((SELECT id FROM regions WHERE name='桃竹晚'),'新竹縣','新埔鎮'),
   ((SELECT id FROM regions WHERE name='桃竹晚'),'新竹縣','新豐鄉');
 INSERT INTO region_areas (region_id, city, district) VALUES
-  ((SELECT id FROM regions WHERE name='中區'),'台中市',NULL),
-  ((SELECT id FROM regions WHERE name='中區'),'彰化縣',NULL),
-  ((SELECT id FROM regions WHERE name='中區'),'南投縣',NULL);
+  ((SELECT id FROM regions WHERE name='中區早'),'台中市',NULL),
+  ((SELECT id FROM regions WHERE name='中區晚'),'台中市',NULL),
+  ((SELECT id FROM regions WHERE name='中區早'),'彰化縣',NULL),
+  ((SELECT id FROM regions WHERE name='中區晚'),'彰化縣',NULL),
+  ((SELECT id FROM regions WHERE name='中區早'),'南投縣',NULL),
+  ((SELECT id FROM regions WHERE name='中區晚'),'南投縣',NULL);
 INSERT INTO region_areas (region_id, city, district) VALUES
-  ((SELECT id FROM regions WHERE name='嘉義'),'雲林縣',NULL),
-  ((SELECT id FROM regions WHERE name='嘉義'),'嘉義市',NULL),
-  ((SELECT id FROM regions WHERE name='嘉義'),'嘉義縣',NULL);
+  ((SELECT id FROM regions WHERE name='嘉義早'),'雲林縣',NULL),
+  ((SELECT id FROM regions WHERE name='嘉義晚'),'雲林縣',NULL),
+  ((SELECT id FROM regions WHERE name='嘉義早'),'嘉義市',NULL),
+  ((SELECT id FROM regions WHERE name='嘉義晚'),'嘉義市',NULL),
+  ((SELECT id FROM regions WHERE name='嘉義早'),'嘉義縣',NULL),
+  ((SELECT id FROM regions WHERE name='嘉義晚'),'嘉義縣',NULL);
 INSERT INTO region_areas (region_id, city, district) VALUES
-  ((SELECT id FROM regions WHERE name='南區'),'台南市',NULL),
-  ((SELECT id FROM regions WHERE name='南區'),'高雄市',NULL),
-  ((SELECT id FROM regions WHERE name='南區'),'屏東縣',NULL),
-  ((SELECT id FROM regions WHERE name='南區'),'台東縣',NULL),
-  ((SELECT id FROM regions WHERE name='南區'),'澎湖縣',NULL);
+  ((SELECT id FROM regions WHERE name='南區早'),'台南市',NULL),
+  ((SELECT id FROM regions WHERE name='南區晚'),'台南市',NULL),
+  ((SELECT id FROM regions WHERE name='南區早'),'高雄市',NULL),
+  ((SELECT id FROM regions WHERE name='南區晚'),'高雄市',NULL),
+  ((SELECT id FROM regions WHERE name='南區早'),'屏東縣',NULL),
+  ((SELECT id FROM regions WHERE name='南區晚'),'屏東縣',NULL),
+  ((SELECT id FROM regions WHERE name='南區早'),'台東縣',NULL),
+  ((SELECT id FROM regions WHERE name='南區晚'),'台東縣',NULL),
+  ((SELECT id FROM regions WHERE name='南區早'),'澎湖縣',NULL),
+  ((SELECT id FROM regions WHERE name='南區晚'),'澎湖縣',NULL);
 
 COMMIT;

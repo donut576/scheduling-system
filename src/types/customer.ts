@@ -13,6 +13,12 @@ export interface Customer {
   groupName: string;
   branchId: string;
   branchName: string;
+  /** 縣市（與行政區一起決定所屬群組） */
+  city?: string;
+  /** 行政區 */
+  district?: string;
+  /** 依縣市＋行政區算出的所屬群組名稱（北早、北一晚…），由後端提供 */
+  regions?: string[];
   address: string;
   latitude?: number;
   longitude?: number;
@@ -35,6 +41,9 @@ export interface CustomerBranch {
   id: string;
   groupId: string;
   name: string;
+  city?: string;
+  district?: string;
+  regions?: string[];
   address: string;
   latitude?: number;
   longitude?: number;

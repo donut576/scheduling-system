@@ -5453,4 +5453,51 @@ export const handlers = [
     persistStorage(STORAGE_KEYS.TASKS, mockTasks);
     return HttpResponse.json(ok(null));
   }),
+  // regions.ts：縣市／行政區對照（模擬資料只放少數縣市，真資料來自後端 region_areas）
+  http.get('*/api/v1/regions/areas', () =>
+    HttpResponse.json(
+      ok({
+        regions: [
+          { id: '1', name: '北早', color: '#7a69c0' },
+          { id: '2', name: '北一晚', color: '#5d4ba8' },
+          { id: '3', name: '北二晚', color: '#9a8bd6' },
+          { id: '4', name: '桃一早', color: '#69c0a5' },
+          { id: '5', name: '桃二早', color: '#4fa88c' },
+          { id: '6', name: '桃竹晚', color: '#8fd3bd' },
+          { id: '7', name: '中區早', color: '#c09569' },
+          { id: '8', name: '中區晚', color: '#a87a4d' },
+          { id: '9', name: '嘉義早', color: '#69a5c0' },
+          { id: '10', name: '嘉義晚', color: '#4a87a3' },
+          { id: '11', name: '南區早', color: '#c06984' },
+          { id: '12', name: '南區晚', color: '#a24a67' },
+        ],
+        cities: [
+          {
+            city: '台北市',
+            districts: [
+              { district: '士林區', regions: ['北一晚', '北早'] },
+              { district: '大安區', regions: ['北二晚', '北早'] },
+              { district: '信義區', regions: ['北二晚', '北早'] },
+            ],
+          },
+          {
+            city: '桃園市',
+            districts: [
+              { district: '龜山區', regions: ['桃一早', '桃竹晚'] },
+              { district: '中壢區', regions: ['桃二早', '桃竹晚'] },
+            ],
+          },
+          { city: '台中市', districts: [{ district: '西屯區', regions: ['中區早', '中區晚'] }] },
+          {
+            city: '嘉義市',
+            districts: [
+              { district: '東區', regions: ['嘉義早', '嘉義晚'] },
+              { district: '西區', regions: ['嘉義早', '嘉義晚'] },
+            ],
+          },
+          { city: '台南市', districts: [{ district: '永康區', regions: ['南區早', '南區晚'] }] },
+        ],
+      }),
+    ),
+  ),
 ];

@@ -169,6 +169,7 @@ CREATE TABLE tasks (
   report_notes text,
   override_remark text,
   from_pending_id bigint,         -- 稍後補 FK
+  pending_snapshot jsonb,         -- 待排任務第一次拖進日曆前的排班欄位，移回待排時還原
   created_by bigint REFERENCES users(id),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),

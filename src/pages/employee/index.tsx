@@ -38,6 +38,7 @@ import { hasLicenseConflict, hasOnlyPestControlLicense } from '@/utils/licenseVa
 import { getGroupColor } from '@/utils/groupColor';
 import { formatPhone } from '@/utils/format';
 import { normalizeRegion, getAreaShortLabel } from '@/utils/regionMapping';
+import { isRealApi } from '@/utils/dataSource';
 import type { EmployeeFormData, EmployeeListParams } from '@/api/employee';
 import { LEAVE_TYPE_MAP, type Employee } from '@/types/employee';
 import type { LicenseType } from '@/types/alert';
@@ -311,6 +312,7 @@ const EmployeePage: FC = () => {
   // 組長僅能查看與管理所屬組別（例如：台北組）的組員資料；經理與管理員可查看全體
   const leaderArea = useMemo(() => {
     if (!isLeader) return undefined;
+    if (isRealApi) return undefined; // 真後端：範圍由後端決定
     return normalizeRegion((user as unknown as { area?: string })?.area || user?.groupId);
   }, [isLeader, user]);
 

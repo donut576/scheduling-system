@@ -121,7 +121,6 @@ export interface CopyScheduleParams {
   employeeIds?: string[];
   area?: string;
   taskTypes?: TaskType[];
-  overwrite?: boolean;
 }
 
 /** 複製排班結果回傳 */

@@ -62,12 +62,11 @@ const AppHeader: React.FC = () => {
         }}
         title="前往儀表板"
       >
-        <Text
-          strong
-          style={{ color: '#005EB8', fontSize: 20, letterSpacing: 0.5, fontWeight: 800 }}
-        >
-          Ecolab
-        </Text>
+        <img
+          src={`${import.meta.env.BASE_URL}company-logo.png`}
+          alt="Ecolab"
+          style={{ height: 'clamp(24px, 4vw, 36px)', width: 'auto', display: 'block' }}
+        />
       </div>
       <Space size={8} style={{ marginLeft: 'auto' }}>
         {/* 使用者資訊下拉選單：顯示姓名/員工編號/職位（不可點選），並提供登出按鈕 */}

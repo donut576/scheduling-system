@@ -72,12 +72,6 @@ const checkLicense = (task, ctx) => {
   return violation('LICENSE_REQUIRED', '指派員工中無人持有客戶要求之證照', { required }, task.assigneeIds);
 };
 
-const checkHeadcount = (task) => {
-  if (task.assigneeIds.length >= task.headcount) return null;
-  return violation('HEADCOUNT_BELOW_MIN', '指派人數低於最低需求人數',
-    { required: task.headcount, actual: task.assigneeIds.length });
-};
-
 const checkConsecutive = (task, ctx) => {
   const bad = task.assigneeIds.filter((id) => {
     const dates = tasksOf(ctx, id).map((t) => t.date).filter(Boolean);
@@ -117,14 +111,21 @@ const checkLeave = (task, ctx) => {
   return violation('DESIGNATED_LEAVE', '指派員工於指定休假日被排班', {}, bad);
 };
 
-// 沒有任何指派人員就不檢查（和前端一致）；沒有日期時只檢查證照與人數，其餘規則都需要日期
+// 沒有任何指派人員就不檢查（和前端一致）。
+// 人數還沒湊滿（任務仍是待排）時，不檢查「證照」（人數不足本來就是待排，不再當違規）；同時段、連續上班、工時、休假仍照常檢查。
+// 湊滿人數（任務會變成已排班）才檢查全部規則。沒有日期時只檢查證照與人數，其餘規則都需要日期。
 export const evaluateAlerts = (task, ctx) => {
   if (!task.assigneeIds || task.assigneeIds.length === 0) {
     return { isValid: true, violations: [], canOverride: true };
   }
-  const checks = task.date
-    ? [checkLicense, checkConsecutive, checkDailyHours, checkDuplicateSlot, checkLeave, checkHeadcount]
-    : [checkLicense, checkHeadcount];
+  const fullyStaffed = task.assigneeIds.length >= task.headcount;
+  let checks;
+  if (task.date) {
+    checks = [checkConsecutive, checkDailyHours, checkDuplicateSlot, checkLeave];
+    if (fullyStaffed) checks = [checkLicense, ...checks];
+  } else {
+    checks = fullyStaffed ? [checkLicense] : [];
+  }
   const violations = checks.map((fn) => fn(task, ctx)).filter(Boolean);
   return { isValid: violations.length === 0, violations, canOverride: true };
 };

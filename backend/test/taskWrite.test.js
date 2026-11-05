@@ -60,9 +60,9 @@ test('員工篩選：參數化、不回傳密碼欄位', () => {
   const { whereSql, values } = buildEmployeeFilter({ keyword: "a'b", license: 'FIRE_ANT', groupId: '2' }, { regionNames: ['台北', '新竹'] });
   assert.ok(!whereSql.includes("a'b") && !whereSql.includes('FIRE_ANT'));
   assert.equal(values.length, 4);
-  const e = mapEmployee({ id: 9, name: '王', phone: null, employee_no: 'E1', is_active: true, position: 'STAFF', region_id: 3, region_name: '台中',
+  const e = mapEmployee({ id: 9, name: '王', phone: null, employee_no: 'E1', is_active: true, position: 'STAFF', region_id: 3, region_name: '中區早',
     color: '#fff', shift_name: '早班', leave_type: null, leaves: ['2026-12-02', '2026-12-01'], licenses: ['PROFESSIONAL'], password: 'secret' });
-  assert.equal(e.groupName, '台中早班');
+  assert.equal(e.groupName, '中區早');
   assert.deepEqual(e.designatedLeaves, ['2026-12-01', '2026-12-02']);
   assert.ok(!('password' in e));
 });

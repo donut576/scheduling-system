@@ -30,7 +30,7 @@ export const buildAreaTree = (areaRows) => {
 const AREA_SQL = `SELECT ra.city, ra.district, r.name AS region
   FROM region_areas ra JOIN regions r ON r.id = ra.region_id ORDER BY r.id, ra.city, ra.district NULLS FIRST`;
 
-// GET /regions/areas：9 個群組（含顏色）與客戶可選的縣市、行政區
+// GET /regions/areas：12 個群組（含顏色）與客戶可選的縣市、行政區
 export const getRegionAreas = async (q = query) => {
   const [regions, areas] = await Promise.all([
     q('SELECT id, name, color FROM regions ORDER BY id'),

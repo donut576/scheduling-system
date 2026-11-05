@@ -102,5 +102,14 @@ describe('regionMapping (台灣22縣市與責任轄區對應)', () => {
       expect(getAreaShortLabel('台南組')).toBe('南');
       expect(getAreaShortLabel('tainan')).toBe('南');
     });
+
+    it('PE 新規則 12 個群組：北三個→北、桃三個→桃、中區早晚→中、嘉義早晚→嘉、南區早晚→南', () => {
+      ['北早', '北一晚', '北二晚'].forEach((n) => expect(getAreaShortLabel(n)).toBe('北'));
+      ['桃一早', '桃二早', '桃竹晚'].forEach((n) => expect(getAreaShortLabel(n)).toBe('桃'));
+      expect(getAreaShortLabel('中區早 早班')).toBe('中');
+      expect(getAreaShortLabel('中區晚')).toBe('中');
+      expect(getAreaShortLabel('嘉義早')).toBe('嘉');
+      expect(getAreaShortLabel('南區晚')).toBe('南');
+    });
   });
 });

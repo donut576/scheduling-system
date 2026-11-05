@@ -229,23 +229,19 @@ const LoginPage: FC = () => {
           style={{ width: '100%', textAlign: 'center', marginBottom: 20 }}
         >
           {/* Company Logo */}
-          <div
+          <img
+            src={`${import.meta.env.BASE_URL}menu_company-logo.png`}
+            alt="Ecolab"
             style={{
-              width: 56,
-              height: 56,
+              display: 'block',
               margin: '0 auto',
-              borderRadius: '50%',
-              background: '#005EB8',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(0, 94, 184, 0.3)',
+              height: 'clamp(27px, 5.3vw, 43px)',
+              width: 'auto',
+              maxWidth: '80%',
             }}
-          >
-            <Text style={{ color: '#fff', fontSize: 22, fontWeight: 'bold' }}>E</Text>
-          </div>
+          />
           <div>
-            <Title level={3} style={{ margin: 0, color: '#005EB8' }}>
+            <Title level={3} style={{ margin: 0, color: '#057EC0' }}>
               {t('app.title')}
             </Title>
             <Text type="secondary" style={{ fontSize: 13 }}>

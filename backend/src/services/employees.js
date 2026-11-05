@@ -39,7 +39,7 @@ export const mapEmployee = (row) => ({
   employeeNo: row.employee_no,
   position: row.position,
   groupId: row.region_id ? String(row.region_id) : '',
-  groupName: row.region_name ? `${row.region_name}${row.shift_name || ''}` : '',
+  groupName: row.region_name || '', // 新群組名稱已含早／晚班（北早、北一晚…），不再接班別
   area: row.region_name || '',
   shift: row.shift_name || '',
   groupColor: row.color || '',

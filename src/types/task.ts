@@ -77,6 +77,10 @@ export interface TaskFormData {
   recurrence?: RecurrenceRule;
   status?: TaskStatus;
   isFromPending?: boolean;
+  /** 從待排拖進日曆：後端保存原本的排班欄位 */
+  snapshotPending?: boolean;
+  /** 整筆移回待排：後端還原排班欄位 */
+  restorePending?: boolean;
   overrideRemark?: string;
   alertStatus?: AlertStatus;
 }

@@ -29,6 +29,9 @@ export const BODY_SCHEMA = {
   reportTypes: { type: 'array', max: 4, of: { type: 'enum', values: REPORT_TYPES } },
   reportNotes: { type: 'string', max: 1000 },
   overrideRemark: { type: 'string', max: 500 },
+  // 拖曳排班用：snapshotPending = 從待排拖進日曆（先存下原本的排班欄位）；restorePending = 整筆移回待排（還原排班欄位）
+  snapshotPending: { type: 'boolean' },
+  restorePending: { type: 'boolean' },
 };
 
 // 修改時，這些欄位傳空字串或 null 代表「清空」（validate 會把空值丟掉，所以要另外記下來）
@@ -122,7 +125,8 @@ const replaceRelations = async (q, taskId, { contentIds, assigneeIdList, by }) =
   }
 };
 
-export const createTask = async (user, raw) => {
+// 在既有的資料庫交易（q）裡新增一筆任務，回傳新任務 id。單筆新增與批次排班（PATCH /schedule）共用。
+export const createTaskTx = async (q, user, scope, raw) => {
   rejectRecurrence(raw);
   const b = validate(raw, BODY_SCHEMA);
   if (!b.branchId) throw fail('資料驗證失敗：branchId 必填');
@@ -132,134 +136,168 @@ export const createTask = async (user, raw) => {
   if (timeMode === 'FLEXIBLE' && !b.date) throw fail('資料驗證失敗：彈性任務必須填寫日期');
   const times = checkTimes({ timeMode, startTime: b.startTime, endTime: b.endTime });
   const branchId = parseId(b.branchId);
-  const scope = await getScope(user);
 
-  const taskId = await withTransaction(async (q) => {
-    await requireCustomer(q, scope, branchId);
-    // 同一個連線上的查詢依序執行
-    const shiftId = await shiftIdByName(q, b.shift);
-    const contentIds = await contentIdsByCode(q, b.contents);
-    const assigneeIdList = await assigneeIds(q, b.assignees || []);
-    const by = await currentUserId(q, user);
-    const headcount = b.headcount ?? 1;
-    const status = statusForCreate({
-      date: b.date, timeMode, startTime: times.startTime, endTime: times.endTime, headcount, assigneeCount: assigneeIdList.length,
-    });
-    // 排班警示：有違規又沒帶特許備註 → 422，整筆不會寫入
-    const enforced = await enforceAlerts(q, user, {
-      taskId: null, customerId: String(branchId), date: b.date || null, timeMode,
-      startTime: times.startTime, endTime: times.endTime, headcount, assigneeIds: assigneeIdList.map(String),
-    }, b.overrideRemark);
-    const ins = await q(`INSERT INTO tasks (customer_id, task_type, status, task_date, time_mode, start_time, end_time,
-        is_overnight, time_remark, headcount, shift_id, route, other_content_note, remarks, is_makeup, original_date,
-        makeup_reason, report_types, report_notes, override_remark, created_by)
-      VALUES ($1::bigint, $2, $3, $4::date, $5, $6::time, $7::time, $8, $9, $10, $11::bigint, $12, $13, $14, $15,
-        $16::date, $17, $18::text[], $19, $20, $21::bigint) RETURNING id`,
-    [branchId, b.taskType, status, b.date ?? null, timeMode, times.startTime, times.endTime, times.isOvernight,
-      b.timeRemark ?? null, headcount, shiftId, b.route ?? null, b.otherContentNote ?? null, b.remarks ?? null,
-      b.isMakeup ?? false, b.originalDate ?? null, b.makeupReason ?? null, b.reportTypes ?? [], b.reportNotes ?? null,
-      b.overrideRemark ?? null, by]);
-    const id = ins.rows[0].id;
-    await replaceRelations(q, id, { contentIds, assigneeIdList, by });
-    await recordAlerts(q, by, id, enforced, b.overrideRemark);
-    return id;
+  await requireCustomer(q, scope, branchId);
+  // 同一個連線上的查詢依序執行
+  const shiftId = await shiftIdByName(q, b.shift);
+  const contentIds = await contentIdsByCode(q, b.contents);
+  const assigneeIdList = await assigneeIds(q, b.assignees || []);
+  const by = await currentUserId(q, user);
+  const headcount = b.headcount ?? 1;
+  const status = statusForCreate({
+    date: b.date, timeMode, startTime: times.startTime, endTime: times.endTime, headcount, assigneeCount: assigneeIdList.length,
   });
+  // 排班警示：有違規又沒帶特許備註 → 422，整筆不會寫入
+  const enforced = await enforceAlerts(q, user, {
+    taskId: null, customerId: String(branchId), date: b.date || null, timeMode,
+    startTime: times.startTime, endTime: times.endTime, headcount, assigneeIds: assigneeIdList.map(String),
+  }, b.overrideRemark);
+  const ins = await q(`INSERT INTO tasks (customer_id, task_type, status, task_date, time_mode, start_time, end_time,
+      is_overnight, time_remark, headcount, shift_id, route, other_content_note, remarks, is_makeup, original_date,
+      makeup_reason, report_types, report_notes, override_remark, created_by)
+    VALUES ($1::bigint, $2, $3, $4::date, $5, $6::time, $7::time, $8, $9, $10, $11::bigint, $12, $13, $14, $15,
+      $16::date, $17, $18::text[], $19, $20, $21::bigint) RETURNING id`,
+  [branchId, b.taskType, status, b.date ?? null, timeMode, times.startTime, times.endTime, times.isOvernight,
+    b.timeRemark ?? null, headcount, shiftId, b.route ?? null, b.otherContentNote ?? null, b.remarks ?? null,
+    b.isMakeup ?? false, b.originalDate ?? null, b.makeupReason ?? null, b.reportTypes ?? [], b.reportNotes ?? null,
+    b.overrideRemark ?? null, by]);
+  const id = ins.rows[0].id;
+  await replaceRelations(q, id, { contentIds, assigneeIdList, by });
+  await recordAlerts(q, by, id, enforced, b.overrideRemark);
+  return id;
+};
+
+export const createTask = async (user, raw) => {
+  const scope = await getScope(user);
+  const taskId = await withTransaction((q) => createTaskTx(q, user, scope, raw));
   return getTask(user, String(taskId));
 };
 
 const notFound = () => new AppError(404, ERROR_CODES.TASK_NOT_FOUND, '找不到此任務');
 
-export const updateTask = async (user, id, raw) => {
+// 在既有的資料庫交易（q）裡修改（或取消）一筆任務。單筆修改與批次排班（PATCH /schedule）共用。
+// 待排任務被拖進日曆前的排班欄位（還原時用）；只含「拖曳會改到」的欄位，備註、路線等不在內
+const snapshotOf = (old) => ({
+  branchId: String(old.customer_id), date: old.date || null, timeMode: old.time_mode,
+  startTime: old.start_time || null, endTime: old.end_time || null, shift: old.shift || null,
+  isMakeup: old.is_makeup, originalDate: old.original_date || null, makeupReason: old.makeup_reason || null,
+  timeRemark: old.time_remark || null,
+});
+
+// 把快照轉成「修改請求」的欄位；空值用空字串代表清空
+const restoreFields = (snap) => ({
+  branchId: snap.branchId, date: snap.date ?? '', timeMode: snap.timeMode,
+  startTime: snap.startTime ?? '', endTime: snap.endTime ?? '', shift: snap.shift ?? '',
+  isMakeup: snap.isMakeup, originalDate: snap.originalDate ?? '', makeupReason: snap.makeupReason ?? '',
+  timeRemark: snap.timeRemark ?? '', assignees: [],
+});
+
+export const updateTaskTx = async (q, user, scope, id, rawInput) => {
   const taskId = parseId(id);
-  rejectRecurrence(raw);
+  rejectRecurrence(rawInput);
+  validate(rawInput, BODY_SCHEMA); // 先驗證請求內容（格式錯誤不用查資料庫）
+  let raw = rawInput;
   const isCancel = raw && raw.status === 'CANCELLED';
+  // 鎖住這筆任務，避免兩個人同時修改；同時檢查它在登入者的轄區範圍內
+  const values = [taskId];
+  const cond = customerScopeCondition(scope, values);
+  const found = await q(`SELECT t.id, t.status, t.customer_id, t.task_date::text AS date, t.time_mode,
+      to_char(t.start_time, 'HH24:MI') AS start_time, to_char(t.end_time, 'HH24:MI') AS end_time,
+      t.headcount, t.shift_id, s.name AS shift, t.is_makeup, t.original_date::text AS original_date,
+      t.makeup_reason, t.time_remark, t.pending_snapshot
+    FROM tasks t JOIN customers c ON c.id = t.customer_id
+    LEFT JOIN shifts s ON s.id = t.shift_id
+    WHERE t.id = $1::bigint ${cond ? `AND ${cond}` : ''} FOR UPDATE OF t`, values);
+  if (found.rows.length === 0) throw notFound();
+  const old = found.rows[0];
+
+  if (old.status === 'CANCELLED') throw fail('已取消的任務不能修改');
+
+  // 整筆移回待排：把排班欄位換回第一次拖進日曆之前的樣子（備註、路線等手動編輯過的內容保留）
+  const restoring = Boolean(raw && raw.restorePending === true && old.pending_snapshot);
+  if (restoring) raw = { ...raw, ...restoreFields(old.pending_snapshot) };
   const b = validate(raw, BODY_SCHEMA);
   const cleared = new Set(CLEARABLE.filter((k) => raw && (raw[k] === '' || raw[k] === null)));
+
+  if (isCancel) {
+    // 取消 = 狀態改為「已取消」；若一併帶了備註（取消原因），就寫進備註
+    await q(`UPDATE tasks SET status = 'CANCELLED', remarks = COALESCE($2, remarks), updated_at = now() WHERE id = $1::bigint`,
+      [taskId, b.remarks ?? null]);
+    return taskId;
+  }
+
+  if (b.branchId) await requireCustomer(q, scope, parseId(b.branchId));
+  const pick = (key, oldValue) => (cleared.has(key) ? '' : (b[key] ?? oldValue ?? ''));
+  const timeMode = b.timeMode || old.time_mode;
+  const date = pick('date', old.date);
+  const times = checkTimes({ timeMode, startTime: pick('startTime', old.start_time), endTime: pick('endTime', old.end_time) });
+  if (timeMode === 'FLEXIBLE' && !date) throw fail('資料驗證失敗：彈性任務必須填寫日期');
+  const headcount = b.headcount ?? old.headcount;
+
+  const by = await currentUserId(q, user);
+  if (b.contents && b.contents.length === 0) throw fail('資料驗證失敗：contents 至少選一個任務內容');
+  const contentIds = b.contents ? await contentIdsByCode(q, b.contents) : null;
+  const assigneeIdList = b.assignees ? await assigneeIds(q, b.assignees) : null;
+  const oldAssigneeIds = (await q('SELECT user_id::text AS id FROM task_assignees WHERE task_id = $1::bigint', [taskId]))
+    .rows.map((r) => r.id);
+  const finalAssigneeIds = assigneeIdList ? assigneeIdList.map(String) : oldAssigneeIds;
+  const assigneeCount = finalAssigneeIds.length;
+  const status = statusForUpdate(old.status, { date, timeMode, startTime: times.startTime, endTime: times.endTime, headcount, assigneeCount });
+
+  // 排班警示：只有「客戶、日期、時間、人數、指派人員」其中之一有變動才重新檢查，
+  // 這樣只改備註之類的欄位，不會被舊的、已特許過的警示擋住
+  const customerId = b.branchId ? String(parseId(b.branchId)) : String(old.customer_id);
+  const sameAssignees = finalAssigneeIds.length === oldAssigneeIds.length
+    && finalAssigneeIds.every((x) => oldAssigneeIds.includes(x));
+  const unchanged = customerId === String(old.customer_id) && (date || null) === (old.date || null)
+    && timeMode === old.time_mode && times.startTime === (old.start_time || null)
+    && times.endTime === (old.end_time || null) && headcount === old.headcount && sameAssignees;
+  const enforced = unchanged ? null : await enforceAlerts(q, user, {
+    taskId: String(taskId), customerId, date: date || null, timeMode,
+    startTime: times.startTime, endTime: times.endTime, headcount, assigneeIds: finalAssigneeIds,
+  }, cleared.has('overrideRemark') ? null : b.overrideRemark);
+
+  let shiftId = old.shift_id;
+  if (cleared.has('shift')) shiftId = null;
+  else if (b.shift) shiftId = await shiftIdByName(q, b.shift);
+
+  await q(`UPDATE tasks SET
+      customer_id = COALESCE($2::bigint, customer_id), task_type = COALESCE($3, task_type), status = $4,
+      task_date = $5::date, time_mode = $6, start_time = $7::time, end_time = $8::time, is_overnight = $9,
+      headcount = $10, shift_id = $11::bigint,
+      time_remark = CASE WHEN $12::boolean THEN NULL ELSE COALESCE($13, time_remark) END,
+      route = CASE WHEN $14::boolean THEN NULL ELSE COALESCE($15, route) END,
+      other_content_note = CASE WHEN $16::boolean THEN NULL ELSE COALESCE($17, other_content_note) END,
+      remarks = CASE WHEN $18::boolean THEN NULL ELSE COALESCE($19, remarks) END,
+      is_makeup = COALESCE($20::boolean, is_makeup),
+      original_date = CASE WHEN $21::boolean THEN NULL ELSE COALESCE($22::date, original_date) END,
+      makeup_reason = CASE WHEN $23::boolean THEN NULL ELSE COALESCE($24, makeup_reason) END,
+      report_types = COALESCE($25::text[], report_types),
+      report_notes = CASE WHEN $26::boolean THEN NULL ELSE COALESCE($27, report_notes) END,
+      override_remark = CASE WHEN $28::boolean THEN NULL ELSE COALESCE($29, override_remark) END,
+      updated_at = now()
+    WHERE id = $1::bigint`,
+  [taskId, b.branchId ? parseId(b.branchId) : null, b.taskType ?? null, status,
+    date || null, timeMode, times.startTime, times.endTime, times.isOvernight,
+    headcount, shiftId,
+    cleared.has('timeRemark'), b.timeRemark ?? null, cleared.has('route'), b.route ?? null,
+    cleared.has('otherContentNote'), b.otherContentNote ?? null, cleared.has('remarks'), b.remarks ?? null,
+    b.isMakeup ?? null, cleared.has('originalDate'), b.originalDate ?? null,
+    cleared.has('makeupReason'), b.makeupReason ?? null, b.reportTypes ?? null,
+    cleared.has('reportNotes'), b.reportNotes ?? null, cleared.has('overrideRemark'), b.overrideRemark ?? null]);
+  // 快照：從待排第一次拖進日曆時保存（已有快照不覆蓋）；還原後清除
+  if (restoring) {
+    await q('UPDATE tasks SET pending_snapshot = NULL WHERE id = $1::bigint', [taskId]);
+  } else if (b.snapshotPending === true && old.status === 'UNSCHEDULED' && !old.pending_snapshot) {
+    await q('UPDATE tasks SET pending_snapshot = $2::jsonb WHERE id = $1::bigint', [taskId, JSON.stringify(snapshotOf(old))]);
+  }
+  await replaceRelations(q, taskId, { contentIds, assigneeIdList, by });
+  if (enforced) await recordAlerts(q, by, taskId, enforced, b.overrideRemark);
+  return taskId;
+};
+
+export const updateTask = async (user, id, raw) => {
   const scope = await getScope(user);
-
-  await withTransaction(async (q) => {
-    // 鎖住這筆任務，避免兩個人同時修改；同時檢查它在登入者的轄區範圍內
-    const values = [taskId];
-    const cond = customerScopeCondition(scope, values);
-    const found = await q(`SELECT t.id, t.status, t.customer_id, t.task_date::text AS date, t.time_mode,
-        to_char(t.start_time, 'HH24:MI') AS start_time, to_char(t.end_time, 'HH24:MI') AS end_time,
-        t.headcount, t.shift_id, s.name AS shift
-      FROM tasks t JOIN customers c ON c.id = t.customer_id
-      LEFT JOIN shifts s ON s.id = t.shift_id
-      WHERE t.id = $1::bigint ${cond ? `AND ${cond}` : ''} FOR UPDATE OF t`, values);
-    if (found.rows.length === 0) throw notFound();
-    const old = found.rows[0];
-
-    if (old.status === 'CANCELLED') throw fail('已取消的任務不能修改');
-
-    if (isCancel) {
-      // 取消 = 狀態改為「已取消」；若一併帶了備註（取消原因），就寫進備註
-      await q(`UPDATE tasks SET status = 'CANCELLED', remarks = COALESCE($2, remarks), updated_at = now() WHERE id = $1::bigint`,
-        [taskId, b.remarks ?? null]);
-      return;
-    }
-
-    if (b.branchId) await requireCustomer(q, scope, parseId(b.branchId));
-    const pick = (key, oldValue) => (cleared.has(key) ? '' : (b[key] ?? oldValue ?? ''));
-    const timeMode = b.timeMode || old.time_mode;
-    const date = pick('date', old.date);
-    const times = checkTimes({ timeMode, startTime: pick('startTime', old.start_time), endTime: pick('endTime', old.end_time) });
-    if (timeMode === 'FLEXIBLE' && !date) throw fail('資料驗證失敗：彈性任務必須填寫日期');
-    const headcount = b.headcount ?? old.headcount;
-
-    const by = await currentUserId(q, user);
-    if (b.contents && b.contents.length === 0) throw fail('資料驗證失敗：contents 至少選一個任務內容');
-    const contentIds = b.contents ? await contentIdsByCode(q, b.contents) : null;
-    const assigneeIdList = b.assignees ? await assigneeIds(q, b.assignees) : null;
-    const oldAssigneeIds = (await q('SELECT user_id::text AS id FROM task_assignees WHERE task_id = $1::bigint', [taskId]))
-      .rows.map((r) => r.id);
-    const finalAssigneeIds = assigneeIdList ? assigneeIdList.map(String) : oldAssigneeIds;
-    const assigneeCount = finalAssigneeIds.length;
-    const status = statusForUpdate(old.status, { date, timeMode, startTime: times.startTime, endTime: times.endTime, headcount, assigneeCount });
-
-    // 排班警示：只有「客戶、日期、時間、人數、指派人員」其中之一有變動才重新檢查，
-    // 這樣只改備註之類的欄位，不會被舊的、已特許過的警示擋住
-    const customerId = b.branchId ? String(parseId(b.branchId)) : String(old.customer_id);
-    const sameAssignees = finalAssigneeIds.length === oldAssigneeIds.length
-      && finalAssigneeIds.every((x) => oldAssigneeIds.includes(x));
-    const unchanged = customerId === String(old.customer_id) && (date || null) === (old.date || null)
-      && timeMode === old.time_mode && times.startTime === (old.start_time || null)
-      && times.endTime === (old.end_time || null) && headcount === old.headcount && sameAssignees;
-    const enforced = unchanged ? null : await enforceAlerts(q, user, {
-      taskId: String(taskId), customerId, date: date || null, timeMode,
-      startTime: times.startTime, endTime: times.endTime, headcount, assigneeIds: finalAssigneeIds,
-    }, cleared.has('overrideRemark') ? null : b.overrideRemark);
-
-    let shiftId = old.shift_id;
-    if (cleared.has('shift')) shiftId = null;
-    else if (b.shift) shiftId = await shiftIdByName(q, b.shift);
-
-    await q(`UPDATE tasks SET
-        customer_id = COALESCE($2::bigint, customer_id), task_type = COALESCE($3, task_type), status = $4,
-        task_date = $5::date, time_mode = $6, start_time = $7::time, end_time = $8::time, is_overnight = $9,
-        headcount = $10, shift_id = $11::bigint,
-        time_remark = CASE WHEN $12::boolean THEN NULL ELSE COALESCE($13, time_remark) END,
-        route = CASE WHEN $14::boolean THEN NULL ELSE COALESCE($15, route) END,
-        other_content_note = CASE WHEN $16::boolean THEN NULL ELSE COALESCE($17, other_content_note) END,
-        remarks = CASE WHEN $18::boolean THEN NULL ELSE COALESCE($19, remarks) END,
-        is_makeup = COALESCE($20::boolean, is_makeup),
-        original_date = CASE WHEN $21::boolean THEN NULL ELSE COALESCE($22::date, original_date) END,
-        makeup_reason = CASE WHEN $23::boolean THEN NULL ELSE COALESCE($24, makeup_reason) END,
-        report_types = COALESCE($25::text[], report_types),
-        report_notes = CASE WHEN $26::boolean THEN NULL ELSE COALESCE($27, report_notes) END,
-        override_remark = CASE WHEN $28::boolean THEN NULL ELSE COALESCE($29, override_remark) END,
-        updated_at = now()
-      WHERE id = $1::bigint`,
-    [taskId, b.branchId ? parseId(b.branchId) : null, b.taskType ?? null, status,
-      date || null, timeMode, times.startTime, times.endTime, times.isOvernight,
-      headcount, shiftId,
-      cleared.has('timeRemark'), b.timeRemark ?? null, cleared.has('route'), b.route ?? null,
-      cleared.has('otherContentNote'), b.otherContentNote ?? null, cleared.has('remarks'), b.remarks ?? null,
-      b.isMakeup ?? null, cleared.has('originalDate'), b.originalDate ?? null,
-      cleared.has('makeupReason'), b.makeupReason ?? null, b.reportTypes ?? null,
-      cleared.has('reportNotes'), b.reportNotes ?? null, cleared.has('overrideRemark'), b.overrideRemark ?? null]);
-    await replaceRelations(q, taskId, { contentIds, assigneeIdList, by });
-    if (enforced) await recordAlerts(q, by, taskId, enforced, b.overrideRemark);
-  });
+  const taskId = await withTransaction((q) => updateTaskTx(q, user, scope, id, raw));
   return getTask(user, taskId);
 };

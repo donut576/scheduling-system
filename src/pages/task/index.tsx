@@ -34,6 +34,7 @@ import { useTaskStore } from '@/stores/useTaskStore';
 import { usePermissionStore } from '@/stores/usePermissionStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { isAddressInRegion, normalizeRegion } from '@/utils/regionMapping';
+import { isRealApi } from '@/utils/dataSource';
 import { TASK_STATUS_MAP, formatTaskContents } from '@/constants/taskStatus';
 import { exportToExcel, type ExcelColumn } from '@/utils/excel';
 import type { Task, TaskFormData, TaskStatus } from '@/types/task';
@@ -552,6 +553,7 @@ function TaskPage() {
 
   const leaderArea = useMemo(() => {
     if (!isLeader) return undefined;
+    if (isRealApi) return undefined; // 真後端：範圍由後端決定
     return normalizeRegion((user as unknown as { area?: string })?.area || user?.groupId);
   }, [isLeader, user]);
 
