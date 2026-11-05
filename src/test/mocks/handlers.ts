@@ -4563,6 +4563,7 @@ export const handlers = [
         id: e.id,
         title: `${e.name} (${e.area || '台北'} ${e.shift || '早班'})`,
         groupColor: e.groupColor || getGroupColor(e.area || '台北'),
+        employeeNo: e.employeeNo,
       }));
 
       // 員工維度：篩選事件使其與畫面上顯示的員工名單（Resources）精準匹配

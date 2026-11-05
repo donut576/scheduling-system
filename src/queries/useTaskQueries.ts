@@ -25,7 +25,7 @@ export const taskKeys = {
  *
  * Validates: Requirements 4.1, 4.3, 17.5
  */
-export function useTaskList(params: TaskListParams) {
+export function useTaskList(params: TaskListParams, options?: { enabled?: boolean }) {
   return useQuery<PaginatedResponse<Task>>({
     queryKey: taskKeys.list(params),
     queryFn: async ({ signal }) => {
@@ -33,6 +33,7 @@ export function useTaskList(params: TaskListParams) {
       return response.data.data;
     },
     placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
   });
 }
 

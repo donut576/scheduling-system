@@ -20,7 +20,7 @@ import { getAreaShortLabel } from '@/utils/regionMapping';
 import { getFlexibleCardTheme } from '@/utils/flexibleCardTheme';
 import AlertBadge from '@/components/business/AlertBadge';
 import { useIsMobile } from '@/hooks/useMediaQuery';
-import { toResourceInputs, toEventInputs } from './adapters';
+import { toResourceInputs, toEventInputs, fromCalendarResourceId } from './adapters';
 
 export interface ExternalDropArg {
   date: Date;
@@ -149,9 +149,58 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
     () =>
       dimension === 'overview'
         ? []
-        : toResourceInputs(scheduleData?.resources ?? [], dimension, user?.id, user?.name),
-    [dimension, scheduleData?.resources, user?.id, user?.name],
+        : toResourceInputs(scheduleData?.resources ?? [], dimension, user?.employeeNo),
+    [dimension, scheduleData?.resources, user?.employeeNo],
   );
+
+  // 員工維度中「自己」那一列的資源 id（排序用；FullCalendar 排序時只拿得到資源本身，所以用 id 比對最穩）
+  const selfResourceId = useMemo(
+    () => resources.find((r) => (r.extendedProps as { isSelf?: boolean } | undefined)?.isSelf)?.id,
+    [resources],
+  );
+
+  // 把每一列的任務整組在列內上下置中（一個或多個任務都一樣）。
+  // FullCalendar 用 inline 的 top 排任務，純 CSS 置中沒有用，所以量好空白後用 translateY 位移。
+  const centerLaneEvents = useCallback(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    root.querySelectorAll<HTMLElement>('.fc-timeline-lane-frame').forEach((frame) => {
+      const wrap = frame.querySelector<HTMLElement>('.fc-timeline-events');
+      if (!wrap) return;
+      let bottom = 0;
+      wrap.querySelectorAll<HTMLElement>('.fc-timeline-event-harness').forEach((h) => {
+        bottom = Math.max(bottom, h.offsetTop + h.offsetHeight);
+      });
+      const free = bottom > 0 ? frame.clientHeight - bottom : 0;
+      const next = free > 2 ? `translateY(${Math.round(free / 2)}px)` : '';
+      // 值沒變就不要寫入，避免觸發下面的 MutationObserver 無限循環
+      if (wrap.style.transform !== next) wrap.style.transform = next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    let raf = 0;
+    const schedule = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(centerLaneEvents);
+    };
+    const observer = new MutationObserver(schedule);
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class'],
+    });
+    window.addEventListener('resize', schedule);
+    schedule();
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+      window.removeEventListener('resize', schedule);
+    };
+  }, [centerLaneEvents]);
 
   // 依據維度與 viewMode 決定 FullCalendar 視圖
   const effectiveView = useMemo(() => {
@@ -817,7 +866,79 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         </div>
       ) : null;
 
-      const eventCard = flexCard ?? normalCard;
+      // 總覽（月）的彈性任務：和一般任務同為單行、高度 22px；備註不在卡片上顯示（點選後看完整內容）
+      const monthFlexCard =
+        flexTheme && isMonthGrid ? (
+          <div
+            data-testid={`schedule-event-${scheduleEvent.id}`}
+            style={{
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 4,
+              boxSizing: 'border-box',
+              width: '100%',
+              height: 22,
+              padding: '2px 6px',
+              borderRadius: 4,
+              overflow: 'hidden',
+              border: `1px dashed ${flexTheme.border}`,
+              backgroundColor: flexTheme.backgroundColor,
+              backgroundImage: flexTheme.backgroundImage,
+              color: flexTheme.color,
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+              <span
+                style={{
+                  flexShrink: 0,
+                  fontSize: 10,
+                  lineHeight: '14px',
+                  padding: '0 4px',
+                  borderRadius: 2,
+                  backgroundColor: flexTheme.badgeBg,
+                  color: '#ffffff',
+                }}
+              >
+                {t('task.timeModeFlexibleBadge')}
+              </span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {isMakeup ? '【補】' : ''}
+                {scheduleEvent.groupName} · {scheduleEvent.branchName}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+              {timeRemark && (
+                <InfoCircleOutlined
+                  style={{ fontSize: 11 }}
+                  aria-label={t('task.timeRemarkShort')}
+                />
+              )}
+              {scheduleEvent.isRecurring && <span style={{ fontSize: 12, lineHeight: 1 }}>∞</span>}
+            </div>
+            {onDeleteEvent && (
+              <button
+                type="button"
+                className="schedule-event-hover-delete-btn"
+                aria-label="刪除排班任務"
+                title="刪除/移回待排"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onDeleteEvent(scheduleEvent, e);
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        ) : null;
+
+      const eventCard = monthFlexCard ?? flexCard ?? normalCard;
 
       if (!renderEventDetail) {
         return eventCard;
@@ -875,7 +996,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             padding: '4px 6px',
             lineHeight: 1.3,
             overflow: 'hidden',
-            backgroundColor: isSelf ? '#f0f7ff' : 'transparent',
+            backgroundColor: 'transparent', // 自己的底色改由整格（.schedule-self-label）負責
             borderRadius: 4,
           }}
         >
@@ -1195,7 +1316,15 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           width: 100% !important;
         }
         /* 嚴格固定每一行資源列與時間軸軌道的高度一致（統一 64px） */
-        .fc-datagrid-cell-frame {
+        .fc-datagrid-header .fc-datagrid-cell-frame {
+          min-height: 0 !important;
+          padding: 4px 12px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: center !important;
+          box-sizing: border-box !important;
+        }
+        .fc-datagrid-body .fc-datagrid-cell-frame {
           min-height: 64px !important;
           padding: 8px 12px !important;
           display: flex !important;
@@ -1349,10 +1478,23 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           overscroll-behavior: contain !important;
         }
         /* 當前時間紅線樣式：置中清晰顯眼 */
+        .fc-timeline-now-indicator-container,
+        .fc-timegrid-now-indicator-container {
+          z-index: 1 !important;
+        }
         .fc-timeline-now-indicator-line,
         .fc-timegrid-now-indicator-line {
           border-left: 2px solid #ff4d4f !important;
-          z-index: 10 !important;
+          z-index: 1 !important;
+        }
+        .fc-timeline-events,
+        .fc-timegrid-event-harness {
+          z-index: 3 !important;
+        }
+        /* 員工維度：自己的那一列整條淺藍底色 */
+        .fc-timeline-lane.schedule-self-lane,
+        .fc-datagrid-cell.schedule-self-label {
+          background-color: #f0f7ff !important;
         }
         .fc-timeline-now-indicator-arrow,
         .fc-timegrid-now-indicator-arrow {
@@ -1462,7 +1604,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             date: arg.date,
             dateStr: arg.dateStr,
             allDay: arg.allDay,
-            resourceId: arg.resource?.id,
+            resourceId: fromCalendarResourceId(arg.resource?.id),
             draggedEl: arg.draggedEl,
             jsEvent: arg.jsEvent,
           });
@@ -1492,6 +1634,20 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         slotMinWidth={timelineSlotMinWidth}
         resourceAreaWidth={`${resourceAreaWidth}px`}
         resourceAreaHeaderContent={renderResourceAreaHeader}
+        resourceOrder={
+          ((a: { id: string }, b: { id: string }) =>
+            Number(b.id === selfResourceId) - Number(a.id === selfResourceId)) as never
+        }
+        resourceLabelClassNames={(arg) =>
+          (arg.resource.extendedProps as { isSelf?: boolean } | undefined)?.isSelf
+            ? ['schedule-self-label']
+            : []
+        }
+        resourceLaneClassNames={(arg) =>
+          (arg.resource.extendedProps as { isSelf?: boolean } | undefined)?.isSelf
+            ? ['schedule-self-lane']
+            : []
+        }
         height="100%"
         nowIndicator
         now={calendarNow}

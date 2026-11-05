@@ -68,6 +68,8 @@ export interface ScheduleData {
 /** 排班日曆資源列（依維度可為客戶或員工，支援巢狀 children） */
 export interface ScheduleResource {
   id: string;
+  /** 員工維度：工號（用來辨識登入者自己） */
+  employeeNo?: string;
   title: string;
   groupColor?: string;
   children?: ScheduleResource[];

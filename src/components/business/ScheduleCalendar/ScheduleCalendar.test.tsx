@@ -188,7 +188,7 @@ describe('ScheduleCalendar', () => {
     });
   });
 
-  it('shows 當日 badge and the time remark for flexible events', async () => {
+  it('shows 彈性 badge and the time remark for flexible events', async () => {
     const flexibleEvent: ScheduleEvent = {
       ...normalEvent,
       id: 'evt-flex',
@@ -212,7 +212,7 @@ describe('ScheduleCalendar', () => {
     });
 
     const eventEl = screen.getByTestId('schedule-event-evt-flex');
-    expect(eventEl).toHaveTextContent('當日');
+    expect(eventEl).toHaveTextContent('彈性');
     expect(eventEl).toHaveTextContent('12:00–14:00 不可施作');
     expect(eventEl).not.toHaveTextContent('3/10 00:00-23:59');
   });

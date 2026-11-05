@@ -190,10 +190,10 @@ export default {
     timeModeFixed: 'Fixed Time Slot',
     timeModeFlexible: 'Flexible (Within the Day)',
     timeModeFlexibleHint:
-      'Flexible tasks have no start/end time; complete within the day. Shown as "Within the day" on the schedule.',
+      'Flexible tasks have no start/end time; complete within the day. Shown as "Flexible" on the schedule.',
     timeRemark: 'Note (Optional)',
     timeRemarkPlaceholder: 'e.g. Not allowed 12:00–14:00 (customer lunch)',
-    timeModeFlexibleBadge: 'Today',
+    timeModeFlexibleBadge: 'Flexible',
     timeRemarkShort: 'Note: ',
     contentAndAssignees: 'Content & Assignees',
     remarksSection: 'Remarks',
