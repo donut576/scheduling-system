@@ -1,7 +1,7 @@
 import { query } from '../db.js';
 import { validate, parseId } from '../utils/validate.js';
 import { parsePaging, toPage } from '../utils/pagination.js';
-import { getScope, customerScopeCondition, CUSTOMER_REGION_JOIN } from './scope.js';
+import { getScope, customerScopeCondition, customerRegionNamesSql, CUSTOMER_REGION_JOIN } from './scope.js';
 
 const LIST_SCHEMA = {
   keyword: { type: 'string', max: 50 },
@@ -24,6 +24,9 @@ export const mapCustomer = (row) => ({
   groupName: row.group_name,
   branchId: String(row.id),
   branchName: row.name,
+  city: row.city || '',
+  district: row.district || '',
+  regions: row.region_names || [], // 依縣市＋行政區算出的所屬群組（北早、北一晚…）
   address: row.address || '',
   latitude: row.latitude ?? undefined,
   longitude: row.longitude ?? undefined,
@@ -35,7 +38,7 @@ export const mapCustomer = (row) => ({
   remarks: row.remarks || '',
 });
 
-const SELECT_SQL = `SELECT c.id, c.name, c.address, c.latitude::float8 AS latitude, c.longitude::float8 AS longitude,
+const SELECT_SQL = `SELECT c.id, c.name, c.city, c.district, ${customerRegionNamesSql('c')} AS region_names, c.address, c.latitude::float8 AS latitude, c.longitude::float8 AS longitude,
   c.license_restriction, c.license_restriction_note, c.remarks,
   g.id AS group_id, g.name AS group_name, p.name AS contact_name, p.phone AS contact_phone`;
 
@@ -67,6 +70,13 @@ export const listCustomers = async (user, rawQuery) => {
     query(`SELECT count(*)::int AS total ${FROM_SQL} ${whereSql}`, values),
   ]);
   return toPage(rows.rows.map(mapCustomer), total.rows[0].total, paging);
+};
+
+// 單一客戶（套用登入者範圍）；找不到回 null
+export const getCustomer = async (user, id) => {
+  const { whereSql, values } = buildCustomerFilter({}, await getScope(user));
+  const rows = await query(`${SELECT_SQL} ${FROM_SQL} ${whereSql} AND c.id = $${values.length + 1}::bigint`, [...values, parseId(id)]);
+  return rows.rows[0] ? mapCustomer(rows.rows[0]) : null;
 };
 
 // 客戶群組＋底下的分店（新增任務的「集團／分店」下拉用）

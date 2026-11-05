@@ -18,6 +18,10 @@ const areaMatch = (c) => `ra.city = ${c}.city AND (ra.district IS NULL OR ra.dis
 export const CUSTOMER_REGION_JOIN = `LEFT JOIN regions r ON r.id = (
   SELECT ra.region_id FROM region_areas ra WHERE ${areaMatch('c')} ORDER BY ra.region_id LIMIT 1)`;
 
+// 客戶所屬的全部群組名稱（字串陣列；沒有符合的群組時是 NULL）
+export const customerRegionNamesSql = (c) => `(SELECT array_agg(DISTINCT rg.name ORDER BY rg.name)
+  FROM region_areas ra JOIN regions rg ON rg.id = ra.region_id WHERE ${areaMatch(c)})`;
+
 // 客戶是否屬於指定名稱的群組之一。placeholder 是已經放進 values 的參數位置（例如 '$3'，內容是字串陣列）。
 export const customerInRegionNames = (c, placeholder) => `EXISTS (
   SELECT 1 FROM region_areas ra JOIN regions rg ON rg.id = ra.region_id
