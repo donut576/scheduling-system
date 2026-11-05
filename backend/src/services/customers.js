@@ -1,7 +1,7 @@
 import { query } from '../db.js';
 import { validate, parseId } from '../utils/validate.js';
 import { parsePaging, toPage } from '../utils/pagination.js';
-import { getScope, scopeCondition } from './scope.js';
+import { getScope, customerScopeCondition, CUSTOMER_REGION_JOIN } from './scope.js';
 
 const LIST_SCHEMA = {
   keyword: { type: 'string', max: 50 },
@@ -15,7 +15,7 @@ const LICENSES_BY_RESTRICTION = { NONE: [], PEST_CONTROL: ['PEST_CONTROL'], PROF
 
 const FROM_SQL = `FROM customers c
   JOIN customer_groups g ON g.id = c.group_id
-  LEFT JOIN regions r ON r.id = c.region_id
+  ${CUSTOMER_REGION_JOIN}
   LEFT JOIN customer_contacts p ON p.customer_id = c.id AND p.slot = 1`;
 
 export const mapCustomer = (row) => ({
@@ -43,7 +43,7 @@ const SELECT_SQL = `SELECT c.id, c.name, c.address, c.latitude::float8 AS latitu
 export const buildCustomerFilter = (filters, scope) => {
   const values = [];
   const where = ['c.is_active'];
-  const sc = scopeCondition(scope, 'r.name', values);
+  const sc = customerScopeCondition(scope, values);
   if (sc) where.push(sc);
   if (filters.keyword) {
     values.push(`%${likeEscape(filters.keyword)}%`);

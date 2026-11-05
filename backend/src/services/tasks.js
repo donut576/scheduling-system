@@ -2,7 +2,7 @@ import { query } from '../db.js';
 import { validate, parseId } from '../utils/validate.js';
 import { parsePaging, toPage } from '../utils/pagination.js';
 import { AppError, ERROR_CODES } from '../utils/response.js';
-import { getScope } from './scope.js';
+import { getScope, customerScopeCondition, customerInRegionNames, CUSTOMER_REGION_JOIN } from './scope.js';
 import { hasPermission } from '../middleware/permission.js';
 
 export const TASK_TYPES = ['CONTRACT', 'ONETIME', 'ESR'];
@@ -28,10 +28,8 @@ export const buildTaskFilter = (filters, scope, { onlyScheduled = false } = {}) 
   const values = [];
   const add = (sql, v) => { values.push(v); where.push(sql.replace('?', `$${values.length}`)); };
 
-  if (!scope.all) {
-    if (scope.regionNames.length === 0) where.push('FALSE');
-    else add('r.name = ANY(?::text[])', scope.regionNames);
-  }
+  const sc = customerScopeCondition(scope, values);
+  if (sc) where.push(sc);
   if (onlyScheduled) where.push("t.status NOT IN ('UNSCHEDULED', 'CANCELLED')");
   if (filters.keyword) {
     values.push(`%${likeEscape(filters.keyword)}%`);
@@ -43,7 +41,10 @@ export const buildTaskFilter = (filters, scope, { onlyScheduled = false } = {}) 
   if (filters.status) add('t.status = ?', filters.status);
   if (filters.startDate) add('t.task_date >= ?::date', filters.startDate);
   if (filters.endDate) add('t.task_date <= ?::date', filters.endDate);
-  if (filters.area) add('r.name = ?', filters.area);
+  if (filters.area) {
+    values.push([filters.area]);
+    where.push(customerInRegionNames('c', `$${values.length}`));
+  }
   if (filters.groupId) add('g.id = ?::bigint', parseId(filters.groupId));
   if (filters.branchId) add('c.id = ?::bigint', parseId(filters.branchId));
   return { whereSql: where.length ? `WHERE ${where.join(' AND ')}` : '', values };
@@ -70,7 +71,7 @@ export const BASE_SELECT = `SELECT t.id, t.task_type, t.status, t.alert_status,
 FROM tasks t
 JOIN customers c ON c.id = t.customer_id
 JOIN customer_groups g ON g.id = c.group_id
-LEFT JOIN regions r ON r.id = c.region_id
+${CUSTOMER_REGION_JOIN}
 LEFT JOIN shifts s ON s.id = t.shift_id`;
 
 const iso = (d) => (d instanceof Date ? d.toISOString() : d);
@@ -164,7 +165,7 @@ export const listTasks = async (user, rawQuery) => {
   const sql = `${BASE_SELECT} ${whereSql} ${ORDER_SQL} LIMIT $${n + 1} OFFSET $${n + 2}`;
   const countSql = `SELECT count(*)::int AS total FROM tasks t
     JOIN customers c ON c.id = t.customer_id JOIN customer_groups g ON g.id = c.group_id
-    LEFT JOIN regions r ON r.id = c.region_id ${whereSql}`;
+    ${CUSTOMER_REGION_JOIN} ${whereSql}`;
   const [rows, total] = await Promise.all([
     query(sql, [...values, paging.limit, paging.offset]),
     query(countSql, values),

@@ -1,7 +1,7 @@
 import { query } from '../db.js';
 import { validate, parseId } from '../utils/validate.js';
 import { AppError, ERROR_CODES } from '../utils/response.js';
-import { getScope, scopeCondition } from './scope.js';
+import { getScope, scopeCondition, customerScopeCondition, customerInRegionNames, customerInRegionId, CUSTOMER_REGION_JOIN } from './scope.js';
 import { BASE_SELECT, loadRelations, mapTask } from './tasks.js';
 
 export const DIMENSIONS = ['overview', 'customer', 'employee'];
@@ -56,15 +56,15 @@ const eventsSql = (q, scope) => {
     "t.task_date BETWEEN ($1::date - 1) AND $2::date", // 往前多抓一天，找跨夜任務
   ];
   const add = (sql, v) => { values.push(v); where.push(sql.replace('?', `$${values.length}`)); };
-  const cond = scopeCondition(scope, 'r.name', values);
+  const cond = customerScopeCondition(scope, values);
   if (cond) where.push(cond);
   if (q.groupId && q.dimension === 'customer') add('g.id = ?::bigint', parseId(q.groupId));
   if (q.branchId) add('c.id = ?::bigint', parseId(q.branchId));
   if (q.employeeId) add('EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ?::bigint)', parseId(q.employeeId));
   // 員工維度的轄區、班別是篩「員工列」，不是篩任務
   if (q.dimension !== 'employee') {
-    if (q.area) add('r.name = ?', q.area);
-    if (q.areaId) add('r.id = ?::bigint', parseId(q.areaId));
+    if (q.area) { values.push([q.area]); where.push(customerInRegionNames('c', `$${values.length}`)); }
+    if (q.areaId) { values.push(parseId(q.areaId)); where.push(customerInRegionId('c', `$${values.length}`)); }
     if (q.shift) add('s.name = ?', q.shift);
   }
   return { sql: `${BASE_SELECT} WHERE ${where.join(' AND ')} ORDER BY t.task_date, t.start_time NULLS FIRST, t.id`, values };
@@ -74,14 +74,14 @@ const customerResources = async (q, scope) => {
   const values = [];
   const where = ['c.is_active'];
   const add = (sql, v) => { values.push(v); where.push(sql.replace('?', `$${values.length}`)); };
-  const cond = scopeCondition(scope, 'r.name', values);
+  const cond = customerScopeCondition(scope, values);
   if (cond) where.push(cond);
   if (q.groupId) add('g.id = ?::bigint', parseId(q.groupId));
   if (q.branchId) add('c.id = ?::bigint', parseId(q.branchId));
-  if (q.area) add('r.name = ?', q.area);
-  if (q.areaId) add('r.id = ?::bigint', parseId(q.areaId));
+  if (q.area) { values.push([q.area]); where.push(customerInRegionNames('c', `$${values.length}`)); }
+  if (q.areaId) { values.push(parseId(q.areaId)); where.push(customerInRegionId('c', `$${values.length}`)); }
   const rows = await query(`SELECT g.id AS gid, g.name AS gname, c.id AS cid, c.name AS cname, r.color
-    FROM customers c JOIN customer_groups g ON g.id = c.group_id LEFT JOIN regions r ON r.id = c.region_id
+    FROM customers c JOIN customer_groups g ON g.id = c.group_id ${CUSTOMER_REGION_JOIN}
     WHERE ${where.join(' AND ')} ORDER BY g.id, c.id`, values);
   const groups = new Map();
   for (const r of rows.rows) {
@@ -127,7 +127,7 @@ export const getSchedule = async (user, rawQuery) => {
   const ids = taskRows.map((r) => r.id);
   const customerIds = [...new Set(taskRows.map((r) => r.customer_id))];
   const [colors, alerts] = taskRows.length === 0 ? [{ rows: [] }, { rows: [] }] : await Promise.all([
-    query('SELECT c.id, r.color FROM customers c LEFT JOIN regions r ON r.id = c.region_id WHERE c.id = ANY($1::bigint[])', [customerIds]),
+    query(`SELECT c.id, r.color FROM customers c ${CUSTOMER_REGION_JOIN} WHERE c.id = ANY($1::bigint[])`, [customerIds]),
     query(`SELECT task_id, string_agg(message, '；' ORDER BY id) AS reason FROM task_alerts
            WHERE task_id = ANY($1::bigint[]) GROUP BY task_id`, [ids]),
   ]);

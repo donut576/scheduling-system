@@ -2,12 +2,21 @@
 -- 命名：snake_case、複數表名；主鍵 id（bigint identity）；時間用 timestamptz；日期用 date
 
 -- ========== 1. 字典表（取代前端寫死的列舉）==========
-CREATE TABLE regions (            -- 轄區（即組別）：例 北一區、北二區、桃一區；同區的早班／午班共用顏色
+CREATE TABLE regions (            -- 群組（舊稱轄區）：北早、北一晚、北二晚、桃一早、桃二早、桃竹晚、中區、嘉義、南區
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name text NOT NULL UNIQUE,
   color text,                     -- 轄區顯示顏色（班表、地圖共用）
   leader_id bigint                -- 負責主任；刻意不加 UNIQUE，保留一位主任管多區的彈性，「一人一區」由後端檢查；稍後補 FK
 );
+-- 群組與行政區的對照：一個行政區可以同時屬於多個群組（例：士林同時屬於北早、北一晚）；
+-- district 為 NULL 代表整個縣市（例：台中市、基隆市）。客戶的群組由客戶的 city、district 比對這張表算出，不再手動選。
+CREATE TABLE region_areas (
+  region_id bigint NOT NULL REFERENCES regions(id) ON DELETE CASCADE,
+  city text NOT NULL,             -- 縣市，例：新北市（用「台」不用「臺」，與前端一致）
+  district text,                  -- 行政區，例：淡水區；NULL = 整個縣市
+  UNIQUE NULLS NOT DISTINCT (region_id, city, district)
+);
+CREATE INDEX idx_region_areas_area ON region_areas(city, district);
 CREATE TABLE positions (          -- 職位
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   code text NOT NULL UNIQUE,      -- STAFF / CONTRACT_STAFF / LEADER(主任) / MANAGER(副理) / ADMIN_STAFF
@@ -99,7 +108,8 @@ CREATE TABLE customers (          -- 分店／服務場域
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   group_id bigint NOT NULL REFERENCES customer_groups(id),
   name text NOT NULL,
-  region_id bigint REFERENCES regions(id),
+  city text,                      -- 縣市；與 district 一起決定客戶屬於哪些群組（見 region_areas）
+  district text,                  -- 行政區
   address text,
   latitude numeric(9,6), longitude numeric(9,6),
   license_restriction text NOT NULL DEFAULT 'NONE' CHECK (license_restriction IN ('NONE','PEST_CONTROL','PROFESSIONAL','CUSTOM')), -- 無／需施藥／需專技／其他
