@@ -4587,7 +4587,6 @@ export const handlers = [
       employeeIds,
       area,
       taskTypes = ['CONTRACT', 'ONETIME'],
-      overwrite = false,
     } = body;
 
     // 計算來源與目標日期的天數偏移 (Day Offset)
@@ -4716,20 +4715,19 @@ export const handlers = [
       const newDateStr = originalDate.add(dayOffset, 'day').format('YYYY-MM-DD');
 
       // 衝突檢核：若非覆蓋模式，且目標地點在該時段已有任務
-      if (!overwrite) {
-        const hasDuplicate = mockTasks.some((existing) => {
-          if (existing.date !== newDateStr || existing.status === 'CANCELLED') return false;
-          return (
-            existing.branchId === st.branchId &&
-            existing.startTime === st.startTime &&
-            existing.endTime === st.endTime
-          );
-        });
 
-        if (hasDuplicate) {
-          skippedCount++;
-          return;
-        }
+      const hasDuplicate = mockTasks.some((existing) => {
+        if (existing.date !== newDateStr || existing.status === 'CANCELLED') return false;
+        return (
+          existing.branchId === st.branchId &&
+          existing.startTime === st.startTime &&
+          existing.endTime === st.endTime
+        );
+      });
+
+      if (hasDuplicate) {
+        skippedCount++;
+        return;
       }
 
       const newTaskId = `task-copy-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
