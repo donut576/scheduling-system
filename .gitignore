@@ -31,3 +31,8 @@ coverage
 vite.config.d.ts
 vite.config.d.ts.map
 vite.config.js
+
+# 暫存檔
+*.tar.gz
+before.txt
+after.txt

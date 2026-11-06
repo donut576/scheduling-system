@@ -12,6 +12,7 @@ import {
   Radio,
   message,
   theme,
+  Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
@@ -186,8 +187,38 @@ function baseColumns(
       title: statusTitle,
       dataIndex: 'status',
       key: 'status',
-      width: 90,
+      width: 150,
       render: (value, record) => {
+        if (record.rejectReason) {
+          return (
+            <div>
+              <Tag
+                color="#f5222d"
+                style={{ color: '#ffffff', fontWeight: 600, marginInlineEnd: 0 }}
+              >
+                被駁回
+              </Tag>
+              <Tooltip title={`副總駁回：${record.rejectReason}`}>
+                <div
+                  style={{
+                    marginTop: 4,
+                    maxWidth: 140,
+                    fontSize: 12,
+                    lineHeight: 1.4,
+                    textAlign: 'center',
+                    wordBreak: 'break-all',
+                    display: '-webkit-box',
+                    WebkitBoxOrient: 'vertical',
+                    WebkitLineClamp: 3,
+                    overflow: 'hidden',
+                  }}
+                >
+                  駁回：{record.rejectReason}
+                </div>
+              </Tooltip>
+            </div>
+          );
+        }
         if (record.status === 'MODIFIED') {
           return (
             <Tag
@@ -334,7 +365,7 @@ function baseColumns(
         const required = record.headcount || 1;
         if (assignees.length === 0) {
           return (
-            <Tag color="red" style={{ margin: 0, fontSize: 11 }}>
+            <Tag color="red" className="assignee-missing-tag" style={{ margin: 0, fontSize: 11 }}>
               未指派 (0/{required})
             </Tag>
           );
@@ -343,7 +374,11 @@ function baseColumns(
           return (
             <Space size={4} wrap>
               <span>{assignees.map((a) => a.employeeName).join(', ')}</span>
-              <Tag color="orange" style={{ margin: 0, fontSize: 11 }}>
+              <Tag
+                color="orange"
+                className="assignee-missing-tag"
+                style={{ margin: 0, fontSize: 11 }}
+              >
                 缺 {required - assignees.length} 人
               </Tag>
             </Space>

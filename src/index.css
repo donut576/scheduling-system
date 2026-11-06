@@ -651,3 +651,10 @@ tr.row-task-cancelled .ant-tag {
 .task-table-center .ant-table-thead > tr > th > div {
   justify-content: center;
 }
+/* 被駁回／更改列裡，淺色標籤（例如「未指派」「缺 N 人」）維持紅字，不被改成白字 */
+.ant-table-wrapper tr.row-modified-pending .ant-tag.assignee-missing-tag,
+.ant-table-wrapper tr.row-modified-pending .ant-tag.assignee-missing-tag *,
+tr.row-modified-pending .ant-tag.assignee-missing-tag,
+tr.row-modified-pending .ant-tag.assignee-missing-tag * {
+  color: #f5222d !important;
+}
