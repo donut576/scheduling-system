@@ -181,6 +181,7 @@ CREATE TABLE tasks (
 CREATE INDEX idx_tasks_date ON tasks(task_date);
 CREATE INDEX idx_tasks_customer ON tasks(customer_id);
 CREATE INDEX idx_tasks_series ON tasks(series_id);
+CREATE INDEX idx_tasks_status_date ON tasks(status, task_date);
 
 CREATE TABLE task_contents (
   task_id bigint NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -220,6 +221,7 @@ CREATE TABLE task_alerts (        -- 任務違反的警示規則
   details jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX idx_task_alerts_task ON task_alerts(task_id);
 CREATE TABLE approvals (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   task_id bigint NOT NULL REFERENCES tasks(id),
@@ -232,6 +234,8 @@ CREATE TABLE approvals (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX idx_approvals_task   ON approvals(task_id);
+CREATE INDEX idx_approvals_status ON approvals(status, created_at DESC);
 CREATE TABLE approval_steps (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   approval_id bigint NOT NULL REFERENCES approvals(id) ON DELETE CASCADE,
