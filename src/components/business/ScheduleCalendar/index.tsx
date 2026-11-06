@@ -31,6 +31,17 @@ export interface ExternalDropArg {
   jsEvent: MouseEvent;
 }
 
+/** 日曆上的既有任務被拖到別的時間／員工，或被拉長縮短後，通知頁面儲存 */
+export interface EventMoveArg {
+  scheduleEvent: ScheduleEvent;
+  start: Date;
+  end: Date | null;
+  oldResourceId?: string;
+  newResourceId?: string;
+  /** 儲存失敗或取消時，把日曆上的方塊放回原位 */
+  revert: () => void;
+}
+
 export interface ScheduleCalendarProps {
   viewMode: 'day' | 'week' | 'month';
   dimension: ScheduleDimension;
@@ -48,6 +59,7 @@ export interface ScheduleCalendarProps {
   droppable?: boolean;
   onExternalDrop?: (arg: ExternalDropArg) => void;
   editable?: boolean;
+  onEventMove?: (arg: EventMoveArg) => void;
   onEventDragStart?: (event: { id: string; title: string }) => void;
   onEventDragStop?: (info: {
     event: { id: string; title: string; extendedProps?: Record<string, unknown> };
@@ -77,6 +89,7 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   droppable = true,
   onExternalDrop,
   editable = true,
+  onEventMove,
   onEventDragStart,
   onEventDragStop,
   draggingTask,
@@ -1576,6 +1589,44 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         datesSet={handleDatesSet}
         droppable={droppable}
         editable={editable}
+        eventDrop={(info: {
+          event: { start: Date | null; end: Date | null; extendedProps?: Record<string, unknown> };
+          oldResource?: { id: string } | null;
+          newResource?: { id: string } | null;
+          revert: () => void;
+        }) => {
+          const scheduleEvent = info.event.extendedProps?.scheduleEvent as
+            ScheduleEvent | undefined;
+          if (!scheduleEvent || !info.event.start) {
+            info.revert();
+            return;
+          }
+          onEventMove?.({
+            scheduleEvent,
+            start: info.event.start,
+            end: info.event.end,
+            oldResourceId: fromCalendarResourceId(info.oldResource?.id),
+            newResourceId: fromCalendarResourceId(info.newResource?.id),
+            revert: info.revert,
+          });
+        }}
+        eventResize={(info: {
+          event: { start: Date | null; end: Date | null; extendedProps?: Record<string, unknown> };
+          revert: () => void;
+        }) => {
+          const scheduleEvent = info.event.extendedProps?.scheduleEvent as
+            ScheduleEvent | undefined;
+          if (!scheduleEvent || !info.event.start) {
+            info.revert();
+            return;
+          }
+          onEventMove?.({
+            scheduleEvent,
+            start: info.event.start,
+            end: info.event.end,
+            revert: info.revert,
+          });
+        }}
         eventDragStart={(info: { event: { id: string; title: string } }) => {
           onEventDragStart?.(info.event);
         }}
@@ -1615,9 +1666,13 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
             title: string;
             start: Date | null;
             extendedProps?: Record<string, unknown>;
+            remove: () => void;
           };
           draggedEl: HTMLElement;
         }) => {
+          // 待排卡片放下時 FullCalendar 會先暫時建立一個預設 1 小時的方塊，
+          // 真正的方塊由儲存後重新載入的資料畫出，所以這裡把暫時的移除，避免顯示成 1 小時
+          info.event.remove();
           if (info.event.start) {
             onExternalDrop?.({
               date: info.event.start,

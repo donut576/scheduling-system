@@ -28,7 +28,7 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import ScheduleCalendar from '@/components/business/ScheduleCalendar';
-import type { ExternalDropArg } from '@/components/business/ScheduleCalendar';
+import type { ExternalDropArg, EventMoveArg } from '@/components/business/ScheduleCalendar';
 import UnscheduledTasksPanel from '@/components/business/UnscheduledTasksPanel';
 import TaskForm from '@/components/business/TaskForm';
 import CopyScheduleModal from '@/components/business/CopyScheduleModal';
@@ -76,6 +76,7 @@ const getAlertConflict = (err: unknown): { message: string; needsApproval: boole
 const promptOverrideRemark = (
   conflict: { message: string; needsApproval: boolean },
   onSubmit: (remark: string) => Promise<void>,
+  onCancel?: () => void,
 ) => {
   let remark = '';
   Modal.confirm({
@@ -96,6 +97,7 @@ const promptOverrideRemark = (
     ),
     okText: conflict.needsApproval ? '送出核准申請' : '特許放行',
     cancelText: '取消',
+    onCancel,
     onOk: async () => {
       const text = remark.trim();
       if (!text) {
@@ -619,6 +621,65 @@ const SchedulePage: FC = () => {
       await submit();
     },
     [currentView, draggingUnscheduledTask, effectiveDimension, updateTaskMutation],
+  );
+
+  // 日曆上的既有任務被拖到別的時間／員工／分店，或被拉長縮短：儲存到後端（失敗或取消就放回原位）
+  const handleEventMove = useCallback(
+    async (arg: EventMoveArg) => {
+      const se = arg.scheduleEvent;
+      const start = dayjs(arg.start);
+      const oldStart = dayjs(se.start);
+      const oldEnd = dayjs(se.end);
+      const durationMinutes =
+        oldEnd.diff(oldStart, 'minute') > 0 ? oldEnd.diff(oldStart, 'minute') : 120;
+      const end = arg.end ? dayjs(arg.end) : start.add(durationMinutes, 'minute');
+
+      const date = start.format('YYYY-MM-DD');
+      const startTime = start.format('HH:mm');
+      const endTime = end.format('HH:mm');
+      // 班別依開始時間自動判定：06:00–17:59 早班，其餘晚班
+      const startHour = start.hour();
+      const shift = startHour >= 6 && startHour < 18 ? '早班' : '晚班';
+
+      const resourceChanged =
+        arg.newResourceId !== undefined && arg.newResourceId !== arg.oldResourceId;
+      const data: Record<string, unknown> = { date, startTime, endTime, shift };
+      if (resourceChanged && effectiveDimension === 'employee') {
+        // 員工維度：把原本這位員工換成新的員工（新員工已在名單內就只移除原本的）
+        const ids = (se.extendedProps.assignees || []).map((a) => a.employeeId);
+        const replaced = ids.filter((id) => id !== arg.oldResourceId);
+        if (arg.newResourceId && !replaced.includes(arg.newResourceId))
+          replaced.push(arg.newResourceId);
+        data.assignees = replaced;
+      } else if (resourceChanged && effectiveDimension === 'customer') {
+        data.branchId = arg.newResourceId;
+      }
+
+      const submit = async (overrideRemark?: string): Promise<void> => {
+        try {
+          const saved = await updateTaskMutation.mutateAsync({
+            id: se.taskId,
+            data: { ...data, ...(overrideRemark ? { overrideRemark } : {}) },
+          });
+          if (saved?.status === 'PENDING_APPROVAL') {
+            arg.revert();
+            message.info('排班警示，已送出核准申請，經理（副總）核准後才會正式排入班表');
+            return;
+          }
+          message.success('已更新排班');
+        } catch (err) {
+          const conflict = getAlertConflict(err);
+          if (conflict) {
+            promptOverrideRemark(conflict, submit, () => arg.revert());
+            return;
+          }
+          arg.revert();
+          message.error('更新排班失敗，請稍後再試');
+        }
+      };
+      await submit();
+    },
+    [effectiveDimension, updateTaskMutation],
   );
 
   const handleDragStartTask = useCallback((task: Task) => {
@@ -1670,6 +1731,7 @@ const SchedulePage: FC = () => {
                 hasScheduleEdit && effectiveDimension === 'employee' && currentView === 'day'
               }
               onExternalDrop={handleExternalDrop}
+              onEventMove={handleEventMove}
               editable={hasScheduleEdit}
               onEventDragStart={handleEventDragStart}
               onEventDragStop={handleEventDragStop}
