@@ -21,6 +21,8 @@ import { calculateDurationMinutes, getMaxConsecutiveDays, isTimeStringOverlap } 
  * 若客戶要求特定證照，指派的員工中必須至少有一人同時持有所有要求之證照。
  */
 export const checkLicenseRequired: AlertRuleChecker = (task, context) => {
+  // 人數未滿（含沒有指派）時不檢查證照，湊滿人數後才檢查
+  if (task.assignees.length === 0 || task.assignees.length < task.headcount) return null;
   const { customerLicenses, employees } = context;
   // 若客戶無證照要求，或要求清單僅包含 'NONE'，則不需檢查
   if (customerLicenses.length === 0 || customerLicenses.every((l) => l === 'NONE')) return null;
@@ -226,7 +228,6 @@ export const runAlertChecks = (
     checkDailyHoursExceeded,
     checkDuplicateSlot,
     checkDesignatedLeave,
-    checkHeadcountBelowMin,
   ];
 
   // 逐一執行每個規則檢查器，過濾掉未違規（null）的結果

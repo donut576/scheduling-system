@@ -5,8 +5,8 @@
  * 以「每 N 週／月／季施作一次」設定，並預覽施作日期供組長確認。
  */
 import React, { useCallback, useMemo } from 'react';
-import { Radio, InputNumber, Checkbox, DatePicker, Space, Typography, Alert } from 'antd';
-import type { RadioChangeEvent, GetProp } from 'antd';
+import { Radio, InputNumber, DatePicker, Space, Typography, Alert } from 'antd';
+import type { RadioChangeEvent } from 'antd';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { RecurrenceRule } from '@/types/task';
@@ -29,7 +29,15 @@ const MAX_INTERVAL: Record<Unit, number> = { weekly: 52, monthly: 12, quarterly:
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 const PREVIEW_COUNT = 5;
 
-const DEFAULT_RULE: RecurrenceRule = { frequency: 'weekly', interval: 1, endType: 'never' };
+// 循環任務一定要有結束條件：最多 104 筆，結束日最晚為起始日後 2 年（和後端一致）
+const MAX_OCCURRENCES = 104;
+const MAX_YEARS = 2;
+const DEFAULT_RULE: RecurrenceRule = {
+  frequency: 'weekly',
+  interval: 1,
+  endType: 'count',
+  endCount: 10,
+};
 
 const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({
   value,
@@ -76,7 +84,8 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({
       delete updated.endCount;
     } else if (endType === 'date') {
       delete updated.endCount;
-      if (!updated.endDate) updated.endDate = dayjs().add(1, 'month').format('YYYY-MM-DD');
+      if (!updated.endDate)
+        updated.endDate = (start ?? dayjs()).add(3, 'month').format('YYYY-MM-DD');
     } else {
       delete updated.endDate;
       if (!updated.endCount) updated.endCount = 10;
@@ -162,15 +171,16 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({
           <Text strong style={{ display: 'block', marginBottom: 8 }} id="days-of-week-label">
             {t('recurrence.daysOfWeek')}
           </Text>
-          <Checkbox.Group
-            value={effectiveDays}
-            onChange={(v: GetProp<typeof Checkbox.Group, 'value'>) =>
-              updateRule({ daysOfWeek: v as number[] })
+          <Radio.Group
+            value={effectiveDays[0]}
+            onChange={(e: RadioChangeEvent) =>
+              updateRule({ daysOfWeek: [e.target.value as number] })
             }
             options={[1, 2, 3, 4, 5, 6, 0].map((d) => ({
               label: t(`recurrence.${DAY_KEYS[d]}`),
               value: d,
             }))}
+            optionType="button"
             disabled={disabled}
             aria-labelledby="days-of-week-label"
           />
@@ -205,7 +215,6 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({
           disabled={disabled}
           aria-labelledby="end-type-label"
         >
-          <Radio value="never">{t('recurrence.never')}</Radio>
           <Radio value="date">{t('recurrence.byDate')}</Radio>
           <Radio value="count">{t('recurrence.byCount')}</Radio>
         </Radio.Group>
@@ -220,7 +229,11 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({
             format="YYYY-MM-DD"
             disabled={disabled}
             aria-label={t('recurrence.endDate')}
-            disabledDate={(c) => c && c.isBefore(dayjs(), 'day')}
+            disabledDate={(c) =>
+              Boolean(c) &&
+              (c.isBefore((start ?? dayjs()).add(1, 'day'), 'day') ||
+                c.isAfter((start ?? dayjs()).add(MAX_YEARS, 'year'), 'day'))
+            }
           />
         </Space>
       )}
@@ -229,8 +242,8 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({
         <Space align="center">
           <Text>{t('recurrence.repeat')}</Text>
           <InputNumber
-            min={1}
-            max={999}
+            min={2}
+            max={MAX_OCCURRENCES}
             value={rule.endCount ?? 10}
             onChange={(v) => updateRule({ endCount: v ?? 1 })}
             disabled={disabled}
@@ -240,6 +253,13 @@ const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({
           <Text>{t('recurrence.timesThenEnd')}</Text>
         </Space>
       )}
+
+      <Text type="secondary" style={{ fontSize: 12 }}>
+        {t('recurrence.limitHint', {
+          defaultValue:
+            '最多 104 筆，結束日期最晚為起始日後 2 年；每月沒有的日期（例如 31 號）會改成當月最後一天。',
+        })}
+      </Text>
 
       {unit && (
         <div

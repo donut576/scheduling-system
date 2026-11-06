@@ -37,11 +37,17 @@ export interface Task {
   reportNotes?: string;
   recurrenceId?: string;
   recurrenceRule?: RecurrenceRule;
+  /** 建立循環任務時，後端一次產生的筆數 */
+  recurrenceCount?: number;
   status: TaskStatus;
   isApproved?: boolean;
   isFromPending?: boolean;
   alertStatus: AlertStatus;
   overrideRemark?: string;
+  /** 副總駁回原因；任務回待排區後顯示，重新排班後清除 */
+  rejectReason?: string;
+  /** 駁回時被移除的指派人員姓名 */
+  rejectedAssignees?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -75,6 +81,8 @@ export interface TaskFormData {
   photos?: string[];
   reportNotes?: string;
   recurrence?: RecurrenceRule;
+  /** 循環任務的修改／取消範圍：this = 僅此次；thisAndFuture = 此次及之後 */
+  recurrenceModifyScope?: 'this' | 'thisAndFuture';
   status?: TaskStatus;
   isFromPending?: boolean;
   /** 從待排拖進日曆：後端保存原本的排班欄位 */
@@ -115,7 +123,7 @@ export type TaskType = 'CONTRACT' | 'ONETIME' | 'ESR';
 export type TaskStatus =
   'UNSCHEDULED' | 'SCHEDULED' | 'MODIFIED' | 'CONFIRMED' | 'PENDING_APPROVAL' | 'CANCELLED';
 /** 警示狀態：無警示／有違規／已特許 */
-export type AlertStatus = 'CLEAN' | 'VIOLATED' | 'OVERRIDDEN';
+export type AlertStatus = 'CLEAN' | 'VIOLATED' | 'OVERRIDDEN' | 'REJECTED';
 /** 任務時間類型：固定時段／彈性（當日內完成，不指定時段） */
 export type TimeMode = 'FIXED' | 'FLEXIBLE';
 /** 回報方式：APP 填寫／EDM 電子郵件／紙本回報／拍照存證 */

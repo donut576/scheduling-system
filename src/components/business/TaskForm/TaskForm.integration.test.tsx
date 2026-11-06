@@ -177,20 +177,15 @@ describe('TaskForm integration - 完整任務建立流程', () => {
 
     const endHourSelect = screen.getByRole('combobox', { name: '結束時間 (小時)' });
     await user.click(endHourSelect);
-    await user.type(endHourSelect, '17');
-    await user.click(await screen.findByTitle('17'));
+    await user.type(endHourSelect, '20');
+    await user.click(await screen.findByTitle('20'));
 
     // 班別為必填欄位 (預設已為早班)
     const shiftSelect = screen.getByRole('combobox', { name: '班別' });
     expect(shiftSelect).toBeInTheDocument();
 
-    // 人數：設為 2，但只指派 1 位員工，以確保觸發人數不足違規 (Requirement 7.6)
-    const headcountInput = screen.getByRole('spinbutton', { name: '人數需求' });
-    await user.clear(headcountInput);
-    await user.type(headcountInput, '2');
-
-    // 指派員工：點選測試員工（1 人對 2 人）
-    await user.click(await screen.findByTestId('employee-tag-test-emp-1'));
+    /// 人數維持預設 1，指派 1 位員工；起訖時間拉到 11 小時，觸發單日工時超過 10 小時
+    await user.click(await screen.findByTestId(`employee-tag-${testEmployee.id}`));
 
     // 內容：至少勾選一項
     await user.click(screen.getByRole('checkbox', { name: 'P' }));
@@ -199,9 +194,8 @@ describe('TaskForm integration - 完整任務建立流程', () => {
     await user.click(screen.getByRole('button', { name: '儲存' }));
 
     // 預檢觸發：ConflictPanel（真實元件）顯示 HEADCOUNT_BELOW_MIN 違規 (Requirement 3.8)
-    const violationItem = await screen.findByTestId('violation-item-HEADCOUNT_BELOW_MIN');
+    const violationItem = await screen.findByTestId('violation-item-DAILY_HOURS_EXCEEDED');
     expect(violationItem).toBeInTheDocument();
-    expect(screen.getByText('人數不足')).toBeInTheDocument();
 
     // onSubmit must not have been called yet - blocked by the violation
     expect(onSubmit).not.toHaveBeenCalled();
@@ -224,8 +218,8 @@ describe('TaskForm integration - 完整任務建立流程', () => {
       taskType: 'CONTRACT',
       date: futureDate,
       startTime: '09:00',
-      endTime: '17:00',
-      headcount: 2,
+      endTime: '20:00',
+      headcount: 1,
       contents: ['P'],
       assignees: ['test-emp-1'],
     });

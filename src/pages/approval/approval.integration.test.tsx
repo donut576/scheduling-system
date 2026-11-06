@@ -133,7 +133,7 @@ describe('ApprovalPage integration - 排班變更審批流程', () => {
 
     expect(await screen.findByText('排班變更')).toBeInTheDocument();
 
-    const viewDiffBtn = await screen.findByRole('button', { name: /檢視變更/ });
+    const viewDiffBtn = await screen.findByRole('button', { name: /檢視內容/ });
     await user.click(viewDiffBtn);
     const approveInModal = await screen.findByRole('button', { name: /核准/ });
     await user.click(approveInModal);
@@ -166,7 +166,7 @@ describe('ApprovalPage integration - 排班變更審批流程', () => {
 
     expect(await screen.findByText('班別變更')).toBeInTheDocument();
 
-    const viewDiffBtn = await screen.findByRole('button', { name: /檢視變更/ });
+    const viewDiffBtn = await screen.findByRole('button', { name: /檢視內容/ });
     await user.click(viewDiffBtn);
     const approveInModal = await screen.findByRole('button', { name: /核准/ });
     await user.click(approveInModal);
@@ -208,7 +208,7 @@ describe('ApprovalPage integration - 排班變更審批流程', () => {
 
     expect(await screen.findByText('排班變更')).toBeInTheDocument();
 
-    const viewDiffBtn = await screen.findByRole('button', { name: /檢視變更/ });
+    const viewDiffBtn = await screen.findByRole('button', { name: /檢視內容/ });
     await user.click(viewDiffBtn);
     const rejectInModal = await screen.findByRole('button', { name: /駁回/ });
     await user.click(rejectInModal);
@@ -229,6 +229,6 @@ describe('ApprovalPage integration - 排班變更審批流程', () => {
     await waitFor(() => {
       expect(capturedRejectBody).toEqual({ comment: '人力調度不合理' });
     });
-    expect(await screen.findByText('異動申請已駁回')).toBeInTheDocument();
+    expect(await screen.findByText('特許申請已駁回')).toBeInTheDocument();
   });
 });

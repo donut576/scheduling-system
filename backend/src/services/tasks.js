@@ -30,7 +30,7 @@ export const buildTaskFilter = (filters, scope, { onlyScheduled = false } = {}) 
 
   const sc = customerScopeCondition(scope, values);
   if (sc) where.push(sc);
-  if (onlyScheduled) where.push("t.status NOT IN ('UNSCHEDULED', 'CANCELLED')");
+  if (onlyScheduled) where.push("t.status NOT IN ('UNSCHEDULED', 'CANCELLED', 'PENDING_APPROVAL')");
   if (filters.keyword) {
     values.push(`%${likeEscape(filters.keyword)}%`);
     const p = `$${values.length}`;
@@ -66,7 +66,7 @@ export const BASE_SELECT = `SELECT t.id, t.task_type, t.status, t.alert_status,
   (t.is_overnight OR COALESCE(t.end_time < t.start_time, FALSE)) AS is_overnight, t.time_remark, t.headcount, s.name AS shift, t.route, t.other_content_note, t.remarks,
   t.is_makeup, to_char(t.original_date, 'YYYY-MM-DD') AS original_date, t.makeup_reason,
   t.report_types, t.report_notes, t.override_remark, t.from_pending_id, t.series_id,
-  t.created_by, t.created_at, t.updated_at,
+  t.created_by, t.created_at, t.updated_at, t.reject_reason, t.rejected_assignees,
   c.id AS customer_id, c.name AS branch_name, g.id AS group_id, g.name AS group_name
 FROM tasks t
 JOIN customers c ON c.id = t.customer_id
@@ -109,6 +109,8 @@ export const mapTask = (row, { contents = [], assignees = [], series = null } = 
   isFromPending: row.from_pending_id != null,
   alertStatus: row.alert_status,
   overrideRemark: row.override_remark || undefined,
+  rejectReason: row.reject_reason || undefined,
+  rejectedAssignees: row.rejected_assignees || undefined,
   createdBy: row.created_by != null ? String(row.created_by) : '',
   createdAt: iso(row.created_at),
   updatedAt: iso(row.updated_at),

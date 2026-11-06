@@ -86,7 +86,7 @@ const EmployeeSelect: React.FC<EmployeeSelectProps> = ({
     }));
   }, [t]);
 
-  // 班別選項（早班、午班、晚班、大夜班）
+  // 班別選項（早班、晚班）
   const shiftOptions = useMemo(() => {
     const map: Record<string, string> = {
       早班: t('task.shifts.morning'),

@@ -26,6 +26,7 @@ import { useScheduleData } from '@/queries/useScheduleQueries';
 import { useApprovalList } from '@/queries/useApprovalQueries';
 import { useNotificationList } from '@/queries/useNotificationQueries';
 import { useUserStore } from '@/stores/useUserStore';
+import { usePermissionStore } from '@/stores/usePermissionStore';
 import { APPROVAL_TYPE_MAP } from '@/constants/approvalTypes';
 import { NOTIFICATION_TYPE_MAP, NOTIFICATION_STATUS_MAP } from '@/constants/notificationTypes';
 import { getToday, formatDateTime } from '@/utils/date';
@@ -48,6 +49,7 @@ const DashboardPage: FC = () => {
   const today = getToday();
   const user = useUserStore((state) => state.user);
   const role = user?.role || 'ADMIN';
+  const hasPermission = usePermissionStore((state) => state.hasPermission);
   const isStaff = role === 'STAFF';
 
   // 特許覆蓋通知彈窗狀態
@@ -95,12 +97,15 @@ const DashboardPage: FC = () => {
   }, [relevantTodayEvents.length, overriddenEvents.length]);
 
   // 2. 待審核項目
-  const { data: approvalData, isLoading: approvalLoading } = useApprovalList({
-    page: 1,
-    pageSize: 5,
-    status: 'PENDING',
-    requestedBy: role === 'LEADER' && user?.name ? user.name : undefined,
-  });
+  const { data: approvalData, isLoading: approvalLoading } = useApprovalList(
+    {
+      page: 1,
+      pageSize: 5,
+      status: 'PENDING',
+      requestedBy: role === 'LEADER' && user?.name ? user.name : undefined,
+    },
+    { enabled: hasPermission('approval:view') },
+  );
   const pendingApprovals = approvalData?.list ?? [];
 
   // 3. 近期發送通知紀錄（近 7 日）

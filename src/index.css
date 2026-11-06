@@ -640,3 +640,21 @@ tr.row-task-cancelled .ant-tag {
   font-size: 20px;
   line-height: 1;
 }
+
+/* 任務列表：標題與內容置中 */
+.task-table-center .ant-table-thead > tr > th,
+.task-table-center .ant-table-tbody > tr > td {
+  text-align: center;
+}
+
+/* 自訂標題（文字＋篩選箭頭）置中 */
+.task-table-center .ant-table-thead > tr > th > div {
+  justify-content: center;
+}
+/* 被駁回／更改列裡，淺色標籤（例如「未指派」「缺 N 人」）維持紅字，不被改成白字 */
+.ant-table-wrapper tr.row-modified-pending .ant-tag.assignee-missing-tag,
+.ant-table-wrapper tr.row-modified-pending .ant-tag.assignee-missing-tag *,
+tr.row-modified-pending .ant-tag.assignee-missing-tag,
+tr.row-modified-pending .ant-tag.assignee-missing-tag * {
+  color: #f5222d !important;
+}

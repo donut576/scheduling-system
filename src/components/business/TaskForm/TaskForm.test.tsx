@@ -289,6 +289,10 @@ describe('TaskForm', () => {
 
     expect(screen.getByRole('radio', { name: '有週期' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: '無週期' })).toBeInTheDocument();
+    // 新增任務預設「無週期」（單次任務）
+    expect(screen.queryByTestId('recurrence-editor')).not.toBeInTheDocument();
+
+    await user.click(screen.getByText('有週期'));
     expect(screen.getByTestId('recurrence-editor')).toBeInTheDocument();
 
     await user.click(screen.getByText('無週期'));
@@ -316,11 +320,13 @@ describe('TaskForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<TaskForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
 
+    await user.click(screen.getByText('有週期'));
     expect(screen.getByTestId('recurrence-editor')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '全部清除' }));
 
-    expect(screen.getByTestId('recurrence-editor')).toBeInTheDocument();
+    // 清除後回到預設「無週期」
+    expect(screen.queryByTestId('recurrence-editor')).not.toBeInTheDocument();
   });
 
   it('shows the free-text note field only when 其他 is checked in 內容', async () => {

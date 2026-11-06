@@ -549,10 +549,11 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                 style={{
                   cursor: 'pointer',
                   borderRadius: 8,
-                  border: '1px solid #e8e8e8',
+                  border: task.rejectReason ? '1px solid #ffa39e' : '1px solid #e8e8e8',
+                  borderLeft: task.rejectReason ? '4px solid #f5222d' : undefined,
                   boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
                   transition: 'all 0.15s ease',
-                  backgroundColor: '#ffffff',
+                  backgroundColor: task.rejectReason ? '#fffafa' : '#ffffff',
                 }}
                 hoverable
                 styles={{
@@ -655,6 +656,22 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                     flexWrap: 'wrap',
                   }}
                 >
+                  {task.rejectReason && (
+                    <Tag
+                      color="#f5222d"
+                      style={{
+                        margin: 0,
+                        fontSize: 11,
+                        lineHeight: '20px',
+                        padding: '0 6px',
+                        fontWeight: 600,
+                        borderRadius: 4,
+                        color: '#ffffff',
+                      }}
+                    >
+                      已駁回
+                    </Tag>
+                  )}
                   {!task.date ? (
                     <Tag
                       color="orange"
@@ -725,6 +742,26 @@ export const UnscheduledTasksPanel: React.FC<UnscheduledTasksPanelProps> = ({
                     </Tag>
                   )}
                 </div>
+                {task.rejectReason && (
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 12,
+                      lineHeight: 1.5,
+                      color: '#cf1322',
+                      background: '#fff1f0',
+                      borderRadius: 6,
+                      padding: '4px 8px',
+                    }}
+                  >
+                    副總駁回：{task.rejectReason}
+                    {task.rejectedAssignees && (
+                      <div style={{ color: '#8c8c8c' }}>
+                        原指派：{task.rejectedAssignees}（已移除）
+                      </div>
+                    )}
+                  </div>
+                )}
               </Card>
             );
           })

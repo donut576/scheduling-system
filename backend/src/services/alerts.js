@@ -6,6 +6,13 @@ import { evaluateAlerts } from './alertRules.js';
 const REQUIRED_BY_RESTRICTION = { PEST_CONTROL: ['PEST_CONTROL'], PROFESSIONAL: ['PROFESSIONAL'] };
 
 export const OVERRIDE_PERMISSION = 'task:override_alert';
+// 有這個權限（目前是經理＝副總、管理員）的人自己就能放行違規；其他人只能送出核准申請
+export const APPROVE_PERMISSION = 'approval:approve';
+export const LICENSE_RULE = 'LICENSE_REQUIRED';
+
+// 有任何警示違規（證照、連續上班、工時、重複排班、指定休假），且登入者不能核准 → 要送副總（經理）核准。
+export const needsApprovalFor = (user, violations) =>
+  violations.length > 0 && !hasPermission(user, APPROVE_PERMISSION);
 
 // 從資料庫載入檢查需要的資料。注意：這裡查的是這些員工「全部」的任務，不套用登入者的可視範圍，
 // 否則看不到的轄區任務會造成漏判。
@@ -58,22 +65,44 @@ export const runAlerts = async (q, state) => {
   return evaluateAlerts({ ...state, requiredLicenses }, ctx);
 };
 
-const conflictError = (violations) => {
-  const onlyLicense = violations.every((v) => v.ruleId === 'LICENSE_REQUIRED');
+const conflictError = (user, violations) => {
+  const onlyLicense = violations.every((v) => v.ruleId === LICENSE_RULE);
   const code = onlyLicense ? ERROR_CODES.LICENSE_CONFLICT : ERROR_CODES.SCHEDULE_CONFLICT;
   const text = violations.map((v) => v.message).join('；');
-  return new AppError(422, code, `排班警示：${text}（如需放行請填寫特許備註）`, violations);
+  const hint = needsApprovalFor(user, violations)
+    ? '需經理（副總）核准，請填寫申請備註後送出核准'
+    : '如需放行請填寫特許備註';
+  return new AppError(422, code, `排班警示：${text}（${hint}）`, violations);
 };
 
 // 存檔前的檢查。沒有違規 → CLEAN；有違規且沒帶特許備註 → 422；帶了備註但沒有特許權限 → 403。
+// 帶了備註且有違規、登入者不能核准 → alertStatus 為 VIOLATED、needsApproval 為 true（任務存成「待核准」並建立核准申請）。
 export const enforceAlerts = async (q, user, state, overrideRemark) => {
   const result = await runAlerts(q, state);
   if (result.violations.length === 0) return { result, alertStatus: 'CLEAN' };
-  if (!overrideRemark) throw conflictError(result.violations);
+  if (!overrideRemark) throw conflictError(user, result.violations);
   if (!hasPermission(user, OVERRIDE_PERMISSION)) {
     throw new AppError(403, ERROR_CODES.INSUFFICIENT_PERMISSIONS, '權限不足：沒有特許排班警示的權限');
   }
-  return { result, alertStatus: 'OVERRIDDEN' };
+  const needsApproval = needsApprovalFor(user, result.violations);
+  return { result, alertStatus: needsApproval ? 'VIOLATED' : 'OVERRIDDEN', needsApproval };
+};
+
+// 送出核准申請：找一位啟用中的經理當核准人（任何有核准權限的人都能處理，處理時會換成實際核准的人）。
+// 同一任務原本待核准的申請會先撤回。
+export const submitApproval = async (q, by, taskId, violations, remark) => {
+  const mgr = await q(`SELECT u.id FROM users u JOIN roles r ON r.id = u.role_id
+    WHERE r.code = 'MANAGER' AND u.is_active ORDER BY u.id LIMIT 1`);
+  if (mgr.rows.length === 0) {
+    throw new AppError(422, ERROR_CODES.VALIDATION_ERROR, '目前沒有可核准的經理（副總）帳號，無法送出核准申請');
+  }
+  await q(`UPDATE approvals SET status = 'WITHDRAWN', updated_at = now() WHERE task_id = $1::bigint AND status = 'PENDING'`, [taskId]);
+  const ins = await q(`INSERT INTO approvals (task_id, type, requested_by, change_summary, override_remark)
+    VALUES ($1::bigint, 'ALERT_OVERRIDE', $2::bigint, $3, $4) RETURNING id`,
+  [taskId, by, `排班警示特許申請：${violations.map((v) => v.message).join('；')}`, remark]);
+  await q('INSERT INTO approval_steps (approval_id, step_no, approver_id) VALUES ($1::bigint, 1, $2::bigint)',
+    [ins.rows[0].id, mgr.rows[0].id]);
+  return ins.rows[0].id;
 };
 
 // 把結果寫進資料庫：任務的警示狀態、違規清單（task_alerts）；特許時另記稽核紀錄（audit_logs）

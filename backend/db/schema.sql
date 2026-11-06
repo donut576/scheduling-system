@@ -152,7 +152,7 @@ CREATE TABLE tasks (
   task_type text NOT NULL CHECK (task_type IN ('CONTRACT','ONETIME','ESR')),
   status text NOT NULL DEFAULT 'UNSCHEDULED'
     CHECK (status IN ('UNSCHEDULED','SCHEDULED','MODIFIED','CONFIRMED','PENDING_APPROVAL','CANCELLED')),
-  alert_status text NOT NULL DEFAULT 'CLEAN' CHECK (alert_status IN ('CLEAN','VIOLATED','OVERRIDDEN')),
+  alert_status text NOT NULL DEFAULT 'CLEAN' CHECK (alert_status IN ('CLEAN','VIOLATED','OVERRIDDEN','REJECTED')),
   task_date date,
   time_mode text NOT NULL DEFAULT 'FIXED' CHECK (time_mode IN ('FIXED','FLEXIBLE')),
   start_time time, end_time time,
@@ -169,6 +169,8 @@ CREATE TABLE tasks (
   report_notes text,
   override_remark text,
   from_pending_id bigint,         -- 稍後補 FK
+  reject_reason text,             -- 副總駁回原因；駁回後任務回待排區，重新排班（已排班）後清除
+  rejected_assignees text,        -- 駁回時被移除的指派人員姓名（頓號分隔），顯示用
   pending_snapshot jsonb,         -- 待排任務第一次拖進日曆前的排班欄位，移回待排時還原
   created_by bigint REFERENCES users(id),
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -179,6 +181,7 @@ CREATE TABLE tasks (
 CREATE INDEX idx_tasks_date ON tasks(task_date);
 CREATE INDEX idx_tasks_customer ON tasks(customer_id);
 CREATE INDEX idx_tasks_series ON tasks(series_id);
+CREATE INDEX idx_tasks_status_date ON tasks(status, task_date);
 
 CREATE TABLE task_contents (
   task_id bigint NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -218,6 +221,7 @@ CREATE TABLE task_alerts (        -- 任務違反的警示規則
   details jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX idx_task_alerts_task ON task_alerts(task_id);
 CREATE TABLE approvals (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   task_id bigint NOT NULL REFERENCES tasks(id),
@@ -230,6 +234,8 @@ CREATE TABLE approvals (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX idx_approvals_task   ON approvals(task_id);
+CREATE INDEX idx_approvals_status ON approvals(status, created_at DESC);
 CREATE TABLE approval_steps (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   approval_id bigint NOT NULL REFERENCES approvals(id) ON DELETE CASCADE,

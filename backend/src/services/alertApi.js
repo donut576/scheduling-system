@@ -3,7 +3,7 @@ import { validate, parseId } from '../utils/validate.js';
 import { AppError, ERROR_CODES } from '../utils/response.js';
 import { hasPermission } from '../middleware/permission.js';
 import { getScope, customerScopeCondition } from './scope.js';
-import { runAlerts, recordAlerts, OVERRIDE_PERMISSION } from './alerts.js';
+import { runAlerts, recordAlerts, submitApproval, needsApprovalFor, OVERRIDE_PERMISSION } from './alerts.js';
 import { BODY_SCHEMA, fail, requireCustomer, assigneeIds, currentUserId } from './taskWrite.js';
 
 const notFound = () => new AppError(404, ERROR_CODES.TASK_NOT_FOUND, '找不到此任務');
@@ -65,7 +65,8 @@ export const validateTask = async (user, id, raw) => {
       throw fail('資料驗證失敗：固定時段必須填寫開始與結束時間');
     }
     const result = await runAlerts(q, state);
-    return { ...result, canOverride: hasPermission(user, OVERRIDE_PERMISSION) };
+    // needsApproval：有違規、登入者又不能核准 → 存檔時會變成「待核准」，要送經理（副總）核准
+    return { ...result, canOverride: hasPermission(user, OVERRIDE_PERMISSION), needsApproval: needsApprovalFor(user, result.violations) };
   });
 };
 
@@ -80,10 +81,18 @@ export const overrideWarning = async (user, id, remark) => {
   await withTransaction(async (q) => {
     const state = await loadTaskState(q, scope, taskId, true);
     if (state.status === 'CANCELLED') throw fail('已取消的任務不能修改');
+    if (state.status === 'PENDING_APPROVAL') throw fail('此任務已送出核准申請，請等待經理（副總）處理');
     const result = await runAlerts(q, state);
     if (result.violations.length === 0) throw fail('此任務目前沒有排班警示，不需要特許');
-    await q('UPDATE tasks SET override_remark = $2, updated_at = now() WHERE id = $1::bigint', [taskId, text]);
     const by = await currentUserId(q, user);
+    if (needsApprovalFor(user, result.violations)) {
+      // 有違規且不能自己核准：改成送核准申請，任務變成「待核准」
+      await q(`UPDATE tasks SET override_remark = $2, status = 'PENDING_APPROVAL', updated_at = now() WHERE id = $1::bigint`, [taskId, text]);
+      await recordAlerts(q, by, taskId, { result, alertStatus: 'VIOLATED' }, text);
+      await submitApproval(q, by, taskId, result.violations, text);
+      return;
+    }
+    await q('UPDATE tasks SET override_remark = $2, updated_at = now() WHERE id = $1::bigint', [taskId, text]);
     await recordAlerts(q, by, taskId, { result, alertStatus: 'OVERRIDDEN' }, text);
   });
   return null;

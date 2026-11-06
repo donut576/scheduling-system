@@ -46,7 +46,7 @@ export const parseCopyParams = (raw) => {
 // 組出「來源任務」的查詢條件：區間內、非取消、符合任務類型，並套用登入者的轄區範圍。
 export const buildSourceFilter = (p, scope) => {
   const values = [p.sourceStartDate, p.sourceEndDate, p.taskTypes];
-  const where = ["t.status <> 'CANCELLED'", 't.task_date BETWEEN $1::date AND $2::date', 't.task_type = ANY($3::text[])'];
+  const where = ["t.status NOT IN ('CANCELLED', 'PENDING_APPROVAL')", 't.task_date BETWEEN $1::date AND $2::date', 't.task_type = ANY($3::text[])'];
   const sc = customerScopeCondition(scope, values);
   if (sc) where.push(sc);
   if (p.employeeIds) {

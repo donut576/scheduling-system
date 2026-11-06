@@ -75,6 +75,10 @@ export interface PendingCustomer {
   recurrenceRule?: RecurrenceRule;
   isRecurring?: boolean;
   remarks?: string;
+  /** 副總駁回原因（回待排區後顯示，重新排班後清除） */
+  rejectReason?: string;
+  /** 駁回時被移除的指派人員姓名 */
+  rejectedAssignees?: string;
   createdAt: string;
   updatedAt: string;
 }

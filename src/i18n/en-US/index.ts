@@ -624,7 +624,7 @@ export default {
     changedNotNotified: 'Changed & Not Notified',
     center: 'Notification Center',
   },
-  // 異動核准（審批流程）相關文字
+  // 特許核准（審批流程）相關文字
   approval: {
     title: 'Approvals',
     type: 'Type',

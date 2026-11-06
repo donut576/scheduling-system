@@ -7,6 +7,7 @@ import {
   Space,
   Select,
   Modal,
+  Input,
   Tabs,
   Tag,
   Badge,
@@ -27,7 +28,7 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import ScheduleCalendar from '@/components/business/ScheduleCalendar';
-import type { ExternalDropArg } from '@/components/business/ScheduleCalendar';
+import type { ExternalDropArg, EventMoveArg } from '@/components/business/ScheduleCalendar';
 import UnscheduledTasksPanel from '@/components/business/UnscheduledTasksPanel';
 import TaskForm from '@/components/business/TaskForm';
 import CopyScheduleModal from '@/components/business/CopyScheduleModal';
@@ -60,6 +61,55 @@ const { RangePicker } = DatePicker;
  * 日期導覽、模糊搜尋與下拉篩選（全部支援 allowClear 小叉叉清除）、
  * 雙行 Resource 標頭、手勢/滾輪時間縮放以及小卡點擊開啟任務詳情/編輯功能。
  */
+/** 後端回 422 的排班警示（42202 一般警示、42203 證照不符）；其他錯誤回傳 null */
+const getAlertConflict = (err: unknown): { message: string; needsApproval: boolean } | null => {
+  const res = (
+    err as { response?: { status?: number; data?: { code?: number; message?: string } } }
+  )?.response;
+  const code = res?.data?.code;
+  if (res?.status !== 422 || (code !== 42202 && code !== 42203)) return null;
+  const text = res.data?.message ?? '排班警示';
+  return { message: text, needsApproval: text.includes('核准') };
+};
+
+/** 跳出視窗請使用者填寫備註：證照不符＝送出核准申請（經理核准），其他警示＝特許放行 */
+const promptOverrideRemark = (
+  conflict: { message: string; needsApproval: boolean },
+  onSubmit: (remark: string) => Promise<void>,
+  onCancel?: () => void,
+) => {
+  let remark = '';
+  Modal.confirm({
+    title: conflict.needsApproval ? '排班警示：送出核准申請' : '排班警示：需要特許備註',
+    icon: <ExclamationCircleOutlined />,
+    content: (
+      <div>
+        <div style={{ marginBottom: 8 }}>{conflict.message}</div>
+        <Input.TextArea
+          rows={3}
+          maxLength={500}
+          placeholder="請填寫備註（必填）"
+          onChange={(e) => {
+            remark = e.target.value;
+          }}
+        />
+      </div>
+    ),
+    okText: conflict.needsApproval ? '送出核准申請' : '特許放行',
+    cancelText: '取消',
+    onCancel,
+    onOk: async () => {
+      const text = remark.trim();
+      if (!text) {
+        message.warning('請填寫備註');
+        return Promise.reject(new Error('remark required'));
+      }
+      await onSubmit(text);
+      return undefined;
+    },
+  });
+};
+
 const SchedulePage: FC = () => {
   const { t } = useTranslation();
 
@@ -495,18 +545,12 @@ const SchedulePage: FC = () => {
       const newStatus = isFullyStaffed && hasTime ? 'SCHEDULED' : 'UNSCHEDULED';
 
       // 根據開始時間自動判定標準班次：
-      // - 早班：06:00 – 18:00
-      // - 午班：12:00 – 24:00 (00:00)
-      // - 大夜班：18:00 – 06:00 (隔夜)
+      // - 早班：開始時間 06:00 – 17:59
+      // - 晚班：開始時間 18:00 起（含跨夜到凌晨）
       let computedShift = task.shift || '早班';
       if (targetStartTime) {
         const targetStartHour = Number(targetStartTime.split(':')[0]) || 8;
-        computedShift =
-          targetStartHour >= 6 && targetStartHour < 12
-            ? '早班'
-            : targetStartHour >= 12 && targetStartHour < 18
-              ? '午班'
-              : '大夜班';
+        computedShift = targetStartHour >= 6 && targetStartHour < 18 ? '早班' : '晚班';
       }
 
       const isPastDate = Boolean(task.date && dayjs(task.date).isBefore(dayjs(), 'day'));
@@ -517,53 +561,125 @@ const SchedulePage: FC = () => {
         : task.originalDate;
       const makeupReason = isReschedulingToFuture ? '逾期改期補做' : task.makeupReason;
 
-      try {
-        await updateTaskMutation.mutateAsync({
-          id: taskId,
-          data: {
-            groupId: task.groupId,
-            branchId: targetBranchId,
-            taskType: task.taskType,
-            date: targetDate,
-            startTime: targetStartTime,
-            endTime: targetEndTime,
-            headcount: requiredHeadcount,
-            shift: computedShift,
-            route: task.route || '',
-            contents: task.contents || ['P'],
-            otherContentNote: task.otherContentNote,
-            assignees: newAssigneeIds,
-            remarks: task.remarks,
-            isMakeup,
-            originalDate,
-            makeupReason,
-            isFromPending: true,
-            snapshotPending: true, // 後端第一次排班時保存待排原本的排班欄位，移回待排時還原
-            status: newStatus,
-          },
-        });
-        if (newStatus === 'SCHEDULED') {
-          message.success(
-            `已成功將「${task.groupName} - ${task.branchName}」全員指派完成 (${newAssigneeIds.length}/${requiredHeadcount}人)，正式排入班表！`,
-          );
-        } else if (currentView === 'month') {
-          message.info(
-            `已排定「${task.groupName} - ${task.branchName}」施作日期為 ${targetDate}，可切換至日視圖進一步排定時段與指派人員！`,
-          );
-        } else if (effectiveDimension === 'customer') {
-          message.info(
-            `已鎖定「${task.groupName} - ${task.branchName}」施作時段 (${targetStartTime} - ${targetEndTime})，請切換至員工視圖指派人員！`,
-          );
-        } else {
-          message.info(
-            `已指派員工 (${newAssigneeIds.length}/${requiredHeadcount}人)，尚缺 ${requiredHeadcount - newAssigneeIds.length} 人，任務保留於待排清單中，請繼續拖曳指派！`,
-          );
+      const submit = async (overrideRemark?: string): Promise<void> => {
+        try {
+          const saved = await updateTaskMutation.mutateAsync({
+            id: taskId,
+            data: {
+              ...(overrideRemark ? { overrideRemark } : {}),
+              groupId: task.groupId,
+              branchId: targetBranchId,
+              taskType: task.taskType,
+              date: targetDate,
+              startTime: targetStartTime,
+              endTime: targetEndTime,
+              headcount: requiredHeadcount,
+              shift: computedShift,
+              route: task.route || '',
+              contents: task.contents || ['P'],
+              otherContentNote: task.otherContentNote,
+              assignees: newAssigneeIds,
+              remarks: task.remarks,
+              isMakeup,
+              originalDate,
+              makeupReason,
+              isFromPending: true,
+              snapshotPending: true, // 後端第一次排班時保存待排原本的排班欄位，移回待排時還原
+              status: newStatus,
+            },
+          });
+          if (saved?.status === 'PENDING_APPROVAL') {
+            message.info('排班警示，已送出核准申請，經理（副總）核准後才會正式排入班表');
+            return;
+          }
+          if (newStatus === 'SCHEDULED') {
+            message.success(
+              `已成功將「${task.groupName} - ${task.branchName}」全員指派完成 (${newAssigneeIds.length}/${requiredHeadcount}人)，正式排入班表！`,
+            );
+          } else if (currentView === 'month') {
+            message.info(
+              `已排定「${task.groupName} - ${task.branchName}」施作日期為 ${targetDate}，可切換至日視圖進一步排定時段與指派人員！`,
+            );
+          } else if (effectiveDimension === 'customer') {
+            message.info(
+              `已鎖定「${task.groupName} - ${task.branchName}」施作時段 (${targetStartTime} - ${targetEndTime})，請切換至員工視圖指派人員！`,
+            );
+          } else {
+            message.info(
+              `已指派員工 (${newAssigneeIds.length}/${requiredHeadcount}人)，尚缺 ${requiredHeadcount - newAssigneeIds.length} 人，任務保留於待排清單中，請繼續拖曳指派！`,
+            );
+          }
+        } catch (err) {
+          const conflict = getAlertConflict(err);
+          if (conflict) {
+            promptOverrideRemark(conflict, submit);
+            return;
+          }
+          message.error('排班失敗，請稍後再試');
         }
-      } catch {
-        message.error('排班失敗，請稍後再試');
-      }
+      };
+      await submit();
     },
     [currentView, draggingUnscheduledTask, effectiveDimension, updateTaskMutation],
+  );
+
+  // 日曆上的既有任務被拖到別的時間／員工／分店，或被拉長縮短：儲存到後端（失敗或取消就放回原位）
+  const handleEventMove = useCallback(
+    async (arg: EventMoveArg) => {
+      const se = arg.scheduleEvent;
+      const start = dayjs(arg.start);
+      const oldStart = dayjs(se.start);
+      const oldEnd = dayjs(se.end);
+      const durationMinutes =
+        oldEnd.diff(oldStart, 'minute') > 0 ? oldEnd.diff(oldStart, 'minute') : 120;
+      const end = arg.end ? dayjs(arg.end) : start.add(durationMinutes, 'minute');
+
+      const date = start.format('YYYY-MM-DD');
+      const startTime = start.format('HH:mm');
+      const endTime = end.format('HH:mm');
+      // 班別依開始時間自動判定：06:00–17:59 早班，其餘晚班
+      const startHour = start.hour();
+      const shift = startHour >= 6 && startHour < 18 ? '早班' : '晚班';
+
+      const resourceChanged =
+        arg.newResourceId !== undefined && arg.newResourceId !== arg.oldResourceId;
+      const data: Record<string, unknown> = { date, startTime, endTime, shift };
+      if (resourceChanged && effectiveDimension === 'employee') {
+        // 員工維度：把原本這位員工換成新的員工（新員工已在名單內就只移除原本的）
+        const ids = (se.extendedProps.assignees || []).map((a) => a.employeeId);
+        const replaced = ids.filter((id) => id !== arg.oldResourceId);
+        if (arg.newResourceId && !replaced.includes(arg.newResourceId))
+          replaced.push(arg.newResourceId);
+        data.assignees = replaced;
+      } else if (resourceChanged && effectiveDimension === 'customer') {
+        data.branchId = arg.newResourceId;
+      }
+
+      const submit = async (overrideRemark?: string): Promise<void> => {
+        try {
+          const saved = await updateTaskMutation.mutateAsync({
+            id: se.taskId,
+            data: { ...data, ...(overrideRemark ? { overrideRemark } : {}) },
+          });
+          if (saved?.status === 'PENDING_APPROVAL') {
+            arg.revert();
+            message.info('排班警示，已送出核准申請，經理（副總）核准後才會正式排入班表');
+            return;
+          }
+          message.success('已更新排班');
+        } catch (err) {
+          const conflict = getAlertConflict(err);
+          if (conflict) {
+            promptOverrideRemark(conflict, submit, () => arg.revert());
+            return;
+          }
+          arg.revert();
+          message.error('更新排班失敗，請稍後再試');
+        }
+      };
+      await submit();
+    },
+    [effectiveDimension, updateTaskMutation],
   );
 
   const handleDragStartTask = useCallback((task: Task) => {
@@ -1615,6 +1731,7 @@ const SchedulePage: FC = () => {
                 hasScheduleEdit && effectiveDimension === 'employee' && currentView === 'day'
               }
               onExternalDrop={handleExternalDrop}
+              onEventMove={handleEventMove}
               editable={hasScheduleEdit}
               onEventDragStart={handleEventDragStart}
               onEventDragStop={handleEventDragStop}

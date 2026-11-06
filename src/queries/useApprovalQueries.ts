@@ -22,9 +22,10 @@ export const approvalKeys = {
  *
  * Validates: Requirements 13.1, 13.2
  */
-export function useApprovalList(params: ApprovalListParams) {
+export function useApprovalList(params: ApprovalListParams, options?: { enabled?: boolean }) {
   return useQuery<PaginatedResponse<Approval>>({
     queryKey: approvalKeys.list(params),
+    enabled: options?.enabled ?? true,
     queryFn: async ({ signal }) => {
       const response = await approvalApi.list(params, signal);
       return response.data.data;

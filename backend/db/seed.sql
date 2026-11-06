@@ -4,7 +4,7 @@ BEGIN;
 
 INSERT INTO roles (code, name) VALUES ('EMPLOYEE','員工'),('LEADER','主任'),('MANAGER','副理'),('ADMIN','系統管理員');
 INSERT INTO positions (code, name) VALUES ('STAFF','一般員工'),('CONTRACT_STAFF','約聘員工'),('LEADER','主任'),('MANAGER','副理'),('ADMIN_STAFF','行政');
-INSERT INTO shifts (name) VALUES ('早班'),('午班'),('大夜班');  -- 起訖時間待 PE 提供
+INSERT INTO shifts (name) VALUES ('早班'),('晚班');  -- 只有早班、晚班；依開始時間 18:00 分界（起訖時間待 PE 提供）
 INSERT INTO licenses (code, license_name) VALUES ('PROFESSIONAL','專技'),('PEST_CONTROL','施藥'),('FIRE_ANT','火蟻防治'),('SAFETY_6HR','一般安全衛生6小時'),('SAFETY_MANAGER_A','甲級勞安主管'),('SAFETY_MANAGER_B','乙級勞安主管'),('SAFETY_MANAGER_C','丙級勞安主管');
 INSERT INTO service_contents (code, name, is_internal) VALUES ('P','P',false),('R','R',false),('S','S',false),('TERMITE','白蟻',false),('FIRE_ANT','火蟻',false),('BED_BUG','臭蟲',false),('VEHICLE_MAINTENANCE','車輛保養',false),('TRAINING','培訓',true),('OTHER','其他',false);  -- 內部標籤規則待 PE 確認，is_internal 暫定
 INSERT INTO permissions (code, name) VALUES
