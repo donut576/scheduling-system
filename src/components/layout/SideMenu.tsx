@@ -56,7 +56,11 @@ const SideMenu: React.FC<SideMenuProps> = ({ onNavigate }) => {
   const isLeader = user?.role === 'LEADER';
   const isApplicantRole = !canApprove || isLeader || isStaff;
 
-  const { data: pendingStatsData } = useApprovalList({ status: 'PENDING', pageSize: 1 });
+  // 只有能看核准的角色才查（一般員工沒有權限，查了會跳「無此操作權限」）；數量也只有核准人會用到
+  const { data: pendingStatsData } = useApprovalList(
+    { status: 'PENDING', pageSize: 1 },
+    { enabled: !isApplicantRole && hasPermission('approval:view') },
+  );
   const pendingCount = !isApplicantRole ? (pendingStatsData?.total ?? 0) : 0;
 
   // 先將選單樹的 label 依 i18n 翻譯（找不到對應 key 時 fallback 為原始 label）

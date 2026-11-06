@@ -51,7 +51,7 @@ const parseQuery = (raw) => {
 const eventsSql = (q, scope) => {
   const values = [q.startDate, q.endDate];
   const where = [
-    "t.status NOT IN ('UNSCHEDULED', 'CANCELLED')",
+    "t.status NOT IN ('UNSCHEDULED', 'CANCELLED', 'PENDING_APPROVAL')",
     't.task_date IS NOT NULL',
     "t.task_date BETWEEN ($1::date - 1) AND $2::date", // 往前多抓一天，找跨夜任務
   ];

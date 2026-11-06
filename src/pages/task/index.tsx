@@ -9,8 +9,9 @@ import {
   Select,
   DatePicker,
   Tabs,
+  Radio,
   message,
-  Tooltip,
+  theme,
 } from 'antd';
 import {
   PlusOutlined,
@@ -18,7 +19,7 @@ import {
   DownOutlined,
   DownloadOutlined,
   ReloadOutlined,
-  DeleteOutlined,
+  CloseCircleOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -299,7 +300,7 @@ function baseColumns(
       title: t('task.shift'),
       dataIndex: 'shift',
       key: 'shift',
-      width: 100,
+      width: 90,
       render: (value) => getShiftLabel(value as string, t),
       exportHeader: t('task.shift'),
       exportKey: (record) => getShiftLabel(record.shift, t),
@@ -308,7 +309,7 @@ function baseColumns(
       title: t('task.route'),
       dataIndex: 'route',
       key: 'route',
-      width: 100,
+      width: 90,
       ellipsis: true,
       render: (value) => getRouteLabel(value as string, t),
       exportHeader: t('task.route'),
@@ -317,7 +318,7 @@ function baseColumns(
     {
       title: t('task.content'),
       key: 'contents',
-      width: 140,
+      width: 90,
       ellipsis: true,
       render: (_value, record) => formatTaskContents(record.contents, ', ', t),
       exportHeader: t('task.content'),
@@ -370,11 +371,13 @@ function renderTaskCard(record: Task, t: (key: string) => string) {
   const cardClassName =
     record.status === 'CANCELLED'
       ? 'row-task-cancelled'
-      : record.status === 'MODIFIED'
-        ? isApproved
-          ? 'row-modified-approved'
-          : 'row-modified-pending'
-        : '';
+      : record.rejectReason
+        ? 'row-modified-pending'
+        : record.status === 'MODIFIED'
+          ? isApproved
+            ? 'row-modified-approved'
+            : 'row-modified-pending'
+          : '';
   const tagColor =
     record.status === 'MODIFIED'
       ? isApproved
@@ -504,17 +507,20 @@ function buildActionColumn(
   onDeleteClick: (record: Task) => void,
   t: (key: string) => string,
 ): ColumnDef<Task> {
+  const { token } = theme.useToken();
   return {
     title: t('common.actions'),
     key: 'actions',
-    width: 140,
+    width: 200,
+    align: 'center',
     fixed: 'right',
     render: (_value, record) => (
-      <Space size={4}>
+      <Space size={8}>
         <Button
-          type="link"
+          type="text"
           icon={<EditOutlined />}
           aria-label={t('common.edit')}
+          style={{ color: token.colorPrimary }}
           onClick={(e) => {
             e.stopPropagation();
             onEditClick(record);
@@ -522,19 +528,19 @@ function buildActionColumn(
         >
           {t('common.edit')}
         </Button>
-        <Tooltip title="刪除任務">
-          <Button
-            type="text"
-            danger
-            icon={<DeleteOutlined />}
-            aria-label="刪除任務"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeleteClick(record);
-            }}
-            style={{ color: '#ff4d4f' }}
-          />
-        </Tooltip>
+        <Button
+          type="text"
+          danger
+          icon={<CloseCircleOutlined />}
+          aria-label="取消任務"
+          disabled={record.status === 'CANCELLED'}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteClick(record);
+          }}
+        >
+          取消
+        </Button>
       </Space>
     ),
   };
@@ -692,8 +698,12 @@ function TaskPage() {
         await updateMutation.mutateAsync({ id: editingTask.id, data });
         message.success(t('common.saveSuccess'));
       } else {
-        await createMutation.mutateAsync(data);
-        message.success(t('common.createSuccess'));
+        const created = await createMutation.mutateAsync(data);
+        message.success(
+          created?.recurrenceCount
+            ? `已建立 ${created.recurrenceCount} 筆循環任務，請到班表逐筆指派人員`
+            : t('common.createSuccess'),
+        );
       }
       setModalOpen(false);
       setEditingTask(null);
@@ -704,32 +714,50 @@ function TaskPage() {
   // 刪除（取消）任務：顯示防呆確認 Modal，確認後將狀態更新為 CANCELLED
   const handleDeleteTask = useCallback(
     (record: Task) => {
+      // 循環任務：讓使用者選「僅此次」或「此次及之後」
+      let scope: 'this' | 'thisAndFuture' = 'this';
+      const isSeries = Boolean(record.recurrenceId);
       Modal.confirm({
-        title: '確認刪除任務',
+        title: '確認取消任務',
         icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
         content: (
           <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7 }}>
             <div>
-              確定要刪除「
+              確定要取消「
               <strong>
                 {record.groupName} · {record.branchName}
               </strong>
               」這筆任務嗎？
             </div>
             <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 4 }}>
-              刪除後任務狀態將變更為「已取消」，此操作無法復原。
+              取消後任務狀態將變更為「已取消」，此操作無法復原。
             </div>
+            {isSeries && (
+              <Radio.Group
+                defaultValue="this"
+                style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}
+                onChange={(e) => {
+                  scope = e.target.value as 'this' | 'thisAndFuture';
+                }}
+              >
+                <Radio value="this">僅此次（{record.date}）</Radio>
+                <Radio value="thisAndFuture">此次及之後的所有循環任務</Radio>
+              </Radio.Group>
+            )}
           </div>
         ),
-        okText: '確認刪除',
-        cancelText: '取消',
+        okText: '確認取消',
+        cancelText: '返回',
         okButtonProps: { danger: true },
         onOk: async () => {
           await updateMutation.mutateAsync({
             id: record.id,
-            data: { status: 'CANCELLED' } as TaskFormData,
+            data: {
+              status: 'CANCELLED',
+              ...(isSeries ? { recurrenceModifyScope: scope } : {}),
+            } as TaskFormData,
           });
-          message.success('任務已刪除');
+          message.success('任務已取消');
         },
       });
     },
@@ -741,7 +769,6 @@ function TaskPage() {
     const statusOptions = [
       { label: t('task.statusScheduled'), value: 'SCHEDULED' },
       { label: t('task.statusUnscheduled'), value: 'UNSCHEDULED' },
-      { label: t('task.statusModified'), value: 'MODIFIED' },
       { label: t('task.statusCancelled'), value: 'CANCELLED' },
     ];
 
@@ -825,6 +852,10 @@ function TaskPage() {
     if (record.status === 'CANCELLED') {
       return 'row-task-cancelled';
     }
+    // 違規任務被駁回：整列標紅（沿用「更改未核准」的紅色樣式），仍可編輯
+    if (record.rejectReason) {
+      return 'row-modified-pending';
+    }
     if (record.status === 'MODIFIED') {
       return record.isApproved ? 'row-modified-approved' : 'row-modified-pending';
     }
@@ -873,18 +904,18 @@ function TaskPage() {
           </Button>
         </Space>
       </div>
-
-      <BaseTable<Task>
-        columns={tableColumns}
-        queryHook={useCurrentTaskListQuery}
-        onRowClick={handleRowClick}
-        scroll={{ x: 1350 }}
-        cardRender={(record) => renderTaskCard(record, t)}
-        rowKey="id"
-        rowClassName={rowClassName}
-        onPaginationChange={(page, pageSize) => setFilters({ page, pageSize })}
-      />
-
+      <div className="task-table-center">
+        <BaseTable<Task>
+          columns={tableColumns}
+          queryHook={useCurrentTaskListQuery}
+          onRowClick={handleRowClick}
+          scroll={{ x: 1350 }}
+          cardRender={(record) => renderTaskCard(record, t)}
+          rowKey="id"
+          rowClassName={rowClassName}
+          onPaginationChange={(page, pageSize) => setFilters({ page, pageSize })}
+        />
+      </div>
       <Modal
         title={editingTask ? t('task.editTitle') : t('task.createTitle')}
         open={modalOpen}

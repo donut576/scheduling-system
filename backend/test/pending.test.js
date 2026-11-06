@@ -4,7 +4,7 @@ import { mapTaskToPending, assigneeIdsFromBody, toTaskBody } from '../src/servic
 
 const task = (over = {}) => ({
   id: '9', groupId: '2', groupName: '集團', branchId: '8', branchName: '分店', taskType: 'ESR', status: 'UNSCHEDULED',
-  date: '', startTime: '22:00', endTime: '02:00', isOvernight: true, headcount: 1, shift: '大夜班', route: '第三路',
+  date: '', startTime: '22:00', endTime: '02:00', isOvernight: true, headcount: 1, shift: '晚班', route: '第三路',
   contents: ['P'], assignees: [{ employeeId: '5', employeeName: '王', licenses: ['PROFESSIONAL'], area: '台北' }],
   remarks: '', createdAt: '2026-11-04T00:00:00Z', updatedAt: '2026-11-04T00:00:00Z', ...over,
 });

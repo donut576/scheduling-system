@@ -17,11 +17,10 @@ export const TASK_STATUS_MAP: Record<TaskStatus, { label: string; color: string 
   PENDING_APPROVAL: { label: '待核准', color: '#FAAD14' },
 };
 
-/** 任務狀態下拉選單選項（四種主要狀態：已排班、未排班、更改、已取消） */
+/** 任務狀態下拉選單選項（已排班、未排班、已取消） */
 export const TASK_STATUS_OPTIONS: SelectOption[] = [
   { label: '已排班', value: 'SCHEDULED' },
   { label: '未排班', value: 'UNSCHEDULED' },
-  { label: '更改', value: 'MODIFIED' },
   { label: '已取消', value: 'CANCELLED' },
 ];
 
@@ -80,8 +79,7 @@ export const formatTaskContents = (
 // 班次下拉選單假資料（demo 用途，供 useDictStore 預設值使用）
 export const SHIFT_OPTIONS: SelectOption[] = [
   { label: '早班', value: '早班' },
-  { label: '午班', value: '午班' },
-  { label: '大夜班', value: '大夜班' },
+  { label: '晚班', value: '晚班' },
 ];
 
 /** 路線/路次下拉選單選項（第一路、第二路...） */

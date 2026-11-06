@@ -3,7 +3,8 @@ import { validate, parseId } from '../utils/validate.js';
 import { AppError, ERROR_CODES } from '../utils/response.js';
 import { getScope, customerScopeCondition } from './scope.js';
 import { TASK_TYPES, getTask } from './tasks.js';
-import { enforceAlerts, recordAlerts } from './alerts.js';
+import { enforceAlerts, recordAlerts, submitApproval } from './alerts.js';
+import { expandRecurrence } from './recurrence.js';
 
 const REPORT_TYPES = ['APP', 'EDM', 'PAPER', 'PHOTO'];
 
@@ -32,6 +33,8 @@ export const BODY_SCHEMA = {
   // 拖曳排班用：snapshotPending = 從待排拖進日曆（先存下原本的排班欄位）；restorePending = 整筆移回待排（還原排班欄位）
   snapshotPending: { type: 'boolean' },
   restorePending: { type: 'boolean' },
+  // 循環任務的修改／取消範圍：this = 僅此次；thisAndFuture = 此次及之後
+  recurrenceModifyScope: { type: 'enum', values: ['this', 'thisAndFuture'] },
 };
 
 // 修改時，這些欄位傳空字串或 null 代表「清空」（validate 會把空值丟掉，所以要另外記下來）
@@ -48,11 +51,8 @@ export const isFullyScheduled = ({ date, timeMode, startTime, endTime, headcount
 // 新增：條件齊全 → 已排班，否則未排班
 export const statusForCreate = (s) => (isFullyScheduled(s) ? 'SCHEDULED' : 'UNSCHEDULED');
 
-// 修改：條件不齊 → 未排班；原本未排班變齊全 → 已排班；原本已排班的再改動 → 已更改
-export const statusForUpdate = (oldStatus, s) => {
-  if (!isFullyScheduled(s)) return 'UNSCHEDULED';
-  return oldStatus === 'UNSCHEDULED' ? 'SCHEDULED' : 'MODIFIED';
-};
+// 修改：條件齊全 → 已排班，否則未排班（不再有「已更改」狀態，改過的已排任務仍是已排班）
+export const statusForUpdate = (_oldStatus, s) => (isFullyScheduled(s) ? 'SCHEDULED' : 'UNSCHEDULED');
 
 // 固定時段需要起訖時間；結束早於開始 = 跨夜
 export const checkTimes = ({ timeMode, startTime, endTime }) => {
@@ -61,9 +61,12 @@ export const checkTimes = ({ timeMode, startTime, endTime }) => {
   return { startTime, endTime, isOvernight: endTime < startTime };
 };
 
+const hasRecurrence = (raw) => Boolean(raw) && raw.recurrence !== undefined && raw.recurrence !== null;
+
+// 單筆新增與批次排班不能帶循環規則；修改也不能改規則（要改規則請取消之後的任務再重新建立循環）
 const rejectRecurrence = (raw) => {
-  if (raw && raw.recurrence !== undefined && raw.recurrence !== null) {
-    throw fail('循環任務尚未支援，請先取消「循環」後以單筆任務建立');
+  if (hasRecurrence(raw)) {
+    throw fail('這裡不能設定循環規則：新增請用新增任務，修改循環規則請取消之後的任務，再重新建立循環');
   }
 };
 
@@ -144,7 +147,7 @@ export const createTaskTx = async (q, user, scope, raw) => {
   const assigneeIdList = await assigneeIds(q, b.assignees || []);
   const by = await currentUserId(q, user);
   const headcount = b.headcount ?? 1;
-  const status = statusForCreate({
+  const plannedStatus = statusForCreate({
     date: b.date, timeMode, startTime: times.startTime, endTime: times.endTime, headcount, assigneeCount: assigneeIdList.length,
   });
   // 排班警示：有違規又沒帶特許備註 → 422，整筆不會寫入
@@ -152,6 +155,8 @@ export const createTaskTx = async (q, user, scope, raw) => {
     taskId: null, customerId: String(branchId), date: b.date || null, timeMode,
     startTime: times.startTime, endTime: times.endTime, headcount, assigneeIds: assigneeIdList.map(String),
   }, b.overrideRemark);
+  // 證照違規要副總核准：先存成「待核准」，核准後才變已排班，駁回則取消
+  const status = enforced.needsApproval ? 'PENDING_APPROVAL' : plannedStatus;
   const ins = await q(`INSERT INTO tasks (customer_id, task_type, status, task_date, time_mode, start_time, end_time,
       is_overnight, time_remark, headcount, shift_id, route, other_content_note, remarks, is_makeup, original_date,
       makeup_reason, report_types, report_notes, override_remark, created_by)
@@ -164,11 +169,40 @@ export const createTaskTx = async (q, user, scope, raw) => {
   const id = ins.rows[0].id;
   await replaceRelations(q, id, { contentIds, assigneeIdList, by });
   await recordAlerts(q, by, id, enforced, b.overrideRemark);
+  if (enforced.needsApproval) await submitApproval(q, by, id, enforced.result.violations, b.overrideRemark);
   return id;
+};
+
+// 循環任務：依規則一次展開成多筆任務（最多 104 筆），只有第一筆帶指派人員（其餘建好後再逐筆拖曳指派，每筆各自檢查警示）。
+// 全部在同一個交易裡，任何一筆失敗整批不寫入。
+const createRecurringTx = async (q, user, scope, raw) => {
+  const { recurrence, assignees, overrideRemark, ...rest } = raw;
+  const { rule, dates } = expandRecurrence(rest.date, recurrence);
+  const by = await currentUserId(q, user);
+  const days = rule.frequency === 'weekly' ? [rule.dayOfWeek] : null;
+  const series = await q(`INSERT INTO recurrence_series (frequency, interval_n, days_of_week, day_of_month, end_type, end_date, end_count, created_by)
+    VALUES ($1, $2, $3::smallint[], $4, $5, $6::date, $7, $8::bigint) RETURNING id`,
+  [rule.frequency, rule.interval, days, rule.dayOfMonth ?? null, rule.endType, rule.endDate ?? null, rule.endCount ?? null, by]);
+  const seriesId = series.rows[0].id;
+  const ids = [];
+  for (const [i, date] of dates.entries()) {
+    // 只有第一筆帶指派人員（與特許備註，警示只檢查第一筆）；其餘筆建好後再逐筆指派
+    const first = i === 0;
+    // eslint-disable-next-line no-await-in-loop
+    ids.push(await createTaskTx(q, user, scope, {
+      ...rest, date, assignees: first ? (assignees || []) : [], overrideRemark: first ? overrideRemark : undefined,
+    }));
+  }
+  await q('UPDATE tasks SET series_id = $1::bigint WHERE id = ANY($2::bigint[])', [seriesId, ids]);
+  return { firstId: ids[0], count: ids.length };
 };
 
 export const createTask = async (user, raw) => {
   const scope = await getScope(user);
+  if (hasRecurrence(raw)) {
+    const { firstId, count } = await withTransaction((q) => createRecurringTx(q, user, scope, raw));
+    return { ...(await getTask(user, String(firstId))), recurrenceCount: count };
+  }
   const taskId = await withTransaction((q) => createTaskTx(q, user, scope, raw));
   return getTask(user, String(taskId));
 };
@@ -194,7 +228,7 @@ const restoreFields = (snap) => ({
 
 export const updateTaskTx = async (q, user, scope, id, rawInput) => {
   const taskId = parseId(id);
-  rejectRecurrence(rawInput);
+  // 修改時不能改循環規則：raw.recurrence 會被忽略（要改規則請取消之後的任務，再重新建立循環）
   validate(rawInput, BODY_SCHEMA); // 先驗證請求內容（格式錯誤不用查資料庫）
   let raw = rawInput;
   const isCancel = raw && raw.status === 'CANCELLED';
@@ -219,7 +253,13 @@ export const updateTaskTx = async (q, user, scope, id, rawInput) => {
   const b = validate(raw, BODY_SCHEMA);
   const cleared = new Set(CLEARABLE.filter((k) => raw && (raw[k] === '' || raw[k] === null)));
 
+  if (old.status === 'PENDING_APPROVAL' && !isCancel) {
+    throw fail('此任務正在等待副總核准，暫時不能修改；如要取消請直接取消任務');
+  }
+
   if (isCancel) {
+    // 取消時，還在等待的核准申請一併撤回
+    await q(`UPDATE approvals SET status = 'WITHDRAWN', updated_at = now() WHERE task_id = $1::bigint AND status = 'PENDING'`, [taskId]);
     // 取消 = 狀態改為「已取消」；若一併帶了備註（取消原因），就寫進備註
     await q(`UPDATE tasks SET status = 'CANCELLED', remarks = COALESCE($2, remarks), updated_at = now() WHERE id = $1::bigint`,
       [taskId, b.remarks ?? null]);
@@ -242,7 +282,7 @@ export const updateTaskTx = async (q, user, scope, id, rawInput) => {
     .rows.map((r) => r.id);
   const finalAssigneeIds = assigneeIdList ? assigneeIdList.map(String) : oldAssigneeIds;
   const assigneeCount = finalAssigneeIds.length;
-  const status = statusForUpdate(old.status, { date, timeMode, startTime: times.startTime, endTime: times.endTime, headcount, assigneeCount });
+  const plannedStatus = statusForUpdate(old.status, { date, timeMode, startTime: times.startTime, endTime: times.endTime, headcount, assigneeCount });
 
   // 排班警示：只有「客戶、日期、時間、人數、指派人員」其中之一有變動才重新檢查，
   // 這樣只改備註之類的欄位，不會被舊的、已特許過的警示擋住
@@ -256,6 +296,8 @@ export const updateTaskTx = async (q, user, scope, id, rawInput) => {
     taskId: String(taskId), customerId, date: date || null, timeMode,
     startTime: times.startTime, endTime: times.endTime, headcount, assigneeIds: finalAssigneeIds,
   }, cleared.has('overrideRemark') ? null : b.overrideRemark);
+
+  const status = enforced?.needsApproval ? 'PENDING_APPROVAL' : plannedStatus;
 
   let shiftId = old.shift_id;
   if (cleared.has('shift')) shiftId = null;
@@ -292,12 +334,44 @@ export const updateTaskTx = async (q, user, scope, id, rawInput) => {
     await q('UPDATE tasks SET pending_snapshot = $2::jsonb WHERE id = $1::bigint', [taskId, JSON.stringify(snapshotOf(old))]);
   }
   await replaceRelations(q, taskId, { contentIds, assigneeIdList, by });
+  // 重新排班（變回已排班）後，清除駁回提示
+  if (status === 'SCHEDULED') await q('UPDATE tasks SET reject_reason = NULL, rejected_assignees = NULL WHERE id = $1::bigint', [taskId]);
   if (enforced) await recordAlerts(q, by, taskId, enforced, b.overrideRemark);
+  if (enforced?.needsApproval) await submitApproval(q, by, taskId, enforced.result.violations, b.overrideRemark);
+  return taskId;
+};
+
+// 循環任務「此次及之後」：這一筆照一般修改；之後的每一筆只改共同欄位（時段、班別、人數、路線、內容、備註、回報），
+// 不動日期、指派人員、狀態；取消則是之後每一筆都取消。已取消或待核准的任務會略過。
+// 之後某一筆若因為時間或人數改變而違反警示規則，整批不會儲存（請改用「僅此次」逐筆處理）。
+const SHARED_FIELDS = ['timeMode', 'startTime', 'endTime', 'shift', 'headcount', 'route', 'contents', 'otherContentNote',
+  'remarks', 'reportTypes', 'reportNotes'];
+
+const updateSeriesTx = async (q, user, scope, id, raw) => {
+  const taskId = parseId(id);
+  const cur = await q('SELECT series_id, task_date::text AS date FROM tasks WHERE id = $1::bigint', [taskId]);
+  if (cur.rows.length === 0) throw notFound();
+  await updateTaskTx(q, user, scope, id, raw);
+  const { series_id: seriesId, date } = cur.rows[0];
+  if (!seriesId || !date) return taskId;
+  const later = await q(`SELECT id FROM tasks WHERE series_id = $1::bigint AND task_date > $2::date AND id <> $3::bigint
+      AND status NOT IN ('CANCELLED', 'PENDING_APPROVAL') ORDER BY task_date, id`, [seriesId, date, taskId]);
+  const isCancel = raw.status === 'CANCELLED';
+  const shared = isCancel
+    ? { status: 'CANCELLED', ...(raw.remarks ? { remarks: raw.remarks } : {}) }
+    : Object.fromEntries(SHARED_FIELDS.filter((k) => raw[k] !== undefined).map((k) => [k, raw[k]]));
+  if (Object.keys(shared).length === 0) return taskId;
+  for (const row of later.rows) {
+    // eslint-disable-next-line no-await-in-loop
+    await updateTaskTx(q, user, scope, String(row.id), shared);
+  }
   return taskId;
 };
 
 export const updateTask = async (user, id, raw) => {
   const scope = await getScope(user);
-  const taskId = await withTransaction((q) => updateTaskTx(q, user, scope, id, raw));
+  const taskId = await withTransaction((q) => (raw?.recurrenceModifyScope === 'thisAndFuture'
+    ? updateSeriesTx(q, user, scope, id, raw)
+    : updateTaskTx(q, user, scope, id, raw)));
   return getTask(user, taskId);
 };

@@ -704,7 +704,7 @@ const demoEmployees: Employee[] = [
     isActive: true,
   },
 
-  // ===================== 台北 午班 (12:00 ~ 24:00) =====================
+  // ===================== 台北 早班 (12:00 ~ 24:00) =====================
   {
     id: 'emp-004',
     name: '吳建宏',
@@ -712,9 +712,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'E0004',
     position: 'ADMIN_STAFF',
     groupId: 'taipei-afternoon',
-    groupName: '台北 午班',
+    groupName: '台北 早班',
     area: '台北',
-    shift: '午班',
+    shift: '早班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['SAFETY_MANAGER_B'],
@@ -727,9 +727,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'TPA01',
     position: 'LEADER',
     groupId: 'taipei-afternoon',
-    groupName: '台北 午班',
+    groupName: '台北 早班',
     area: '台北',
-    shift: '午班',
+    shift: '早班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
@@ -742,9 +742,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'TPA02',
     position: 'STAFF',
     groupId: 'taipei-afternoon',
-    groupName: '台北 午班',
+    groupName: '台北 早班',
     area: '台北',
-    shift: '午班',
+    shift: '早班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['PEST_CONTROL', 'SAFETY_6HR'],
@@ -757,9 +757,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'TPA03',
     position: 'STAFF',
     groupId: 'taipei-afternoon',
-    groupName: '台北 午班',
+    groupName: '台北 早班',
     area: '台北',
-    shift: '午班',
+    shift: '早班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
@@ -772,9 +772,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'TPA04',
     position: 'STAFF',
     groupId: 'taipei-afternoon',
-    groupName: '台北 午班',
+    groupName: '台北 早班',
     area: '台北',
-    shift: '午班',
+    shift: '早班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'PEST_CONTROL'],
@@ -787,9 +787,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'TPA05',
     position: 'STAFF',
     groupId: 'taipei-afternoon',
-    groupName: '台北 午班',
+    groupName: '台北 早班',
     area: '台北',
-    shift: '午班',
+    shift: '早班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['SAFETY_6HR', 'PEST_CONTROL'],
@@ -802,16 +802,16 @@ const demoEmployees: Employee[] = [
     employeeNo: 'TPA06',
     position: 'STAFF',
     groupId: 'taipei-afternoon',
-    groupName: '台北 午班',
+    groupName: '台北 早班',
     area: '台北',
-    shift: '午班',
+    shift: '早班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'FIRE_ANT'],
     isActive: true,
   },
 
-  // ===================== 台北 大夜班 (18:00 ~ 06:00 隔夜) =====================
+  // ===================== 台北 晚班 (18:00 ~ 06:00 隔夜) =====================
   {
     id: 'emp-002',
     name: '林志豪',
@@ -819,9 +819,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'E0002',
     position: 'LEADER',
     groupId: 'taipei-night',
-    groupName: '台北 大夜班',
+    groupName: '台北 晚班',
     area: '台北',
-    shift: '大夜班',
+    shift: '晚班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
@@ -834,9 +834,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'TPN01',
     position: 'LEADER',
     groupId: 'taipei-night',
-    groupName: '台北 大夜班',
+    groupName: '台北 晚班',
     area: '台北',
-    shift: '大夜班',
+    shift: '晚班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_B'],
@@ -849,9 +849,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'TPN02',
     position: 'STAFF',
     groupId: 'taipei-night',
-    groupName: '台北 大夜班',
+    groupName: '台北 晚班',
     area: '台北',
-    shift: '大夜班',
+    shift: '晚班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'PEST_CONTROL'],
@@ -864,9 +864,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'TPN03',
     position: 'STAFF',
     groupId: 'taipei-night',
-    groupName: '台北 大夜班',
+    groupName: '台北 晚班',
     area: '台北',
-    shift: '大夜班',
+    shift: '晚班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
@@ -879,9 +879,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'TPN04',
     position: 'STAFF',
     groupId: 'taipei-night',
-    groupName: '台北 大夜班',
+    groupName: '台北 晚班',
     area: '台北',
-    shift: '大夜班',
+    shift: '晚班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['FIRE_ANT', 'SAFETY_6HR'],
@@ -894,9 +894,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'TPN05',
     position: 'STAFF',
     groupId: 'taipei-night',
-    groupName: '台北 大夜班',
+    groupName: '台北 晚班',
     area: '台北',
-    shift: '大夜班',
+    shift: '晚班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
@@ -909,9 +909,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'TPN06',
     position: 'STAFF',
     groupId: 'taipei-night',
-    groupName: '台北 大夜班',
+    groupName: '台北 晚班',
     area: '台北',
-    shift: '大夜班',
+    shift: '晚班',
     groupColor: '#7a69c0',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_6HR'],
@@ -925,9 +925,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'E0005',
     position: 'STAFF',
     groupId: 'hsinchu-afternoon',
-    groupName: '新竹 午班',
+    groupName: '新竹 早班',
     area: '新竹',
-    shift: '午班',
+    shift: '早班',
     groupColor: '#69c0a5',
     designatedLeaves: [],
     licenses: ['PROFESSIONAL', 'SAFETY_MANAGER_C'],
@@ -955,9 +955,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'E0007',
     position: 'STAFF',
     groupId: 'hsinchu-afternoon',
-    groupName: '新竹 午班',
+    groupName: '新竹 早班',
     area: '新竹',
-    shift: '午班',
+    shift: '早班',
     groupColor: '#69c0a5',
     designatedLeaves: [],
     licenses: ['SAFETY_6HR'],
@@ -986,9 +986,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'E0009',
     position: 'STAFF',
     groupId: 'taichung-night',
-    groupName: '台中 大夜班',
+    groupName: '台中 晚班',
     area: '台中',
-    shift: '大夜班',
+    shift: '晚班',
     groupColor: '#c09569',
     designatedLeaves: [],
     licenses: ['FIRE_ANT'],
@@ -1017,9 +1017,9 @@ const demoEmployees: Employee[] = [
     employeeNo: 'E0011',
     position: 'STAFF',
     groupId: 'tainan-afternoon',
-    groupName: '台南 午班',
+    groupName: '台南 早班',
     area: '台南',
-    shift: '午班',
+    shift: '早班',
     groupColor: '#c06984',
     designatedLeaves: [],
     licenses: ['PEST_CONTROL'],
@@ -1063,7 +1063,7 @@ const demoTasks: Task[] = [
     endTime: '',
     isOvernight: false,
     headcount: 2,
-    shift: '午班',
+    shift: '早班',
     route: '第三路',
     contents: ['P', 'FIRE_ANT'],
     assignees: [],
@@ -1086,7 +1086,7 @@ const demoTasks: Task[] = [
     endTime: '',
     isOvernight: true,
     headcount: 2,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第四路',
     contents: ['P', 'R'],
     assignees: [],
@@ -1166,7 +1166,7 @@ const demoTasks: Task[] = [
     endTime: '03:00',
     isOvernight: true,
     headcount: 2,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第三路',
     contents: ['P', 'R', 'FIRE_ANT'],
     assignees: [
@@ -1192,7 +1192,7 @@ const demoTasks: Task[] = [
     endTime: '20:00',
     isOvernight: false,
     headcount: 1,
-    shift: '午班',
+    shift: '早班',
     route: '第一路',
     contents: ['BED_BUG'],
     assignees: [
@@ -1248,7 +1248,7 @@ const demoTasks: Task[] = [
     endTime: '20:00',
     isOvernight: false,
     headcount: 2,
-    shift: '午班',
+    shift: '早班',
     route: '第三路',
     contents: ['P', 'TERMITE'],
     assignees: [
@@ -1274,7 +1274,7 @@ const demoTasks: Task[] = [
     endTime: '03:30',
     isOvernight: true,
     headcount: 2,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第四路',
     contents: ['P', 'R'],
     assignees: [
@@ -1300,7 +1300,7 @@ const demoTasks: Task[] = [
     endTime: '03:00',
     isOvernight: true,
     headcount: 2,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第四路',
     contents: ['P', 'R', 'S'],
     assignees: [
@@ -1326,7 +1326,7 @@ const demoTasks: Task[] = [
     endTime: '06:00',
     isOvernight: false,
     headcount: 4,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第五路',
     contents: ['P', 'R', 'TERMITE', 'FIRE_ANT'],
     assignees: [
@@ -1354,7 +1354,7 @@ const demoTasks: Task[] = [
     endTime: '21:30',
     isOvernight: false,
     headcount: 2,
-    shift: '午班',
+    shift: '早班',
     route: '第五路',
     contents: ['P', 'R'],
     assignees: [
@@ -1465,7 +1465,7 @@ const demoTasks: Task[] = [
     endTime: '03:00',
     isOvernight: true,
     headcount: 2,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第四路',
     contents: ['P', 'R', 'BED_BUG'],
     assignees: [
@@ -1491,7 +1491,7 @@ const demoTasks: Task[] = [
     endTime: '03:00',
     isOvernight: true,
     headcount: 2,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第二路',
     contents: ['P', 'R'],
     assignees: [
@@ -1517,7 +1517,7 @@ const demoTasks: Task[] = [
     endTime: '05:30',
     isOvernight: false,
     headcount: 3,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第五路',
     contents: ['P', 'R', 'BED_BUG', 'S'],
     assignees: [
@@ -1545,7 +1545,7 @@ const demoTasks: Task[] = [
     endTime: '05:00',
     isOvernight: false,
     headcount: 2,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第一路',
     contents: ['P', 'BED_BUG'],
     assignees: [
@@ -1670,7 +1670,7 @@ const demoTasks: Task[] = [
     endTime: '20:00',
     isOvernight: false,
     headcount: 2,
-    shift: '午班',
+    shift: '早班',
     route: '第二路',
     contents: ['VEHICLE_MAINTENANCE'],
     assignees: [
@@ -1722,7 +1722,7 @@ const demoTasks: Task[] = [
     endTime: '03:30',
     isOvernight: true,
     headcount: 2,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第四路',
     contents: ['P', 'R'],
     assignees: [
@@ -1748,7 +1748,7 @@ const demoTasks: Task[] = [
     endTime: '05:00',
     isOvernight: false,
     headcount: 2,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第五路',
     contents: ['P', 'R'],
     assignees: [
@@ -1804,7 +1804,7 @@ const demoTasks: Task[] = [
     endTime: '21:00',
     isOvernight: false,
     headcount: 1,
-    shift: '午班',
+    shift: '早班',
     route: '第四路',
     contents: ['P'],
     assignees: [
@@ -1829,7 +1829,7 @@ const demoTasks: Task[] = [
     endTime: '05:00',
     isOvernight: false,
     headcount: 2,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第五路',
     contents: ['P', 'R', 'BED_BUG'],
     assignees: [
@@ -1907,7 +1907,7 @@ const demoTasks: Task[] = [
     endTime: '17:00',
     isOvernight: false,
     headcount: 2,
-    shift: '午班',
+    shift: '早班',
     route: '第二路',
     contents: ['P', 'S'],
     assignees: [
@@ -1982,7 +1982,7 @@ const demoTasks: Task[] = [
     endTime: '18:00',
     isOvernight: false,
     headcount: 1,
-    shift: '午班',
+    shift: '早班',
     route: '第二路',
     contents: ['P', 'R'],
     assignees: [{ employeeId: 'emp-staff', employeeName: 'Demo 員工', licenses: ['PEST_CONTROL'] }],
@@ -2071,15 +2071,15 @@ function normalizeItemShift<T>(item: T): T {
   if (anyItem.shift === '晚班') {
     const startTime = typeof anyItem.startTime === 'string' ? anyItem.startTime : '';
     const sh = startTime ? Number(startTime.split(':')[0]) : 16;
-    anyItem.shift = sh >= 23 || sh < 7 ? '大夜班' : '午班';
+    anyItem.shift = sh >= 23 || sh < 7 ? '晚班' : '早班';
   }
   if (anyItem.groupName && typeof anyItem.groupName === 'string') {
-    anyItem.groupName = anyItem.groupName.replace('晚班', '大夜班');
+    anyItem.groupName = anyItem.groupName.replace('晚班', '晚班');
   }
   if (anyItem.extendedProps && typeof anyItem.extendedProps === 'object') {
     const ext = anyItem.extendedProps as Record<string, unknown>;
     if (ext.shift === '晚班') {
-      ext.shift = '午班';
+      ext.shift = '早班';
     }
   }
   return item;
@@ -2434,7 +2434,7 @@ const defaultPendingCustomers: PendingCustomer[] = [
     startTime: undefined,
     endTime: undefined,
     headcount: 3,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第二路',
     contents: ['P', 'S'],
     assignees: [],
@@ -2453,7 +2453,7 @@ const defaultPendingCustomers: PendingCustomer[] = [
     startTime: undefined,
     endTime: undefined,
     headcount: 2,
-    shift: '午班',
+    shift: '早班',
     route: '第三路',
     contents: ['P', 'FIRE_ANT'],
     assignees: [],
@@ -2510,7 +2510,7 @@ const defaultPendingCustomers: PendingCustomer[] = [
     startTime: undefined,
     endTime: undefined,
     headcount: 2,
-    shift: '午班',
+    shift: '早班',
     route: '第四路',
     contents: ['P', 'R'],
     assignees: [],
@@ -2529,7 +2529,7 @@ const defaultPendingCustomers: PendingCustomer[] = [
     startTime: undefined,
     endTime: undefined,
     headcount: 3,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第五路',
     contents: ['P', 'R', 'TERMITE'],
     assignees: [],
@@ -2567,7 +2567,7 @@ const defaultPendingCustomers: PendingCustomer[] = [
     startTime: undefined,
     endTime: undefined,
     headcount: 2,
-    shift: '午班',
+    shift: '早班',
     route: '第二路',
     contents: ['P', 'FIRE_ANT'],
     assignees: [],
@@ -2586,7 +2586,7 @@ const defaultPendingCustomers: PendingCustomer[] = [
     startTime: undefined,
     endTime: undefined,
     headcount: 2,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第四路',
     contents: ['BED_BUG', 'P'],
     assignees: [],
@@ -2624,7 +2624,7 @@ const defaultPendingCustomers: PendingCustomer[] = [
     startTime: undefined,
     endTime: undefined,
     headcount: 3,
-    shift: '大夜班',
+    shift: '晚班',
     route: '第五路',
     contents: ['P', 'R', 'BED_BUG'],
     assignees: [],
@@ -2681,7 +2681,7 @@ const defaultPendingCustomers: PendingCustomer[] = [
     startTime: undefined,
     endTime: undefined,
     headcount: 2,
-    shift: '午班',
+    shift: '早班',
     route: '第三路',
     contents: ['OTHER'],
     otherContentNote: '戶外造景特約清消',
@@ -3056,7 +3056,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'ONETIME',
-      shift: '午班',
+      shift: '早班',
       assignees: [
         {
           employeeId: 'emp-008',
@@ -3082,7 +3082,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: true,
     extendedProps: {
       taskType: 'CONTRACT',
-      shift: '大夜班',
+      shift: '晚班',
       assignees: [
         {
           employeeId: 'emp-004',
@@ -3136,7 +3136,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'CONTRACT',
-      shift: '午班',
+      shift: '早班',
       assignees: [
         {
           employeeId: 'emp-002',
@@ -3209,7 +3209,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'ONETIME',
-      shift: '午班',
+      shift: '早班',
       assignees: [
         {
           employeeId: 'emp-001',
@@ -3237,7 +3237,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: true,
     extendedProps: {
       taskType: 'CONTRACT',
-      shift: '大夜班',
+      shift: '晚班',
       assignees: [
         {
           employeeId: 'emp-004',
@@ -3286,7 +3286,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'ONETIME',
-      shift: '午班',
+      shift: '早班',
       assignees: [
         { employeeId: 'emp-007', employeeName: '李佩珊', licenses: ['SAFETY_6HR'], area: '新竹' },
       ],
@@ -3397,7 +3397,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
       contents: ['R'],
     },
   },
-  // --- 麥當勞 台北民生店 跨班次交接範例 (大夜 00-06 -> 早班 06-09:30 -> 午班 12-15:30 -> 晚班 16-21) ---
+  // --- 麥當勞 台北民生店 跨班次交接範例 (大夜 00-06 -> 早班 06-09:30 -> 早班 12-15:30 -> 晚班 16-21) ---
   {
     id: 'event-mcd-00',
     taskId: 'task-mcd-00',
@@ -3412,7 +3412,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: true,
     extendedProps: {
       taskType: 'CONTRACT',
-      shift: '大夜班',
+      shift: '晚班',
       assignees: [
         {
           employeeId: 'emp-002',
@@ -3464,7 +3464,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'CONTRACT',
-      shift: '午班',
+      shift: '早班',
       assignees: [
         {
           employeeId: 'emp-001',
@@ -3490,7 +3490,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'CONTRACT',
-      shift: '午班',
+      shift: '早班',
       assignees: [
         {
           employeeId: 'emp-003',
@@ -3516,7 +3516,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'ESR',
-      shift: '午班',
+      shift: '早班',
       assignees: [
         { employeeId: 'emp-009', employeeName: '周冠宇', licenses: ['FIRE_ANT'], area: '台中' },
       ],
@@ -3560,7 +3560,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'ONETIME',
-      shift: '午班',
+      shift: '早班',
       assignees: [
         { employeeId: 'emp-011', employeeName: '許維倫', licenses: ['PEST_CONTROL'], area: '台南' },
       ],
@@ -3630,7 +3630,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'ESR',
-      shift: '午班',
+      shift: '早班',
       assignees: [
         { employeeId: 'emp-003', employeeName: '黃俊傑', licenses: ['PEST_CONTROL'], area: '台北' },
       ],
@@ -3674,7 +3674,7 @@ const defaultScheduleEvents: ScheduleEvent[] = [
     isOvernight: false,
     extendedProps: {
       taskType: 'ONETIME',
-      shift: '午班',
+      shift: '早班',
       assignees: [
         { employeeId: 'emp-007', employeeName: '李佩珊', licenses: ['SAFETY_6HR'], area: '新竹' },
       ],

@@ -33,6 +33,8 @@ export const mapTaskToPending = (t) => ({
   assignees: t.assignees.map((a) => ({ employeeId: a.employeeId, employeeName: a.employeeName })),
   isRecurring: false, // 循環任務尚未支援
   remarks: t.remarks,
+  rejectReason: t.rejectReason,
+  rejectedAssignees: t.rejectedAssignees,
   createdAt: t.createdAt,
   updatedAt: t.updatedAt,
 });

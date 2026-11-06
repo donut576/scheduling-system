@@ -28,7 +28,7 @@ test('篩選：沒有條件且不限範圍時沒有 WHERE', () => {
 
 test('篩選：只看已排班時排除待排與已取消，且不影響其他條件的參數', () => {
   const r = buildTaskFilter({ taskType: 'ESR' }, { all: true }, { onlyScheduled: true });
-  assert.ok(r.whereSql.includes("t.status NOT IN ('UNSCHEDULED', 'CANCELLED')"));
+  assert.ok(r.whereSql.includes("t.status NOT IN ('UNSCHEDULED', 'CANCELLED', 'PENDING_APPROVAL')"));
   assert.deepEqual(r.values, ['ESR']);
   assert.ok(!buildTaskFilter({}, { all: true }).whereSql.includes('NOT IN'));
 });

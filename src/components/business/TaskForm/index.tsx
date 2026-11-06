@@ -103,7 +103,8 @@ const TaskTypeCheckboxGroup: React.FC<TaskTypeCheckboxGroupProps> = ({
 const DEFAULT_RECURRENCE_RULE: RecurrenceRule = {
   frequency: 'weekly',
   interval: 1,
-  endType: 'never',
+  endType: 'count',
+  endCount: 10,
 };
 
 /**
@@ -113,7 +114,10 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
-  const [enableRecurrence, setEnableRecurrence] = useState(true);
+  // 新增預設「無週期」（單次任務）；編輯循環任務時顯示既有規則（唯讀，要改規則請取消之後的任務再重新建立）
+  const [enableRecurrence, setEnableRecurrence] = useState(
+    mode === 'edit' && Boolean(initialData?.recurrenceId),
+  );
   const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule>(
     initialData?.recurrenceRule ?? DEFAULT_RECURRENCE_RULE,
   );
@@ -312,7 +316,15 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
     startDate: currentDate,
     endDate: currentDate,
   });
-  const existingTasks = useMemo(() => existingTaskData?.list ?? [], [existingTaskData]);
+  // 預檢用的既有任務：要排除「正在編輯的這一筆」本身（否則會和自己重複排班），也排除已取消的任務
+  const editingTaskId = mode === 'edit' ? initialData?.id : undefined;
+  const existingTasks = useMemo(
+    () =>
+      (existingTaskData?.list ?? []).filter(
+        (task) => task.id !== editingTaskId && task.status !== 'CANCELLED',
+      ),
+    [existingTaskData, editingTaskId],
+  );
 
   // 國定假日列表，用於日期選擇器紅字標示
   const holidays: string[] = HOLIDAYS_2026;
@@ -557,6 +569,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         route: values.route ?? '',
         contents: values.contents ?? [],
         otherContentNote: isOther ? values.otherContentNote : undefined,
+        // 循環任務建立時，指派人員只會套用到第一筆（其餘筆建好後再逐筆指派）
         assignees: values.assignees ?? [],
         remarks: values.remarks,
         isMakeup: Boolean(values.isMakeup),
@@ -570,12 +583,12 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
         reportTypes: values.reportTypes ?? [],
         photos: isPhotoChecked ? (values.photos ?? []) : [],
         reportNotes: values.reportNotes,
-        recurrence: enableRecurrence ? recurrenceRule : undefined,
+        recurrence: enableRecurrence && mode === 'create' ? recurrenceRule : undefined,
         overrideRemark: overrideRemark || values.overrideRemark,
         status: computedStatus,
       };
     },
-    [form, enableRecurrence, recurrenceRule, shifts],
+    [form, enableRecurrence, recurrenceRule, shifts, mode],
   );
 
   // 處理 ConflictPanel 之覆蓋操作：使用者確認覆蓋違規並輸入備註後呼叫
@@ -713,7 +726,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
   const handleClearAll = useCallback(() => {
     form.resetFields();
     setSelectedGroupId(undefined);
-    setEnableRecurrence(true);
+    setEnableRecurrence(false);
     setRecurrenceRule(DEFAULT_RECURRENCE_RULE);
     setAlertResults(null);
     setStoreAlertResults(null);
@@ -1100,6 +1113,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                 <Radio.Group
                   value={enableRecurrence ? 'yes' : 'no'}
                   onChange={(e) => setEnableRecurrence(e.target.value === 'yes')}
+                  disabled={mode === 'edit'}
                   style={{ marginBottom: enableRecurrence ? 12 : 0 }}
                 >
                   <Radio.Button value="no">{t('task.noRecurrence')}</Radio.Button>
@@ -1120,7 +1134,16 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, initialData, onSubmit, onCanc
                       value={recurrenceRule}
                       onChange={setRecurrenceRule}
                       startDate={currentDate}
+                      disabled={mode === 'edit'}
                     />
+                    {mode === 'create' && (
+                      <Text
+                        type="secondary"
+                        style={{ fontSize: 12, display: 'block', marginTop: 8 }}
+                      >
+                        指派人員只會套用到第一筆，其餘筆請建立後在班表上逐筆拖曳指派。
+                      </Text>
+                    )}
                   </div>
                 )}
               </Form.Item>

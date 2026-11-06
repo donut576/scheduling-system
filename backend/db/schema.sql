@@ -152,7 +152,7 @@ CREATE TABLE tasks (
   task_type text NOT NULL CHECK (task_type IN ('CONTRACT','ONETIME','ESR')),
   status text NOT NULL DEFAULT 'UNSCHEDULED'
     CHECK (status IN ('UNSCHEDULED','SCHEDULED','MODIFIED','CONFIRMED','PENDING_APPROVAL','CANCELLED')),
-  alert_status text NOT NULL DEFAULT 'CLEAN' CHECK (alert_status IN ('CLEAN','VIOLATED','OVERRIDDEN')),
+  alert_status text NOT NULL DEFAULT 'CLEAN' CHECK (alert_status IN ('CLEAN','VIOLATED','OVERRIDDEN','REJECTED')),
   task_date date,
   time_mode text NOT NULL DEFAULT 'FIXED' CHECK (time_mode IN ('FIXED','FLEXIBLE')),
   start_time time, end_time time,
@@ -169,6 +169,8 @@ CREATE TABLE tasks (
   report_notes text,
   override_remark text,
   from_pending_id bigint,         -- 稍後補 FK
+  reject_reason text,             -- 副總駁回原因；駁回後任務回待排區，重新排班（已排班）後清除
+  rejected_assignees text,        -- 駁回時被移除的指派人員姓名（頓號分隔），顯示用
   pending_snapshot jsonb,         -- 待排任務第一次拖進日曆前的排班欄位，移回待排時還原
   created_by bigint REFERENCES users(id),
   created_at timestamptz NOT NULL DEFAULT now(),

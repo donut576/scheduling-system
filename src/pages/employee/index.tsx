@@ -613,8 +613,7 @@ const EmployeePage: FC = () => {
   const localizedShiftOptions = useMemo(
     () => [
       { label: t('task.shifts.morning'), value: '早班' },
-      { label: t('task.shifts.afternoon'), value: '午班' },
-      { label: t('task.shifts.night'), value: '大夜班' },
+      { label: t('task.shifts.evening'), value: '晚班' },
     ],
     [t],
   );

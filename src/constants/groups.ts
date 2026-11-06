@@ -37,8 +37,7 @@ export const AREA_OPTIONS: SelectOption[] = isRealApi ? REGION_GROUP_OPTIONS : L
  */
 export const EMPLOYEE_SHIFT_OPTIONS: SelectOption[] = [
   { label: '早班', value: '早班' },
-  { label: '午班', value: '午班' },
-  { label: '大夜班', value: '大夜班' },
+  { label: '晚班', value: '晚班' },
 ];
 
 export interface EmployeeGroupOption extends SelectOption {

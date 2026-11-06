@@ -24,10 +24,9 @@ test('新增時的狀態', () => {
   assert.equal(statusForCreate({ ...full, assigneeCount: 0 }), 'UNSCHEDULED');
 });
 
-test('修改時的狀態：未排班→已排班；已排班再改→已更改；條件不齊→未排班', () => {
+test('修改時的狀態：未排班→已排班；已排班再改仍是已排班；條件不齊→未排班', () => {
   assert.equal(statusForUpdate('UNSCHEDULED', full), 'SCHEDULED');
-  assert.equal(statusForUpdate('SCHEDULED', full), 'MODIFIED');
-  assert.equal(statusForUpdate('MODIFIED', full), 'MODIFIED');
+  assert.equal(statusForUpdate('SCHEDULED', full), 'SCHEDULED');
   assert.equal(statusForUpdate('SCHEDULED', { ...full, assigneeCount: 0 }), 'UNSCHEDULED');
 });
 
