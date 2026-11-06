@@ -86,7 +86,7 @@ function mockListData(list: Approval[]): PaginatedResponse<Approval> {
 }
 
 /**
- * Unit Tests for 異動核准頁面 (Approval Workflow Page)
+ * Unit Tests for 特許核准頁面 (Approval Workflow Page)
  */
 describe('ApprovalPage', () => {
   beforeEach(() => {
@@ -132,7 +132,7 @@ describe('ApprovalPage', () => {
     } as unknown as ReturnType<typeof useSendNotification>);
   });
 
-  describe('異動核准列表呈現與欄位配置', () => {
+  describe('特許核准列表呈現與欄位配置', () => {
     it('renders table with required columns (申請單編號、狀態、類型、建立時間、申請人、功能)', () => {
       render(<ApprovalPage />);
 
@@ -150,8 +150,8 @@ describe('ApprovalPage', () => {
       expect(screen.getByText('王組長')).toBeInTheDocument();
       expect(screen.getByText('李組長')).toBeInTheDocument();
 
-      // Actions only contain 檢視變更 in table rows
-      expect(screen.getAllByText('檢視變更').length).toBeGreaterThanOrEqual(2);
+      // Actions only contain 檢視內容 in table rows
+      expect(screen.getAllByText('檢視內容').length).toBeGreaterThanOrEqual(2);
     });
 
     it('renders search bar in top left for quick fuzzy search', async () => {
@@ -176,10 +176,10 @@ describe('ApprovalPage', () => {
       const user = userEvent.setup();
       render(<ApprovalPage />);
 
-      const viewButtons = screen.getAllByText('檢視變更');
+      const viewButtons = screen.getAllByText('檢視內容');
       await user.click(viewButtons[0]!);
 
-      expect(screen.getByText('異動變更詳情')).toBeInTheDocument();
+      expect(screen.getByText('特許申請詳情')).toBeInTheDocument();
       expect(screen.getByText('項目對照')).toBeInTheDocument();
       expect(screen.getByText('服務時段')).toBeInTheDocument();
       expect(screen.getByText('09:00 ~ 12:00')).toBeInTheDocument();
@@ -190,7 +190,7 @@ describe('ApprovalPage', () => {
       const user = userEvent.setup();
       render(<ApprovalPage />);
 
-      const viewButtons = screen.getAllByText('檢視變更');
+      const viewButtons = screen.getAllByText('檢視內容');
       await user.click(viewButtons[0]!);
 
       // Click 核准 inside the diff modal
@@ -223,7 +223,7 @@ describe('ApprovalPage', () => {
       const user = userEvent.setup();
       render(<ApprovalPage />);
 
-      const viewButtons = screen.getAllByText('檢視變更');
+      const viewButtons = screen.getAllByText('檢視內容');
       await user.click(viewButtons[0]!);
 
       // Click 駁回 inside the diff modal
@@ -273,7 +273,7 @@ describe('ApprovalPage', () => {
       // Requester column is not rendered for applicant perspective
       expect(screen.queryByText('申請人')).not.toBeInTheDocument();
 
-      const viewButtons = screen.getAllByText('檢視變更');
+      const viewButtons = screen.getAllByText('檢視內容');
       await user.click(viewButtons[0]!);
 
       // Inside modal: no approve or reject button, only 關閉 and 撤回申請

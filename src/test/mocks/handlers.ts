@@ -4363,7 +4363,7 @@ export const handlers = [
       });
     }
 
-    // 同步將該筆異動申請送至「異動核准」列表 (狀態為 PENDING)
+    // 同步將該筆特許申請送至「特許核准」列表 (狀態為 PENDING)
     const newApproval: Approval = {
       id: `approval-${Date.now()}`,
       taskId: updated.id,

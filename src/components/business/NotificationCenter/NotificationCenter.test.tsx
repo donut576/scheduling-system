@@ -96,7 +96,7 @@ describe('NotificationCenter', () => {
     // Type column (via NOTIFICATION_TYPE_MAP)
     expect(screen.getByText('客戶通知')).toBeInTheDocument();
     expect(screen.getByText('員工指派通知')).toBeInTheDocument();
-    expect(screen.getByText('異動核准通知')).toBeInTheDocument();
+    expect(screen.getByText('特許核准通知')).toBeInTheDocument();
 
     // Recipient
     expect(screen.getByText('收件者：藝康股份有限公司')).toBeInTheDocument();

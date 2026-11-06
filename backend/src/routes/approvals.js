@@ -5,7 +5,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ok } from '../utils/response.js';
 import { listApprovals, approve, reject, withdraw } from '../services/approvals.js';
 
-// 異動核准：目前只有「證照不符」的排班特許要核准。核准／駁回由經理（副總）、管理員處理。
+// 特許核准：目前只有「證照不符」的排班特許要核准。核准／駁回由經理（副總）、管理員處理。
 export const approvalsRouter = Router();
 
 approvalsRouter.get('/approvals', requireAuth, requirePermission('approval:view'),

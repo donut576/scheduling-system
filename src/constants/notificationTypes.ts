@@ -12,7 +12,7 @@ export const NOTIFICATION_TYPE_MAP: Record<NotificationType, string> = {
   SCHEDULE_REMINDER: '排班提醒',
   CUSTOMER_NOTIFY: '客戶通知',
   EMPLOYEE_DISPATCH: '員工指派通知',
-  CHANGE_APPROVAL: '異動核准通知',
+  CHANGE_APPROVAL: '特許核准通知',
   APPROVAL_RESULT: '核准結果通知',
 };
 

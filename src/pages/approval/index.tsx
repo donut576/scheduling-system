@@ -40,6 +40,25 @@ import type { ApprovalListParams } from '@/api/approval';
 import { APPROVAL_STATUS_MAP, APPROVAL_TYPE_MAP } from '@/constants/approvalTypes';
 import { formatDateTime } from '@/utils/date';
 import type { Approval } from '@/types/notification';
+
+/** 警示規則中文名稱 */
+const RULE_LABELS: Record<string, string> = {
+  LICENSE_REQUIRED: '證照不符',
+  CONSECUTIVE_DAYS: '連續上班超過 7 天',
+  DAILY_HOURS_EXCEEDED: '單日工時超過 10 小時',
+  DUPLICATE_SLOT: '同時段重複排班',
+  DESIGNATED_LEAVE: '指定休假日被排班',
+};
+const TASK_TYPE_LABELS: Record<string, string> = { CONTRACT: '合約', ONETIME: '單次', ESR: 'ESR' };
+const LICENSE_LABELS: Record<string, string> = {
+  PROFESSIONAL: '專技證照',
+  PEST_CONTROL: '施藥證照',
+  FIRE_ANT: '紅火蟻證照',
+  SAFETY_6HR: '6 小時安衛',
+  SAFETY_MANAGER_A: '安全管理員 A',
+  SAFETY_MANAGER_B: '安全管理員 B',
+  SAFETY_MANAGER_C: '安全管理員 C',
+};
 import type { PaginatedResponse } from '@/types/common';
 
 const { TextArea } = Input;
@@ -209,7 +228,7 @@ function renderApprovalCard(
 }
 
 /**
- * 異動核准 / 申請進度追蹤頁面元件
+ * 特許核准 / 申請進度追蹤頁面元件
  * - 經理／系統管理員（MANAGER / ADMIN）：負責全域案件（任務變更與警示特許）之審核與駁回
  * - 排班組長（LEADER）：負責提出申請與追蹤自己組別的申請進度，並可一鍵撤回待審申請
  */
@@ -809,6 +828,60 @@ const ApprovalPage: FC = () => {
               </Descriptions.Item>
             </Descriptions>
 
+            {/* 任務內容：讓核准的人看得出這筆申請是哪個客戶、什麼時候、誰去 */}
+            {selectedApproval.task && (
+              <div>
+                <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
+                  任務資料
+                </Text>
+                <Descriptions bordered size="small" column={2}>
+                  <Descriptions.Item label="集團／公司・分店" span={2}>
+                    {selectedApproval.task.groupName} · {selectedApproval.task.branchName}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="任務類型">
+                    {TASK_TYPE_LABELS[selectedApproval.task.taskType] ??
+                      selectedApproval.task.taskType}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="日期">
+                    {selectedApproval.task.date || '待排日期'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="班別">
+                    {selectedApproval.task.shift || '—'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="時段">
+                    {selectedApproval.task.timeMode === 'FLEXIBLE'
+                      ? '彈性（當日內完成）'
+                      : selectedApproval.task.startTime
+                        ? `${selectedApproval.task.startTime} ~ ${selectedApproval.task.endTime}${
+                            selectedApproval.task.isOvernight ? '（跨日）' : ''
+                          }`
+                        : '待定'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="人數需求">
+                    {selectedApproval.task.headcount}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="路次">
+                    {selectedApproval.task.route || '—'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="內容" span={2}>
+                    {selectedApproval.task.contents.length > 0
+                      ? selectedApproval.task.contents.join('、')
+                      : '—'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="指派人員" span={2}>
+                    {selectedApproval.task.assignees.length > 0
+                      ? selectedApproval.task.assignees
+                          .map(
+                            (e) =>
+                              `${e.employeeName}（${e.licenses?.length ? e.licenses.map((l) => LICENSE_LABELS[l] ?? l).join('、') : '無證照'}）`,
+                          )
+                          .join('；')
+                      : '尚未指派'}
+                  </Descriptions.Item>
+                </Descriptions>
+              </div>
+            )}
+
             {/* 任務變更差異項目對照 */}
             {selectedApproval.type !== 'ALERT_OVERRIDE' && (
               <div>
@@ -871,13 +944,25 @@ const ApprovalPage: FC = () => {
                     >
                       違反規則：
                     </Text>
-                    {selectedApproval.violatedRules.map((rule, idx) => (
+                    {(selectedApproval.violations && selectedApproval.violations.length > 0
+                      ? selectedApproval.violations.map((v) => ({
+                          key: v.ruleId,
+                          title: RULE_LABELS[v.ruleId] ?? v.ruleId,
+                          detail: v.message,
+                        }))
+                      : selectedApproval.violatedRules.map((rule) => ({
+                          key: rule,
+                          title: RULE_LABELS[rule] ?? rule,
+                          detail: undefined,
+                        }))
+                    ).map((v) => (
                       <Alert
-                        key={idx}
+                        key={v.key}
                         type="warning"
                         showIcon
                         icon={<WarningOutlined />}
-                        message={rule}
+                        message={v.title}
+                        description={v.detail}
                         style={{ marginBottom: 6 }}
                       />
                     ))}

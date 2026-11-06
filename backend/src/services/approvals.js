@@ -5,8 +5,9 @@ import { parsePaging, toPage } from '../utils/pagination.js';
 import { hasPermission } from '../middleware/permission.js';
 import { fail, currentUserId, isFullyScheduled } from './taskWrite.js';
 import { APPROVE_PERMISSION } from './alerts.js';
+import { BASE_SELECT, mapTask, loadRelations } from './tasks.js';
 
-// 異動核准：排班警示（任何一條規則違規）的特許要核准（核准人 = 經理，也就是副總）。
+// 特許核准：排班警示（任何一條規則違規）的特許要核准（核准人 = 經理，也就是副總）。
 // 申請時任務存成「待核准」（不出現在班表與待排）；核准 → 依任務內容變成已排班；駁回 → 任務取消。
 
 const LIST_SCHEMA = {
@@ -24,13 +25,15 @@ const likeEscape = (s) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 const SELECT = `SELECT a.id::text AS id, a.task_id::text AS task_id, a.type, a.status, a.requested_by::text AS requested_by,
     ru.name AS requested_by_name, a.change_summary, a.diff, a.override_remark, a.created_at, a.updated_at,
     COALESCE((SELECT array_agg(ta.rule_id ORDER BY ta.id) FROM task_alerts ta WHERE ta.task_id = a.task_id), '{}') AS rules,
+    COALESCE((SELECT json_agg(json_build_object('ruleId', ta.rule_id, 'message', ta.message) ORDER BY ta.id)
+      FROM task_alerts ta WHERE ta.task_id = a.task_id), '[]') AS violations,
     COALESCE((SELECT json_agg(json_build_object('approverId', s.approver_id::text, 'approverName', su.name,
       'role', sr.code, 'status', s.status, 'comment', s.comment, 'decidedAt', s.decided_at) ORDER BY s.step_no)
       FROM approval_steps s JOIN users su ON su.id = s.approver_id JOIN roles sr ON sr.id = su.role_id
       WHERE s.approval_id = a.id), '[]') AS approvers
   FROM approvals a JOIN users ru ON ru.id = a.requested_by`;
 
-const toApproval = (r) => ({
+const toApproval = (r, task) => ({
   id: r.id,
   taskId: r.task_id,
   type: r.type,
@@ -41,6 +44,8 @@ const toApproval = (r) => ({
   diff: r.diff ?? undefined,
   overrideRemark: r.override_remark ?? undefined,
   violatedRules: r.rules,
+  violations: r.violations,
+  task,
   approvers: r.approvers.map((s) => ({ ...s, comment: s.comment ?? undefined, decidedAt: s.decidedAt ?? undefined })),
   createdAt: iso(r.created_at),
   updatedAt: iso(r.updated_at),
@@ -69,7 +74,17 @@ export const listApprovals = async (user, rawQuery) => {
   const total = (await query(`SELECT count(*)::int AS n FROM approvals a JOIN users ru ON ru.id = a.requested_by ${w}`, values)).rows[0].n;
   const rows = await query(`${SELECT} ${w} ORDER BY a.created_at DESC, a.id DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
     [...values, paging.limit, paging.offset]);
-  return toPage(rows.rows.map(toApproval), total, paging);
+  // 補上申請對應的任務內容（客戶、日期、時段、班別、人數、內容、指派人員），核准的人才看得出在核准什麼
+  const taskIds = [...new Set(rows.rows.map((r) => r.task_id))];
+  const tmap = new Map();
+  if (taskIds.length) {
+    const tr = await query(`${BASE_SELECT} WHERE t.id = ANY($1::bigint[])`, [taskIds]);
+    const rel = await loadRelations(tr.rows);
+    tr.rows.forEach((r) => tmap.set(String(r.id), mapTask(r, {
+      contents: rel.contents.get(r.id) || [], assignees: rel.assignees.get(r.id) || [], series: rel.series.get(r.series_id) || null,
+    })));
+  }
+  return toPage(rows.rows.map((r) => toApproval(r, tmap.get(r.task_id))), total, paging);
 };
 
 // 鎖住申請與任務；申請必須還在「待核准」
@@ -123,7 +138,6 @@ export const reject = async (user, id, raw) => {
     const names = await q(`SELECT string_agg(u.name, '、' ORDER BY u.name) AS names
       FROM task_assignees ta JOIN users u ON u.id = ta.user_id WHERE ta.task_id = $1::bigint`, [a.task_id]);
     await q('DELETE FROM task_assignees WHERE task_id = $1::bigint', [a.task_id]);
-    await q('DELETE FROM task_alerts WHERE task_id = $1::bigint', [a.task_id]);
     await q(`UPDATE tasks SET status = 'UNSCHEDULED', alert_status = 'CLEAN', override_remark = NULL,
         reject_reason = $2, rejected_assignees = $3, updated_at = now() WHERE id = $1::bigint`,
     [a.task_id, comment, names.rows[0]?.names ?? null]);
