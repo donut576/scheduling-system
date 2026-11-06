@@ -251,7 +251,7 @@ describe('runAlertChecks', () => {
 
   it('returns all violations at once', () => {
     const task = makeTask({
-      headcount: 5,
+      headcount: 1,
       assignees: ['emp1'],
       date: '2025-06-15',
     });
@@ -352,7 +352,7 @@ describe('Property 13: 證照要求規則 (License Required Rule)', () => {
     fc.assert(
       fc.property(arbRequiredLicenses, arbEmployees, (requiredLicenses, employees) => {
         const assigneeIds = employees.map((e) => e.id);
-        const task = makeTask({ assignees: assigneeIds });
+        const task = makeTask({ assignees: assigneeIds, headcount: assigneeIds.length });
         const context = makeContext({
           customerLicenses: requiredLicenses,
           employees,
@@ -1249,10 +1249,10 @@ describe('Property 9: 警示驗證閘門 (Alert Validation Gate)', () => {
         fc.integer({ min: 1, max: 5 }),
         (assigneeCount) => {
           const assigneeIds = Array.from({ length: assigneeCount }, (_, i) => `emp${i + 1}`);
-          // headcount is always greater than assignees → guaranteed HEADCOUNT_BELOW_MIN violation
+          // headcount is always greater than assignees → 靠證照不符保證違規
           const task = makeTask({
             assignees: assigneeIds,
-            headcount: assigneeCount + 1,
+            headcount: assigneeCount,
             date: '2025-08-01',
             startTime: '09:00',
             endTime: '12:00',
@@ -1264,7 +1264,7 @@ describe('Property 9: 警示驗證閘門 (Alert Validation Gate)', () => {
 
           const context = makeContext({
             employees,
-            customerLicenses: [],
+            customerLicenses: ['PEST_CONTROL'],
             existingTasks: [],
           });
 
@@ -1299,7 +1299,7 @@ describe('Property 9: 警示驗證閘門 (Alert Validation Gate)', () => {
           // Guarantee violation via headcount mismatch
           const task = makeTask({
             assignees: assigneeIds,
-            headcount: assigneeCount + 1,
+            headcount: assigneeCount,
             date: '2025-08-01',
             startTime: '09:00',
             endTime: '12:00',
@@ -1311,7 +1311,7 @@ describe('Property 9: 警示驗證閘門 (Alert Validation Gate)', () => {
 
           const context = makeContext({
             employees,
-            customerLicenses: [],
+            customerLicenses: ['PEST_CONTROL'],
             existingTasks: [],
           });
 

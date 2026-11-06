@@ -14,6 +14,7 @@ import {
   theme,
   Tooltip,
 } from 'antd';
+import type { GlobalToken } from 'antd/es/theme/interface';
 import {
   PlusOutlined,
   EditOutlined,
@@ -541,8 +542,8 @@ function buildActionColumn(
   onEditClick: (record: Task) => void,
   onDeleteClick: (record: Task) => void,
   t: (key: string) => string,
+  token: GlobalToken,
 ): ColumnDef<Task> {
-  const { token } = theme.useToken();
   return {
     title: t('common.actions'),
     key: 'actions',
@@ -612,7 +613,7 @@ function TaskPage() {
   const [isExporting, setIsExporting] = useState(false);
   const createMutation = useCreateTask();
   const updateMutation = useUpdateTask();
-
+  const { token } = theme.useToken();
   // 集團／分店篩選選項，來源與任務建立表單之集團／分店連動下拉一致
   const { data: customerGroups = [] } = useCustomerGroups();
 
@@ -864,7 +865,7 @@ function TaskPage() {
 
     return [
       ...baseColumns(statusTitle, groupTitle, branchTitle, dateTitle, t),
-      buildActionColumn(handleRowClick, handleDeleteTask, t),
+      buildActionColumn(handleRowClick, handleDeleteTask, t, token),
     ];
   }, [
     branchOptions,
@@ -881,6 +882,7 @@ function TaskPage() {
     handleRowClick,
     handleStatusFilter,
     t,
+    token,
   ]);
 
   const rowClassName = useCallback((record: Task) => {
