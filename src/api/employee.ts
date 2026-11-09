@@ -20,6 +20,7 @@ export interface EmployeeListParams {
 export interface EmployeeFormData {
   name: string; // 員工姓名
   phone: string; // 聯絡電話
+  email: string; // 信箱
   employeeNo: string; // 員工編號
   position: string; // 職位
   groupId: string; // 所屬群組 id

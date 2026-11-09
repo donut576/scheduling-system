@@ -474,6 +474,11 @@ export default {
     positionRequired: '請選擇職位',
     positionPlaceholder: '請選擇職位',
     phoneLabel: '手機',
+    email: '信箱',
+    emailLabel: '信箱',
+    emailInvalid: '請輸入有效的信箱格式',
+    emailPlaceholder: '請輸入信箱',
+    emailRequired: '請輸入信箱',
     positionLabel: '職位',
     onlyPestControlWarningTitle: '證照提醒',
     onlyPestControlWarningContent:

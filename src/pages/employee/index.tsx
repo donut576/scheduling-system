@@ -248,6 +248,7 @@ function renderEmployeeCard(
             {getPositionLabel(record.position, t)}
           </div>
           <div>{`${t('employee.phoneLabel')}：${formatPhone(record.phone)}`}</div>
+          {record.email && <div>{`${t('employee.emailLabel')}：${record.email}`}</div>}
           <div className="management-card-group-line">
             <span>{t('employee.group')}：</span>
             {/* 組別以地區色彩 + 文字呈現 */}
@@ -432,6 +433,7 @@ const EmployeePage: FC = () => {
             name: user.name || '員工',
             employeeNo: user.employeeNo || 'STAFF01',
             phone: '0912-345-678',
+            email: 'staff@example.com',
             position: 'SPECIALIST',
             area: '台北',
             shift: '早班',
@@ -450,6 +452,7 @@ const EmployeePage: FC = () => {
       staffForm.setFieldsValue({
         name: currentStaffEmployee.name,
         phone: currentStaffEmployee.phone,
+        email: currentStaffEmployee.email,
         employeeNo: currentStaffEmployee.employeeNo,
         position: currentStaffEmployee.position,
         area: currentStaffEmployee.area || '台北',
@@ -521,6 +524,7 @@ const EmployeePage: FC = () => {
       form.setFieldsValue({
         name: record.name,
         phone: record.phone,
+        email: record.email,
         employeeNo: record.employeeNo,
         position: record.position,
         groupId: record.groupId || `${area}-${shift}`,
@@ -650,6 +654,16 @@ const EmployeePage: FC = () => {
       exportKey: 'phone',
     },
     {
+      title: t('employee.email'),
+      dataIndex: 'email',
+      key: 'email',
+      width: 180,
+      ellipsis: true,
+      render: (_value, record) => record.email || '-',
+      exportHeader: t('employee.email'),
+      exportKey: 'email',
+    },
+    {
       title: t('employee.employeeNo'),
       dataIndex: 'employeeNo',
       key: 'employeeNo',
@@ -769,6 +783,16 @@ const EmployeePage: FC = () => {
                 rules={[{ required: true, message: t('employee.phoneRequired') }]}
               >
                 <Input placeholder={t('employee.phonePlaceholder')} />
+              </Form.Item>
+              <Form.Item
+                name="email"
+                label={t('employee.email')}
+                rules={[
+                  { required: true, message: t('employee.emailRequired') },
+                  { type: 'email', message: t('employee.emailInvalid') },
+                ]}
+              >
+                <Input placeholder={t('employee.emailPlaceholder')} />
               </Form.Item>
               <Form.Item
                 name="employeeNo"
@@ -932,6 +956,16 @@ const EmployeePage: FC = () => {
             rules={[{ required: true, message: t('employee.phoneRequired') }]}
           >
             <Input placeholder={t('employee.phonePlaceholder')} />
+          </Form.Item>
+          <Form.Item
+            name="email"
+            label={t('employee.email')}
+            rules={[
+              { required: true, message: t('employee.emailRequired') },
+              { type: 'email', message: t('employee.emailInvalid') },
+            ]}
+          >
+            <Input placeholder={t('employee.emailPlaceholder')} />
           </Form.Item>
           <Form.Item
             name="employeeNo"

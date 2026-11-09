@@ -243,6 +243,7 @@ describe('EmployeePage', () => {
 
       await user.type(screen.getByLabelText('姓名'), '陳小美');
       await user.type(screen.getByLabelText('電話'), '0933333333');
+      await user.type(screen.getByPlaceholderText('請輸入信箱'), 'test@example.com');
       await user.type(screen.getByLabelText('員工編號'), 'E003');
 
       const modal = screen.getByRole('dialog');
