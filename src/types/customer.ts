@@ -24,6 +24,10 @@ export interface Customer {
   longitude?: number;
   contactName: string;
   contactPhone: string;
+  contactEmail?: string;
+  backupName?: string;
+  backupPhone?: string;
+  backupEmail?: string;
   requiredLicenses: LicenseType[];
   licenseRestrictionNote?: string;
   remarks?: string;

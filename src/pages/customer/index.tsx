@@ -98,6 +98,15 @@ function renderCustomerCard(
         <div className="management-card-info">
           <div>{`${t('customer.contactName')}：${record.contactName}`}</div>
           <div>{`${t('customer.contactPhoneShort')}：${record.contactPhone}`}</div>
+          {record.contactEmail && (
+            <div>{`${t('customer.contactEmail')}：${record.contactEmail}`}</div>
+          )}
+          {record.backupName && (
+            <div>
+              {`${t('customer.backupContact')}：${record.backupName} ${record.backupPhone ?? ''}`.trim()}
+            </div>
+          )}
+
           <div style={{ marginTop: 4 }}>
             <span>{t('customer.requiredLicenses')}：</span>
             {hasPest ? (
@@ -145,7 +154,17 @@ const CustomerPage: FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [form] = Form.useForm<CustomerFormData>();
-
+  const backupRequired = (messageKey: string) => ({
+    validator: (_rule: unknown, value?: string) => {
+      const v = form.getFieldsValue(['backupName', 'backupPhone', 'backupEmail']) as Record<
+        string,
+        string | undefined
+      >;
+      const anyFilled = Object.values(v).some((x) => x && x.trim());
+      if (anyFilled && !(value && value.trim())) return Promise.reject(new Error(t(messageKey)));
+      return Promise.resolve();
+    },
+  });
   const hasCustomerCreate = usePermissionStore((state) => state.hasPermission('customer:create'));
   const hasCustomerEdit = usePermissionStore((state) => state.hasPermission('customer:edit'));
   const hasCustomerDelete = usePermissionStore((state) => state.hasPermission('customer:delete'));
@@ -257,6 +276,10 @@ const CustomerPage: FC = () => {
         address: record.address,
         contactName: record.contactName,
         contactPhone: record.contactPhone,
+        contactEmail: record.contactEmail,
+        backupName: record.backupName,
+        backupPhone: record.backupPhone,
+        backupEmail: record.backupEmail,
         licenseRestriction,
         licenseRestrictionNote: record.licenseRestrictionNote,
         remarks: record.remarks,
@@ -309,6 +332,10 @@ const CustomerPage: FC = () => {
       address: values.address.trim(),
       contactName: values.contactName.trim(),
       contactPhone: values.contactPhone.trim(),
+      contactEmail: (values.contactEmail ?? '').trim(),
+      backupName: (values.backupName ?? '').trim(),
+      backupPhone: (values.backupPhone ?? '').trim(),
+      backupEmail: (values.backupEmail ?? '').trim(),
       requiredLicenses,
       licenseRestriction: values.licenseRestriction,
       licenseRestrictionNote:
@@ -395,6 +422,16 @@ const CustomerPage: FC = () => {
       width: 120,
       exportHeader: t('customer.contactPhone'),
       exportKey: 'contactPhone',
+    },
+    {
+      title: t('customer.backupContact'),
+      key: 'backupContact',
+      width: 160,
+      render: (_value, record) =>
+        record.backupName ? `${record.backupName} ${record.backupPhone ?? ''}`.trim() : '-',
+      exportHeader: t('customer.backupContact'),
+      exportKey: (record) =>
+        record.backupName ? `${record.backupName} ${record.backupPhone ?? ''}`.trim() : '',
     },
     {
       title: t('customer.requiredLicenses'),
@@ -584,6 +621,59 @@ const CustomerPage: FC = () => {
           >
             <Input placeholder={t('customer.contactPhonePlaceholder')} />
           </Form.Item>
+          <Form.Item
+            name="contactEmail"
+            label={t('customer.contactEmail')}
+            rules={[
+              { required: true, message: t('customer.contactEmailRequired') },
+              { type: 'email', message: t('customer.contactEmailInvalid') },
+            ]}
+          >
+            <Input placeholder={t('customer.contactEmailPlaceholder')} />
+          </Form.Item>
+          <div
+            style={{
+              border: '1px dashed var(--ant-color-border, #d9d9d9)',
+              borderRadius: 8,
+              padding: '10px 12px',
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ marginBottom: 8, fontWeight: 500 }}>
+              {t('customer.backupContact')}
+              <span style={{ marginInlineStart: 8, fontWeight: 400, opacity: 0.65, fontSize: 12 }}>
+                {t('customer.backupContactOptional')}
+              </span>
+            </div>
+            <Form.Item
+              name="backupName"
+              label={t('customer.backupName')}
+              dependencies={['backupPhone', 'backupEmail']}
+              rules={[backupRequired('customer.backupNameRequired')]}
+            >
+              <Input placeholder={t('customer.backupNamePlaceholder')} />
+            </Form.Item>
+            <Form.Item
+              name="backupPhone"
+              label={t('customer.backupPhone')}
+              dependencies={['backupName', 'backupEmail']}
+              rules={[backupRequired('customer.backupPhoneRequired')]}
+            >
+              <Input placeholder={t('customer.backupPhonePlaceholder')} />
+            </Form.Item>
+            <Form.Item
+              name="backupEmail"
+              label={t('customer.backupEmail')}
+              dependencies={['backupName', 'backupPhone']}
+              rules={[
+                backupRequired('customer.backupEmailRequired'),
+                { type: 'email', message: t('customer.contactEmailInvalid') },
+              ]}
+              extra={t('customer.backupContactHint')}
+            >
+              <Input placeholder={t('customer.backupEmailPlaceholder')} />
+            </Form.Item>
+          </div>
           <Form.Item
             name="licenseRestriction"
             label={t('customer.requiredLicenses')}

@@ -21,6 +21,9 @@ export const CUSTOMER_SCHEMA = {
   contactName: { type: 'string', max: 50 },
   contactPhone: { type: 'string', max: 30 },
   contactEmail: { type: 'string', max: 100 },
+  backupName: { type: 'string', max: 50 },
+  backupPhone: { type: 'string', max: 30 },
+  backupEmail: { type: 'string', max: 100 },
   requiredLicenses: { type: 'array', max: 10, of: { type: 'string', max: 30 } },
   licenseRestriction: { type: 'enum', values: RESTRICTIONS },
   licenseRestrictionNote: { type: 'string', max: 200 },
@@ -49,7 +52,7 @@ export const restrictionFrom = (b) => {
 };
 
 const trimmed = (b) => {
-  for (const k of ['groupName', 'branchName', 'city', 'district', 'address', 'contactName', 'contactPhone', 'contactEmail', 'licenseRestrictionNote']) {
+  for (const k of ['groupName', 'branchName', 'city', 'district', 'address', 'contactName', 'contactPhone', 'contactEmail', 'backupName', 'backupPhone', 'backupEmail', 'licenseRestrictionNote']) {
     if (typeof b[k] === 'string') b[k] = b[k].trim();
   }
   return b;
@@ -59,6 +62,8 @@ const validateBody = (raw, { partial }) => {
   const src = prepare(raw);
   const errors = [];
   const b = trimmed(validateWithNumbers(src, errors));
+  // validate 會丟掉空字串，所以「有帶備用窗口欄位但全是空的」要先記下來（代表使用者清空了備用窗口）
+  b.backupCleared = BACKUP_KEYS.some((k) => k in src) && !backupFilled(b);
   if (!partial) {
     if (!b.groupId && !b.groupName) errors.push({ field: 'groupName', message: '必填（或提供 groupId）' });
     if (!b.branchName) errors.push({ field: 'branchName', message: '必填' });
@@ -73,10 +78,23 @@ const validateBody = (raw, { partial }) => {
   if (b.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.contactEmail)) {
     errors.push({ field: 'contactEmail', message: 'Email 格式錯誤' });
   }
+  errors.push(...backupErrors(b, partial));
   if (errors.length) throw fail(errors.map((e) => `${e.field} ${e.message}`).join('；'), errors);
   return b;
 };
-
+// 備用窗口（選填）：整組留白＝沒有；只要填了任何一欄，姓名、電話、信箱都要填
+const BACKUP_KEYS = ['backupName', 'backupPhone', 'backupEmail'];
+const backupFilled = (b) => BACKUP_KEYS.some((k) => b[k]);
+const backupErrors = (b, partial) => {
+  const errors = [];
+  if (!backupFilled(b)) return errors;
+  for (const [k, label] of [['backupName', '備用窗口姓名'], ['backupPhone', '備用窗口電話'], ['backupEmail', '備用窗口信箱']]) {
+    if (!b[k]) errors.push({ field: k, message: `${label}必填（有填備用窗口就要填完整）` });
+  }
+  if (b.backupEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.backupEmail)) errors.push({ field: 'backupEmail', message: 'Email 格式錯誤' });
+  if (!partial && !(b.contactName && b.contactEmail)) errors.push({ field: 'contactName', message: '要先填主要聯絡人（姓名與信箱），才能填備用窗口' });
+  return errors;
+};
 // 座標以外的欄位走共用 validate；座標另外檢查範圍
 const validateWithNumbers = (src, errors) => {
   const { latitude, longitude, ...rest } = src;
@@ -122,7 +140,17 @@ const upsertContact = async (q, customerId, b) => {
     ON CONFLICT (customer_id, slot) DO UPDATE SET name = EXCLUDED.name, phone = EXCLUDED.phone, email = EXCLUDED.email`,
   [customerId, b.contactName, b.contactPhone || null, b.contactEmail]);
 };
-
+// 備用窗口（slot 2）：有填就新增或更新；有帶欄位但整組留白就刪除；沒帶欄位就不動
+const upsertBackup = async (q, customerId, b) => {
+  if (b.backupCleared) {
+    await q('DELETE FROM customer_contacts WHERE customer_id = $1::bigint AND slot = 2', [customerId]);
+    return;
+  }
+  if (!backupFilled(b)) return;
+  await q(`INSERT INTO customer_contacts (customer_id, slot, name, phone, email) VALUES ($1, 2, $2, $3, $4)
+    ON CONFLICT (customer_id, slot) DO UPDATE SET name = EXCLUDED.name, phone = EXCLUDED.phone, email = EXCLUDED.email`,
+  [customerId, b.backupName, b.backupPhone, b.backupEmail]);
+};
 const reload = async (user, id) => {
   const found = await getCustomer(user, id);
   if (!found) throw notFound();
@@ -141,6 +169,7 @@ export const createCustomer = async (user, raw) => {
     [groupId, b.branchName, b.city, b.district, b.address || null, b.latitude ?? null, b.longitude ?? null,
       restrictionFrom(b) || 'NONE', b.licenseRestrictionNote || null, b.remarks || null]);
     await upsertContact(q, r.rows[0].id, b);
+    await upsertBackup(q, r.rows[0].id, b);
     return r.rows[0].id;
   });
   return reload(user, id);
@@ -180,6 +209,7 @@ export const updateCustomer = async (user, rawId, raw) => {
       await q(`UPDATE customers SET ${sets.join(', ')}, updated_at = now() WHERE id = $${vals.length}::bigint`, vals);
     }
     await upsertContact(q, customerId, b);
+    await upsertBackup(q, customerId, b);
     return customerId;
   });
   return reload(user, id);

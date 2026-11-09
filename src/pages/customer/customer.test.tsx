@@ -265,7 +265,7 @@ describe('CustomerPage', () => {
       await user.type(screen.getByLabelText('地址'), '台南市');
       await user.type(screen.getByLabelText('聯絡窗口'), '林小美');
       await user.type(screen.getByLabelText('電話'), '0922222222');
-
+      await user.type(screen.getByLabelText('聯絡信箱'), 'lin@example.com');
       const modal = screen.getByRole('dialog');
       await user.click(within(modal).getByText('OK'));
 
@@ -277,9 +277,53 @@ describe('CustomerPage', () => {
             address: '台南市',
             contactName: '林小美',
             contactPhone: '0922222222',
+            contactEmail: 'lin@example.com',
           }),
         );
       });
+    });
+
+    it('submits backup contact when all three fields are filled', async () => {
+      const user = userEvent.setup();
+      render(<CustomerPage />);
+      await user.click(screen.getByText('新增客戶'));
+      await user.type(screen.getByLabelText('集團／公司名稱'), '集團C');
+      await user.type(screen.getByLabelText('分店名稱'), '分店C');
+      await user.type(screen.getByLabelText('地址'), '台南市');
+      await user.type(screen.getByLabelText('聯絡窗口'), '林小美');
+      await user.type(screen.getByLabelText('電話'), '0922222222');
+      await user.type(screen.getByLabelText('聯絡信箱'), 'lin@example.com');
+      await user.type(screen.getByLabelText('備用窗口姓名'), '李小華');
+      await user.type(screen.getByLabelText('備用窗口電話'), '0933333333');
+      await user.type(screen.getByLabelText('備用窗口信箱'), 'lee@example.com');
+      await user.click(within(screen.getByRole('dialog')).getByText('OK'));
+      await waitFor(() => {
+        expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+          expect.objectContaining({
+            backupName: '李小華',
+            backupPhone: '0933333333',
+            backupEmail: 'lee@example.com',
+          }),
+        );
+      });
+    });
+
+    it('blocks submit when backup contact is only partly filled', async () => {
+      const user = userEvent.setup();
+      render(<CustomerPage />);
+      await user.click(screen.getByText('新增客戶'));
+      await user.type(screen.getByLabelText('集團／公司名稱'), '集團C');
+      await user.type(screen.getByLabelText('分店名稱'), '分店C');
+      await user.type(screen.getByLabelText('地址'), '台南市');
+      await user.type(screen.getByLabelText('聯絡窗口'), '林小美');
+      await user.type(screen.getByLabelText('電話'), '0922222222');
+      await user.type(screen.getByLabelText('聯絡信箱'), 'lin@example.com');
+      await user.type(screen.getByLabelText('備用窗口姓名'), '李小華');
+      await user.click(within(screen.getByRole('dialog')).getByText('OK'));
+      await waitFor(() => {
+        expect(screen.getByText('請輸入備用窗口電話')).toBeInTheDocument();
+      });
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
     });
   });
 
