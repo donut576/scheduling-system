@@ -31,8 +31,16 @@ export interface Employee {
   leaveType?: LeaveType;
   designatedLeaves: string[];
   licenses: LicenseType[];
+  licenseDetails?: LicenseDetail[]; // 全部證照含期限；licenses 則是「今天有效」的代碼
   isActive: boolean;
 }
 
 /** 員工職位類型 */
 export type PositionType = 'STAFF' | 'CONTRACT_STAFF' | 'LEADER' | 'MANAGER' | 'ADMIN_STAFF';
+
+/** 員工持有的一張證照與有效期間（日期為 YYYY-MM-DD，null 代表沒有限制） */
+export interface LicenseDetail {
+  code: string;
+  effectiveOn: string | null;
+  expiresOn: string | null;
+}
