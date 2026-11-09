@@ -5,6 +5,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ok } from '../utils/response.js';
 import { listEmployees, getEmployee } from '../services/employees.js';
 import { createEmployee, updateEmployee } from '../services/employeeWrite.js';
+import { disableEmployee } from '../services/employeeDisable.js';
 
 
 export const employeesRouter = Router();
@@ -20,3 +21,6 @@ employeesRouter.post('/employees', requireAuth, requirePermission('employee:crea
 
 employeesRouter.patch('/employees/:id', requireAuth, requirePermission('employee:edit'),
   asyncHandler(async (req, res) => ok(res, await updateEmployee(req.user, req.params.id, req.body), '員工已更新')));
+
+employeesRouter.delete('/employees/:id', requireAuth, requirePermission('employee:delete'),
+  asyncHandler(async (req, res) => ok(res, await disableEmployee(req.user, req.params.id), '員工已停用')));

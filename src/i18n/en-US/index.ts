@@ -474,6 +474,7 @@ export default {
     deleteSuccess: 'Employee record deleted',
     deleteTitle: 'Delete Employee',
     deleteConfirm: 'Delete "{{name}}"?',
+    deleteHint: 'The employee will be removed from the list. Past tasks and records are kept.',
     confirmDelete: 'Delete',
     nameRequired: 'Please enter name',
     namePlaceholder: 'Enter name',

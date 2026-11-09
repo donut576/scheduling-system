@@ -143,6 +143,7 @@ const ALL_KNOWN_PERMISSIONS = [
   'employee:view',
   'employee:create',
   'employee:edit',
+  'employee:delete',
   'employee:designate_leave',
   'notification:view',
   'notification:send',

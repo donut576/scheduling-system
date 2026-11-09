@@ -30,6 +30,7 @@ export const PERMISSIONS = {
   EMPLOYEE_VIEW: 'employee:view',
   EMPLOYEE_CREATE: 'employee:create',
   EMPLOYEE_EDIT: 'employee:edit',
+  EMPLOYEE_DELETE: 'employee:delete',
   EMPLOYEE_DESIGNATE_LEAVE: 'employee:designate_leave',
 
   // Notification

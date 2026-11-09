@@ -218,6 +218,7 @@ function renderEmployeeCard(
   record: Employee,
   onDelete: (record: Employee) => void,
   t: (key: string) => string,
+  canDelete: boolean,
 ) {
   const groupColor = record.groupColor || getGroupColor(record.area || record.groupId);
   const displayGroup = getDisplayGroup(record, t);
@@ -245,17 +246,19 @@ function renderEmployeeCard(
               </div>
             </div>
           </Space>
-          <Button
-            type="text"
-            danger
-            icon={<DeleteOutlined />}
-            aria-label={t('employee.deleteEmployee')}
-            style={{ flexShrink: 0 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(record);
-            }}
-          />
+          {canDelete && (
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+              aria-label={t('employee.deleteEmployee')}
+              style={{ flexShrink: 0 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(record);
+              }}
+            />
+          )}
         </Space>
         <div className="management-card-info">
           {/* 職位行：移除「職位：」前綴，字體加黑加粗，並在下方空一行/留邊距 */}
@@ -368,6 +371,8 @@ const EmployeePage: FC = () => {
   const isLeaderSelf = useCallback(
     (e: Employee) => {
       if (!isLeader) return false;
+      // 真後端：登入的使用者 id 和員工資料的 id 是兩套編號，不能比對；員工編號是唯一的，只用它
+      if (isRealApi) return Boolean(user?.employeeNo) && e.employeeNo === user?.employeeNo;
       return (
         e.id === user?.id ||
         (Boolean(user?.employeeNo) && e.employeeNo === user?.employeeNo) ||
@@ -416,6 +421,7 @@ const EmployeePage: FC = () => {
   const canDesignateLeave = usePermissionStore((state) =>
     state.hasPermission(PERMISSIONS.EMPLOYEE_DESIGNATE_LEAVE),
   );
+  const canDelete = usePermissionStore((state) => state.hasPermission(PERMISSIONS.EMPLOYEE_DELETE));
 
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee();
@@ -430,18 +436,20 @@ const EmployeePage: FC = () => {
       area: isLeader ? leaderArea : filters.area,
     };
     const query = useEmployeeList(effectiveParams) as QueryResult<PaginatedResponse<Employee>>;
-    if (isLeader && query.data) {
-      const filtered = query.data.list.filter((e) => !isLeaderSelf(e));
+    const rawData = query.data;
+
+    // 用 useMemo 固定結果：資料沒變就回傳同一個物件，BaseTable 的 useEffect 才不會一直觸發
+    const data = useMemo(() => {
+      if (!isLeader || isRealApi || !rawData) return rawData;
+      const filtered = rawData.list.filter((e) => !isLeaderSelf(e));
       return {
-        ...query,
-        data: {
-          ...query.data,
-          list: filtered,
-          total: query.data.total - (query.data.list.length - filtered.length),
-        },
+        ...rawData,
+        list: filtered,
+        total: rawData.total - (rawData.list.length - filtered.length),
       };
-    }
-    return query;
+    }, [rawData]);
+
+    return isLeader ? { ...query, data } : query;
   }
 
   const { data: allEmployeesData } = useEmployeeList({ page: 1, pageSize: 100 });
@@ -600,9 +608,14 @@ const EmployeePage: FC = () => {
     (record: Employee) => {
       Modal.confirm({
         title: t('employee.deleteTitle'),
-        content: t('employee.deleteConfirm', {
-          name: `${record.name} ${record.employeeNo}`,
-        }),
+        content: (
+          <>
+            <div>
+              {t('employee.deleteConfirm', { name: `${record.name} ${record.employeeNo}` })}
+            </div>
+            <div style={{ marginTop: 8, opacity: 0.65 }}>{t('employee.deleteHint')}</div>
+          </>
+        ),
         okText: t('employee.confirmDelete'),
         cancelText: t('common.cancel'),
         okButtonProps: { danger: true },
@@ -765,6 +778,7 @@ const EmployeePage: FC = () => {
       ),
     },
   ];
+  const visibleColumns = canDelete ? columns : columns.filter((c) => c.key !== 'actions');
 
   return (
     <div className="employee-page">
@@ -921,7 +935,7 @@ const EmployeePage: FC = () => {
           />
 
           <BaseTable<Employee>
-            columns={columns}
+            columns={visibleColumns}
             queryHook={useEmployeeListQuery}
             toolbarExtra={
               <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick}>
@@ -929,7 +943,7 @@ const EmployeePage: FC = () => {
               </Button>
             }
             onRowClick={handleEditClick}
-            cardRender={(record) => renderEmployeeCard(record, handleDelete, t)}
+            cardRender={(record) => renderEmployeeCard(record, handleDelete, t, canDelete)}
             cardLayout="always"
             rowKey="id"
             onPaginationChange={(page, pageSize) =>
