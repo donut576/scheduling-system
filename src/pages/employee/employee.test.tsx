@@ -46,6 +46,19 @@ vi.mock('@/stores/useDictStore', () => ({
       ],
     }),
 }));
+vi.mock('@/queries/useRegionQueries', () => ({
+  useRegionAreas: () => ({
+    data: {
+      regions: [
+        { id: '1', name: '北早', color: '#1677ff' },
+        { id: '2', name: '北一晚', color: '#722ed1' },
+        { id: '3', name: '南區早', color: '#fa8c16' },
+      ],
+      cities: [],
+    },
+    isLoading: false,
+  }),
+}));
 
 import {
   useEmployeeList,
@@ -252,10 +265,7 @@ describe('EmployeePage', () => {
       await user.click(screen.getByTitle('一般員工'));
 
       await user.click(modalComboboxes[1]!);
-      await user.click(screen.getByTitle('台北 (北)'));
-
-      await user.click(modalComboboxes[2]!);
-      await user.click(screen.getByTitle('早班'));
+      await user.click(screen.getByTitle('北早'));
 
       await user.click(within(modal).getByText('OK'));
 
@@ -264,7 +274,10 @@ describe('EmployeePage', () => {
           expect.objectContaining({
             name: '陳小美',
             phone: '0933333333',
+            email: 'test@example.com',
             employeeNo: 'E003',
+            groupId: '1',
+            shift: '早班',
           }),
         );
       });
@@ -330,7 +343,8 @@ describe('EmployeePage', () => {
 
       await user.click(screen.getByText('新增員工'));
 
-      expect(screen.getByLabelText('新增指定休假日期')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('開始日期')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('結束日期')).toBeInTheDocument();
     });
 
     it('shows existing designated leaves as removable tags when editing', async () => {
@@ -377,7 +391,8 @@ describe('EmployeePage', () => {
         expect(screen.getByText('編輯員工資料')).toBeInTheDocument();
       });
 
-      expect(screen.getByLabelText('新增指定休假日期')).toBeDisabled();
+      expect(screen.getByPlaceholderText('開始日期')).toBeDisabled();
+      expect(screen.getByPlaceholderText('結束日期')).toBeDisabled();
       expect(screen.getByText('僅主任、副理或管理員可鍵入指定排休日期')).toBeInTheDocument();
     });
   });

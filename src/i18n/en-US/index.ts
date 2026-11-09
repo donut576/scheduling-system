@@ -454,6 +454,8 @@ export default {
     position: 'Position',
     group: 'Group',
     designatedLeave: 'Request time off (RTO)',
+    leaveStart: 'Start date',
+    leaveEnd: 'End date',
     licenses: 'Licenses',
     licenseConflict: 'License Conflict',
     createSuccess: 'Employee record created',

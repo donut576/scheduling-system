@@ -359,7 +359,7 @@ function baseColumns(
     {
       title: t('task.assignees'),
       key: 'assignees',
-      width: 160,
+      width: 130,
       ellipsis: true,
       render: (_value, record) => {
         const assignees = Array.isArray(record.assignees) ? record.assignees : [];

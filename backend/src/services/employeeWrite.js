@@ -103,10 +103,23 @@ const replaceLicenses = async (q, userId, codes) => {
   for (const l of found.rows) await q('INSERT INTO user_licenses (user_id, license_id) VALUES ($1::bigint, $2)', [userId, l.id]);
 };
 
+// 連續的日期合併成一段（start_date ~ end_date）存入，例如 11/10、11/11、11/12 只存一筆
+export const toDateRuns = (dates) => {
+  const sorted = [...new Set(dates)].sort();
+  const runs = [];
+  for (const d of sorted) {
+    const last = runs[runs.length - 1];
+    const gap = last ? (Date.parse(`${d}T00:00:00Z`) - Date.parse(`${last.end}T00:00:00Z`)) / 86400000 : 0;
+    if (last && gap === 1) last.end = d;
+    else runs.push({ start: d, end: d });
+  }
+  return runs;
+};
+
 const replaceLeaves = async (q, userId, dates, leaveType) => {
   await q('DELETE FROM user_leaves WHERE user_id = $1::bigint', [userId]);
-  for (const d of [...new Set(dates)]) {
-    await q('INSERT INTO user_leaves (user_id, start_date, end_date, leave_type) VALUES ($1::bigint, $2::date, $2::date, $3)', [userId, d, leaveType || 'REGULAR_LEAVE']);
+  for (const r of toDateRuns(dates)) {
+    await q('INSERT INTO user_leaves (user_id, start_date, end_date, leave_type) VALUES ($1::bigint, $2::date, $3::date, $4)', [userId, r.start, r.end, leaveType || 'REGULAR_LEAVE']);
   }
 };
 
