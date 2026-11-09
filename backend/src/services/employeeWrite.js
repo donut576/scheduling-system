@@ -29,8 +29,38 @@ export const EMPLOYEE_SCHEMA = {
 // 管理員、副理以外只能看到與修改自己轄區的員工；一般員工只能改自己的電話與信箱
 const SELF_FIELDS = ['phone', 'email'];
 
+const LICENSE_ITEM_SCHEMA = {
+  code: { type: 'string', required: true, max: 30 },
+  effectiveOn: { type: 'date' },
+  expiresOn: { type: 'date' },
+};
+
+// licenseDetails：[{ code, effectiveOn?, expiresOn? }]。日期留白（空字串、null）代表沒有限制。
+// 回傳整理好的清單；格式不對會丟 422 並指出第幾筆。
+export const parseLicenseDetails = (raw) => {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw) || raw.length > 20) throw fail('licenseDetails 必須是最多 20 筆的清單', [{ field: 'licenseDetails', message: '必須是清單' }]);
+  const out = [];
+  const seen = new Set();
+  raw.forEach((item, i) => {
+    const field = `licenseDetails[${i}]`;
+    let d;
+    try { d = validate(item, LICENSE_ITEM_SCHEMA); } catch (e) { throw fail(`${field} ${e.message.replace('資料驗證失敗：', '')}`, [{ field, message: e.message }]); }
+    if (d.code === 'NONE') throw fail(`${field} 不可使用「無證照」，沒有證照請送空清單`, [{ field, message: '不可使用 NONE' }]);
+    if (seen.has(d.code)) throw fail(`${field} 證照 ${d.code} 重複`, [{ field, message: '證照重複' }]);
+    seen.add(d.code);
+    if (d.effectiveOn && d.expiresOn && d.expiresOn < d.effectiveOn) {
+      throw fail(`${field} 到期日不可早於生效日`, [{ field, message: '到期日不可早於生效日' }]);
+    }
+    out.push({ code: d.code, effectiveOn: d.effectiveOn ?? null, expiresOn: d.expiresOn ?? null });
+  });
+  return out;
+};
+
 export const validateBody = (raw, { partial }) => {
   const b = validate(raw, EMPLOYEE_SCHEMA);
+  const details = parseLicenseDetails(raw?.licenseDetails);
+  if (details) b.licenseDetails = details;
   for (const k of ['name', 'phone', 'email', 'employeeNo']) if (typeof b[k] === 'string') b[k] = b[k].trim();
   if (b.email) b.email = b.email.toLowerCase();
   const errors = [];
@@ -91,7 +121,11 @@ const resolveRegion = async (q, scope, groupId) => {
   return r.rows[0].id;
 };
 
+// 只送證照代碼（沒有日期）時：已經持有的證照保留原本的生效日、到期日，只增減證照，不會把期限清掉
 const replaceLicenses = async (q, userId, codes) => {
+  const before = await q(`SELECT l.code, ul.effective_on::text AS eff, ul.expires_on::text AS exp
+    FROM user_licenses ul JOIN licenses l ON l.id = ul.license_id WHERE ul.user_id = $1::bigint`, [userId]);
+  const kept = new Map(before.rows.map((r) => [r.code, { eff: r.eff, exp: r.exp }]));
   await q('DELETE FROM user_licenses WHERE user_id = $1::bigint', [userId]);
   const real = [...new Set(codes.filter((c) => c !== 'NONE'))];
   if (real.length === 0) return;
@@ -100,16 +134,42 @@ const replaceLicenses = async (q, userId, codes) => {
     const known = new Set(found.rows.map((r) => r.code));
     throw fail(`licenses 不認識的證照：${real.filter((c) => !known.has(c)).join('、')}`, [{ field: 'licenses', message: '不認識的證照代碼' }]);
   }
-  for (const l of found.rows) await q('INSERT INTO user_licenses (user_id, license_id) VALUES ($1::bigint, $2)', [userId, l.id]);
+  for (const l of found.rows) {
+    const old = kept.get(l.code);
+    await q('INSERT INTO user_licenses (user_id, license_id, effective_on, expires_on) VALUES ($1::bigint, $2, $3::date, $4::date)',
+      [userId, l.id, old?.eff ?? null, old?.exp ?? null]);
+  }
 };
 
-// 連續的日期合併成一段（start_date ~ end_date）存入，例如 11/10、11/11、11/12 只存一筆
-export const toDateRuns = (dates) => {
-  const sorted = [...new Set(dates)].sort();
+// 有帶 licenseDetails 時以它為準（含生效日、到期日）；沒帶才看 licenses（只有代碼，沒有日期）
+const replaceLicenseDetails = async (q, userId, details) => {
+  await q('DELETE FROM user_licenses WHERE user_id = $1::bigint', [userId]);
+  if (details.length === 0) return;
+  const codes = details.map((d) => d.code);
+  const found = await q('SELECT id, code FROM licenses WHERE code = ANY($1::text[])', [codes]);
+  const idOf = new Map(found.rows.map((r) => [r.code, r.id]));
+  const unknown = codes.filter((c) => !idOf.has(c));
+  if (unknown.length) throw fail(`licenseDetails 不認識的證照：${unknown.join('、')}`, [{ field: 'licenseDetails', message: '不認識的證照代碼' }]);
+  for (const d of details) {
+    await q('INSERT INTO user_licenses (user_id, license_id, effective_on, expires_on) VALUES ($1::bigint, $2, $3::date, $4::date)',
+      [userId, idOf.get(d.code), d.effectiveOn, d.expiresOn]);
+  }
+};
+
+const saveLicenses = (q, userId, b) => {
+  if (b.licenseDetails) return replaceLicenseDetails(q, userId, b.licenseDetails);
+  if (b.licenses) return replaceLicenses(q, userId, b.licenses);
+  return undefined;
+};
+
+// 把一串日期（YYYY-MM-DD）整理成連續的段落：['07-01','07-02','07-05'] → [{start:'07-01',end:'07-02'},{start:'07-05',end:'07-05'}]
+const DAY_MS = 24 * 60 * 60 * 1000;
+const toDateRuns = (dates) => {
+  const days = [...new Set(dates)].sort();
   const runs = [];
-  for (const d of sorted) {
+  for (const d of days) {
     const last = runs[runs.length - 1];
-    const gap = last ? (Date.parse(`${d}T00:00:00Z`) - Date.parse(`${last.end}T00:00:00Z`)) / 86400000 : 0;
+    const gap = last ? (Date.parse(`${d}T00:00:00Z`) - Date.parse(`${last.end}T00:00:00Z`)) / DAY_MS : 0;
     if (last && gap === 1) last.end = d;
     else runs.push({ start: d, end: d });
   }
@@ -140,7 +200,7 @@ export const createEmployee = async (user, raw) => {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
       [b.employeeNo, b.name, b.phone, b.email, roleId, positionId, regionId, shiftId]);
       const userId = r.rows[0].id;
-      if (b.licenses) await replaceLicenses(q, userId, b.licenses);
+      await saveLicenses(q, userId, b);
       if (b.designatedLeaves) await replaceLeaves(q, userId, b.designatedLeaves, b.leaveType);
       return userId;
     });
@@ -191,7 +251,7 @@ export const updateEmployee = async (user, rawId, raw) => {
         vals.push(targetId);
         await q(`UPDATE users SET ${sets.join(', ')}, updated_at = now() WHERE id = $${vals.length}::bigint`, vals);
       }
-      if (b.licenses) await replaceLicenses(q, targetId, b.licenses);
+      await saveLicenses(q, targetId, b);
       if (b.designatedLeaves) await replaceLeaves(q, targetId, b.designatedLeaves, b.leaveType);
       return targetId;
     });

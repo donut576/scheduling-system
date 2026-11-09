@@ -30,7 +30,10 @@ const SELECT_SQL = `SELECT u.id, u.name, u.phone, u.email, u.employee_no, u.is_a
   COALESCE((SELECT array_agg(l.code ORDER BY l.id) FROM user_licenses x JOIN licenses l ON l.id = x.license_id
     WHERE x.user_id = u.id
       AND (x.effective_on IS NULL OR x.effective_on <= current_date)
-      AND (x.expires_on IS NULL OR x.expires_on >= current_date)), '{}') AS licenses`;
+      AND (x.expires_on IS NULL OR x.expires_on >= current_date)), '{}') AS licenses,
+  COALESCE((SELECT json_agg(json_build_object('code', l.code, 'effectiveOn', to_char(x.effective_on, 'YYYY-MM-DD'),
+      'expiresOn', to_char(x.expires_on, 'YYYY-MM-DD')) ORDER BY l.id)
+    FROM user_licenses x JOIN licenses l ON l.id = x.license_id WHERE x.user_id = u.id), '[]'::json) AS license_details`;
 
 export const mapEmployee = (row) => ({
   id: String(row.id),
@@ -46,7 +49,8 @@ export const mapEmployee = (row) => ({
   groupColor: row.color || '',
   leaveType: row.leave_type || undefined,
   designatedLeaves: [...(row.leaves || [])].sort(),
-  licenses: row.licenses || [],
+  licenses: row.licenses || [], // 今天有效的證照代碼（排班、舊功能沿用）
+  licenseDetails: row.license_details || [], // 全部證照含生效日、到期日（沒有日期為 null）
   isActive: row.is_active,
 });
 

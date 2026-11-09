@@ -1,7 +1,7 @@
 // 員工（Employee）相關 API 呼叫層
 // 提供員工清單查詢、詳細資料查詢、新增、更新與刪除等操作
 import apiInstance from './instance';
-import type { Employee } from '@/types/employee';
+import type { Employee, LicenseDetail } from '@/types/employee';
 import type { ApiResponse, PaginatedResponse } from '@/types/common';
 
 // 查詢員工清單所需的參數
@@ -30,6 +30,7 @@ export interface EmployeeFormData {
   leaveType?: string; // 休假類型 (REGULAR_LEAVE | ANNUAL_LEAVE | OTHER_LEAVE)
   designatedLeaves: string[]; // 指定休假日清單
   licenses: string[]; // 持有證照清單
+  licenseDetails?: LicenseDetail[];
 }
 
 export const employeeApi = {

@@ -40,7 +40,10 @@ import { formatPhone } from '@/utils/format';
 import { normalizeRegion, getAreaShortLabel } from '@/utils/regionMapping';
 import { isRealApi } from '@/utils/dataSource';
 import type { EmployeeFormData, EmployeeListParams } from '@/api/employee';
-import { LEAVE_TYPE_MAP, type Employee } from '@/types/employee';
+import { LEAVE_TYPE_MAP, type Employee, type LicenseDetail } from '@/types/employee';
+import LicenseChip from '@/components/business/LicenseChip';
+import LicensePeriodEditor from '@/components/business/LicensePeriodEditor';
+import { buildLicenseDetails } from '@/utils/licenseExpiry';
 import type { LicenseType } from '@/types/alert';
 import type { PaginatedResponse } from '@/types/common';
 import { useRegionAreas } from '@/queries/useRegionQueries';
@@ -162,6 +165,11 @@ const getLicenseLabel = (lic: LicenseType | string, t: (k: string) => string): s
   return map[lic] ?? LICENSE_TYPE_MAP[lic as LicenseType] ?? lic;
 };
 
+// 員工的證照清單：有期限資料就用 licenseDetails，沒有（舊資料、假資料）就用 licenses 轉成沒有日期的
+const getLicenseItems = (record: Employee): LicenseDetail[] =>
+  record.licenseDetails ??
+  (record.licenses ?? []).map((code) => ({ code, effectiveOn: null, expiresOn: null }));
+
 const getLeaveTypeLabel = (lt: string | undefined, t: (k: string) => string): string => {
   if (!lt) return '';
   const map: Record<string, string> = {
@@ -214,6 +222,7 @@ function renderEmployeeCard(
   const groupColor = record.groupColor || getGroupColor(record.area || record.groupId);
   const displayGroup = getDisplayGroup(record, t);
   const isOnlyPest = hasOnlyPestControlLicense(record.licenses ?? []);
+  const licenseItems = getLicenseItems(record);
 
   return (
     <Card
@@ -285,11 +294,9 @@ function renderEmployeeCard(
         </div>
         <div className="management-card-licenses">
           <Space size={[4, 4]} wrap>
-            {(record.licenses ?? []).length > 0 ? (
-              (record.licenses ?? []).map((lic) => (
-                <Tag key={lic} color={lic === 'PEST_CONTROL' && isOnlyPest ? 'red' : undefined}>
-                  {getLicenseLabel(lic, t)}
-                </Tag>
+            {licenseItems.length > 0 ? (
+              licenseItems.map((d) => (
+                <LicenseChip key={d.code} detail={d} label={getLicenseLabel(d.code, t)} />
               ))
             ) : (
               <Tag>{t('customer.licenseNone')}</Tag>
@@ -330,6 +337,8 @@ const EmployeePage: FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [form] = Form.useForm<EmployeeFormData>();
+  const canEditLicense = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const watchedLicenses = (Form.useWatch('licenses', form) as string[] | undefined) ?? [];
   const { data: regionData } = useRegionAreas();
 
   // 組別選單：後端的 12 個群組，值是群組 id
@@ -547,6 +556,7 @@ const EmployeePage: FC = () => {
         leaveType: record.leaveType || 'REGULAR_LEAVE',
         designatedLeaves: record.designatedLeaves || [],
         licenses: (record.licenses ?? []).length > 0 ? record.licenses : ['NONE'],
+        licenseDetails: record.licenseDetails ?? [],
       });
       setModalOpen(true);
     },
@@ -567,6 +577,9 @@ const EmployeePage: FC = () => {
       ...values,
       groupId: values.area ?? '',
       shift: values.shift || shiftOfGroup(values.area),
+      licenseDetails: canEditLicense
+        ? buildLicenseDetails(values.licenses ?? [], values.licenseDetails)
+        : undefined,
     };
 
     if (editingEmployee) {
@@ -580,7 +593,7 @@ const EmployeePage: FC = () => {
     setModalOpen(false);
     setEditingEmployee(null);
     form.resetFields();
-  }, [form, shiftOfGroup, editingEmployee, createMutation, updateMutation, t]);
+  }, [form, shiftOfGroup, editingEmployee, createMutation, updateMutation, t, canEditLicense]);
 
   // 彈出刪除確認 Modal，確認後呼叫刪除 API
   const handleDelete = useCallback(
@@ -713,16 +726,25 @@ const EmployeePage: FC = () => {
       title: t('employee.licenses'),
       key: 'licenses',
       width: 220,
-      render: (_value, record) => (
-        <Space size={[4, 4]} wrap>
-          {(record.licenses ?? []).map((lic) => (
-            <Tag key={lic}>{getLicenseLabel(lic, t)}</Tag>
-          ))}
-        </Space>
-      ),
+      render: (_value, record) => {
+        const items = getLicenseItems(record);
+        return items.length > 0 ? (
+          <Space size={[4, 4]} wrap>
+            {items.map((d) => (
+              <LicenseChip key={d.code} detail={d} label={getLicenseLabel(d.code, t)} />
+            ))}
+          </Space>
+        ) : (
+          <Tag>{t('customer.licenseNone')}</Tag>
+        );
+      },
       exportHeader: t('employee.licenses'),
       exportKey: (record) =>
-        (record.licenses ?? []).map((lic) => getLicenseLabel(lic, t)).join(', '),
+        getLicenseItems(record)
+          .map(
+            (d) => `${getLicenseLabel(d.code, t)}${d.expiresOn ? `（${d.expiresOn} 到期）` : ''}`,
+          )
+          .join(', '),
     },
     {
       title: t('common.actions'),
@@ -973,7 +995,6 @@ const EmployeePage: FC = () => {
             name="employeeNo"
             label={t('employee.employeeNo')}
             rules={[{ required: true, message: t('employee.employeeNoRequired') }]}
-            tooltip="此員工編號即為系統登入帳號"
             extra="此編號將作為該員工登入排班系統之唯一帳號"
           >
             <Input placeholder="例如：E001、STAFF01" />
@@ -1075,6 +1096,14 @@ const EmployeePage: FC = () => {
                 }
                 form.setFieldsValue({ licenses: newValues });
               }}
+            />
+          </Form.Item>
+
+          <Form.Item name="licenseDetails" initialValue={[]} noStyle>
+            <LicensePeriodEditor
+              licenses={watchedLicenses}
+              getLabel={(c) => getLicenseLabel(c, t)}
+              disabled={!canEditLicense}
             />
           </Form.Item>
 

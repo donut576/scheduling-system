@@ -109,3 +109,96 @@ test('指定休假：連續日期合併成一段存入，列表仍展開成每�
   const rows = await pool.query('SELECT start_date::text AS s, end_date::text AS e FROM user_leaves WHERE user_id = $1::bigint ORDER BY start_date', [emp.id]);
   assert.deepEqual(rows.rows.map((r) => [r.s, r.e]), [['2030-02-10', '2030-02-12'], ['2030-02-20', '2030-02-20']]);
 });
+
+test('證照期限：licenseDetails 寫入後原樣回傳，licenses 只含「今天有效」的', async (t) => {
+  const base = start(t);
+  const admin = await login(base, 'admin', 'admin123');
+  const details = [
+    { code: 'PROFESSIONAL', effectiveOn: '2020-01-01', expiresOn: '2020-12-31' }, // 已到期
+    { code: 'PEST_CONTROL', effectiveOn: '2020-01-01', expiresOn: null },         // 長期有效
+    { code: 'FIRE_ANT', effectiveOn: '2099-01-01', expiresOn: '2099-12-31' },     // 還沒生效
+  ];
+  const res = await call(base, 'POST', '/employees', admin, BODY('11', { licenses: undefined, licenseDetails: details }));
+  assert.equal(res.status, 200);
+  const emp = (await res.json()).data;
+  assert.deepEqual(emp.licenseDetails, details);
+  assert.deepEqual(emp.licenses, ['PEST_CONTROL']);
+
+  // 詳情與列表的內容一致
+  const detail = (await (await call(base, 'GET', `/employees/${emp.id}`, admin)).json()).data;
+  assert.deepEqual(detail.licenseDetails, details);
+});
+
+test('證照期限：更新會整批取代；排班日當天有效與否由後端判斷', async (t) => {
+  const base = start(t);
+  const admin = await login(base, 'admin', 'admin123');
+  const emp = (await (await call(base, 'POST', '/employees', admin, BODY('12', { licenses: undefined,
+    licenseDetails: [{ code: 'PEST_CONTROL', effectiveOn: null, expiresOn: '2030-06-30' }] }))).json()).data;
+
+  const row = (sql) => pool.query(sql, [emp.id]);
+  const validOn = async (date) => (await row(`SELECT l.code FROM user_licenses ul JOIN licenses l ON l.id = ul.license_id
+    WHERE ul.user_id = $1::bigint AND (ul.effective_on IS NULL OR ul.effective_on <= '${date}'::date)
+      AND (ul.expires_on IS NULL OR ul.expires_on >= '${date}'::date)`)).rows.map((r) => r.code);
+  assert.deepEqual(await validOn('2030-06-30'), ['PEST_CONTROL']); // 到期日當天仍有效
+  assert.deepEqual(await validOn('2030-07-01'), []);               // 隔天起無效
+
+  const res = await call(base, 'PATCH', `/employees/${emp.id}`, admin, { licenseDetails: [{ code: 'SAFETY_6HR' }] });
+  const updated = (await res.json()).data;
+  assert.deepEqual(updated.licenseDetails, [{ code: 'SAFETY_6HR', effectiveOn: null, expiresOn: null }]);
+
+  // 送空清單 = 清除全部證照
+  const cleared = (await (await call(base, 'PATCH', `/employees/${emp.id}`, admin, { licenseDetails: [] })).json()).data;
+  assert.deepEqual(cleared.licenseDetails, []);
+});
+
+test('證照期限：格式錯誤回 422（到期早於生效、不認識的證照、重複、NONE、日期格式）', async (t) => {
+  const base = start(t);
+  const admin = await login(base, 'admin', 'admin123');
+  const bad = [
+    [{ code: 'PEST_CONTROL', effectiveOn: '2026-05-01', expiresOn: '2026-04-30' }],
+    [{ code: 'NOT_A_LICENSE' }],
+    [{ code: 'FIRE_ANT' }, { code: 'FIRE_ANT' }],
+    [{ code: 'NONE' }],
+    [{ code: 'FIRE_ANT', expiresOn: '2026/05/01' }],
+  ];
+  for (const [i, licenseDetails] of bad.entries()) {
+    const res = await call(base, 'POST', '/employees', admin, BODY(`2${i}`, { licenses: undefined, licenseDetails }));
+    assert.equal(res.status, 422, `第 ${i} 組應為 422`);
+  }
+  // 驗證失敗不能留下半筆員工
+  const left = await pool.query("SELECT count(*)::int AS n FROM users WHERE employee_no LIKE $1", [`${NO}2%`]);
+  assert.equal(left.rows[0].n, 0);
+});
+
+test('證照期限：一般員工不能改自己的證照，副理可以', async (t) => {
+  const base = start(t);
+  const admin = await login(base, 'admin', 'admin123');
+  const manager = await login(base, 'manager', 'manager123');
+  const emp = (await (await call(base, 'POST', '/employees', admin, BODY('13', { licenses: undefined, licenseDetails: [{ code: 'FIRE_ANT' }] }))).json()).data;
+
+  const byManager = await call(base, 'PATCH', `/employees/${emp.id}`, manager, { licenseDetails: [{ code: 'PEST_CONTROL', expiresOn: '2031-01-01' }] });
+  assert.equal(byManager.status, 200);
+  assert.deepEqual((await byManager.json()).data.licenseDetails, [{ code: 'PEST_CONTROL', effectiveOn: null, expiresOn: '2031-01-01' }]);
+
+  const staff = await login(base, 'staff', 'staff123');
+  const byStaff = await call(base, 'PATCH', `/employees/${emp.id}`, staff, { licenseDetails: [] });
+  assert.equal(byStaff.status, 403); // 不是本人
+});
+
+test('證照期限：只送 licenses（舊寫法）不會清掉已填的期限，新增的證照沒有日期', async (t) => {
+  const base = start(t);
+  const admin = await login(base, 'admin', 'admin123');
+  const emp = (await (await call(base, 'POST', '/employees', admin, BODY('14', { licenses: undefined,
+    licenseDetails: [{ code: 'PEST_CONTROL', effectiveOn: '2024-03-01', expiresOn: '2027-02-28' }] }))).json()).data;
+
+  const res = await call(base, 'PATCH', `/employees/${emp.id}`, admin, { licenses: ['PEST_CONTROL', 'FIRE_ANT'], phone: '0911-222-333' });
+  const updated = (await res.json()).data;
+  assert.deepEqual(updated.licenseDetails, [
+    { code: 'PEST_CONTROL', effectiveOn: '2024-03-01', expiresOn: '2027-02-28' }, // 期限保留
+    { code: 'FIRE_ANT', effectiveOn: null, expiresOn: null },                      // 新增的沒有日期
+  ]);
+
+  // 取消選取的證照會被移除
+  const removed = (await (await call(base, 'PATCH', `/employees/${emp.id}`, admin, { licenses: ['FIRE_ANT'] })).json()).data;
+  assert.deepEqual(removed.licenseDetails, [{ code: 'FIRE_ANT', effectiveOn: null, expiresOn: null }]);
+});
