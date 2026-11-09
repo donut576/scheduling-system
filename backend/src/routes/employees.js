@@ -4,6 +4,8 @@ import { requirePermission } from '../middleware/permission.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ok } from '../utils/response.js';
 import { listEmployees, getEmployee } from '../services/employees.js';
+import { createEmployee, updateEmployee } from '../services/employeeWrite.js';
+
 
 export const employeesRouter = Router();
 
@@ -12,3 +14,9 @@ employeesRouter.get('/employees', requireAuth, requirePermission('employee:view'
 
 employeesRouter.get('/employees/:id', requireAuth, requirePermission('employee:view'),
   asyncHandler(async (req, res) => ok(res, await getEmployee(req.user, req.params.id))));
+
+employeesRouter.post('/employees', requireAuth, requirePermission('employee:create'),
+  asyncHandler(async (req, res) => ok(res, await createEmployee(req.user, req.body), '員工已建立')));
+
+employeesRouter.patch('/employees/:id', requireAuth, requirePermission('employee:edit'),
+  asyncHandler(async (req, res) => ok(res, await updateEmployee(req.user, req.params.id, req.body), '員工已更新')));

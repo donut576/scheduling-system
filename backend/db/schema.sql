@@ -80,6 +80,7 @@ CREATE TABLE users (              -- 每位員工即一個使用者；登入帳�
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE UNIQUE INDEX uq_users_email_lower ON users (lower(email)) WHERE email IS NOT NULL;
 ALTER TABLE regions ADD CONSTRAINT fk_region_leader FOREIGN KEY (leader_id) REFERENCES users(id);
 
 CREATE TABLE user_licenses (      -- 持有證照與期限

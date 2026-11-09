@@ -21,7 +21,7 @@ const FROM_SQL = `FROM users u
   LEFT JOIN shifts sh ON sh.id = u.shift_id`;
 
 // 密碼等敏感欄位完全不查。持有證照只算「今天有效」的；指定休假把區間展開成每一天。
-const SELECT_SQL = `SELECT u.id, u.name, u.phone, u.employee_no, u.is_active, p.code AS position,
+const SELECT_SQL = `SELECT u.id, u.name, u.phone, u.email, u.employee_no, u.is_active, p.code AS position,
   rg.id AS region_id, rg.name AS region_name, rg.color, sh.name AS shift_name,
   (SELECT ul.leave_type FROM user_leaves ul WHERE ul.user_id = u.id ORDER BY ul.start_date DESC LIMIT 1) AS leave_type,
   COALESCE((SELECT array_agg(DISTINCT to_char(d, 'YYYY-MM-DD')) FROM user_leaves ul
@@ -36,6 +36,7 @@ export const mapEmployee = (row) => ({
   id: String(row.id),
   name: row.name,
   phone: row.phone || '',
+  email: row.email || '',
   employeeNo: row.employee_no,
   position: row.position,
   groupId: row.region_id ? String(row.region_id) : '',
@@ -58,7 +59,7 @@ export const buildEmployeeFilter = (filters, scope) => {
   if (filters.keyword) {
     values.push(`%${likeEscape(filters.keyword)}%`);
     const p = `$${values.length}`;
-    where.push(`(u.name ILIKE ${p} OR u.employee_no ILIKE ${p} OR u.phone ILIKE ${p})`);
+    where.push(`(u.name ILIKE ${p} OR u.employee_no ILIKE ${p} OR u.phone ILIKE ${p} OR u.email ILIKE ${p})`);
   }
   if (filters.groupId) add('rg.id = ?::bigint', parseId(filters.groupId));
   if (filters.area) add('rg.name = ?', filters.area);
