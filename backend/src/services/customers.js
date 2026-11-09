@@ -16,8 +16,8 @@ const LICENSES_BY_RESTRICTION = { NONE: [], PEST_CONTROL: ['PEST_CONTROL'], PROF
 const FROM_SQL = `FROM customers c
   JOIN customer_groups g ON g.id = c.group_id
   ${CUSTOMER_REGION_JOIN}
-  LEFT JOIN customer_contacts p ON p.customer_id = c.id AND p.slot = 1`;
-
+  LEFT JOIN customer_contacts p ON p.customer_id = c.id AND p.slot = 1
+  LEFT JOIN customer_contacts b ON b.customer_id = c.id AND b.slot = 2`;
 export const mapCustomer = (row) => ({
   id: String(row.id),
   groupId: String(row.group_id),
@@ -32,6 +32,10 @@ export const mapCustomer = (row) => ({
   longitude: row.longitude ?? undefined,
   contactName: row.contact_name || '',
   contactPhone: row.contact_phone || '',
+  contactEmail: row.contact_email || '',
+  backupName: row.backup_name || '', // 備用窗口（第 2 位聯絡人，選填）
+  backupPhone: row.backup_phone || '',
+  backupEmail: row.backup_email || '',
   requiredLicenses: LICENSES_BY_RESTRICTION[row.license_restriction] || [],
   licenseRestriction: row.license_restriction,
   licenseRestrictionNote: row.license_restriction_note || undefined,
@@ -40,7 +44,8 @@ export const mapCustomer = (row) => ({
 
 const SELECT_SQL = `SELECT c.id, c.name, c.city, c.district, ${customerRegionNamesSql('c')} AS region_names, c.address, c.latitude::float8 AS latitude, c.longitude::float8 AS longitude,
   c.license_restriction, c.license_restriction_note, c.remarks,
-  g.id AS group_id, g.name AS group_name, p.name AS contact_name, p.phone AS contact_phone`;
+  g.id AS group_id, g.name AS group_name, p.name AS contact_name, p.phone AS contact_phone, p.email AS contact_email,
+  b.name AS backup_name, b.phone AS backup_phone, b.email AS backup_email`;
 
 // 只列出啟用中的客戶，並套用登入者的轄區範圍
 export const buildCustomerFilter = (filters, scope) => {
@@ -90,6 +95,7 @@ export const listCustomerGroups = async (user) => {
     groups.get(c.groupId).branches.push({
       id: c.id, groupId: c.groupId, name: c.branchName, city: c.city, district: c.district, regions: c.regions, address: c.address,
       latitude: c.latitude, longitude: c.longitude, contactName: c.contactName, contactPhone: c.contactPhone,
+      backupName: c.backupName, backupPhone: c.backupPhone,
       requiredLicenses: c.requiredLicenses, licenseRestrictionNote: c.licenseRestrictionNote,
     });
   }
