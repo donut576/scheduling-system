@@ -456,6 +456,8 @@ export default {
     position: '職位',
     group: '組別',
     designatedLeave: '指定排休',
+    leaveStart: '開始日期',
+    leaveEnd: '結束日期',
     licenses: '證照',
     licenseConflict: '證照設定衝突',
     createSuccess: '員工資料已新增',

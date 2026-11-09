@@ -43,7 +43,14 @@ import type { EmployeeFormData, EmployeeListParams } from '@/api/employee';
 import { LEAVE_TYPE_MAP, type Employee } from '@/types/employee';
 import type { LicenseType } from '@/types/alert';
 import type { PaginatedResponse } from '@/types/common';
-
+import { useRegionAreas } from '@/queries/useRegionQueries';
+import {
+  expandRange,
+  formatLeaveRange,
+  formatLeaveRanges,
+  groupLeaveRanges,
+  mergeDates,
+} from '@/utils/leaveRanges';
 /**
  * 員工資料管理頁面
  * 整合 BaseTable，提供員工資料 CRUD、群組色彩編碼、指定休假設定與證照衝突驗證
@@ -74,53 +81,52 @@ const DesignatedLeavesEditor: FC<DesignatedLeavesEditorProps> = ({
   onPickerOpenChange,
 }) => {
   const { t } = useTranslation();
-  // 新增一筆指定休假日期，並依日期字串排序，避免重複加入相同日期
+  const ranges = useMemo(() => groupLeaveRanges(value), [value]);
+
+  // 選一段日期（含頭尾）後展開成每一天，與已有的日期合併
   const handleAdd = useCallback(
-    (date: Dayjs | null) => {
-      if (!date) return;
-      const dateStr = date.format('YYYY-MM-DD');
-      if (!value.includes(dateStr)) {
-        onChange?.([...value, dateStr].sort());
-      }
+    (dates: [Dayjs | null, Dayjs | null] | null) => {
+      if (!dates?.[0] || !dates?.[1]) return;
+      const days = expandRange(dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD'));
+      onChange?.(mergeDates(value, days));
       onPickerOpenChange?.(false);
     },
     [value, onChange, onPickerOpenChange],
   );
 
-  // 移除指定的休假日期
+  // 移除一整段
   const handleRemove = useCallback(
-    (dateStr: string) => {
-      onChange?.(value.filter((d) => d !== dateStr));
-    },
+    (days: string[]) => onChange?.(value.filter((d) => !days.includes(d))),
     [value, onChange],
   );
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="small">
-      <DatePicker
+      <DatePicker.RangePicker
         open={pickerOpen}
         onOpenChange={onPickerOpenChange}
         style={{ width: '100%' }}
         format="YYYY-MM-DD"
         value={null}
         onChange={handleAdd}
-        placeholder={t('employee.addDesignatedLeave')}
-        aria-label={t('employee.addDesignatedLeave')}
+        placeholder={[t('employee.leaveStart'), t('employee.leaveEnd')]}
         disabled={disabled}
       />
       <Space size={[4, 4]} wrap>
-        {value.map((d) => (
+        {ranges.map((r) => (
           <Tag
-            key={d}
+            key={r.start}
             closable={!disabled}
-            onClose={() => handleRemove(d)}
+            onClose={() => handleRemove(r.days)}
             closeIcon={
               disabled ? undefined : (
-                <CloseOutlined aria-label={t('employee.removeDesignatedLeave', { date: d })} />
+                <CloseOutlined
+                  aria-label={t('employee.removeDesignatedLeave', { date: formatLeaveRange(r) })}
+                />
               )
             }
           >
-            {d}
+            {formatLeaveRange(r)}
           </Tag>
         ))}
       </Space>
@@ -128,7 +134,7 @@ const DesignatedLeavesEditor: FC<DesignatedLeavesEditorProps> = ({
   );
 };
 
-const DEFAULT_PARAMS = { page: 1, pageSize: 20 };
+const DEFAULT_PARAMS = { page: 1, pageSize: 18 };
 
 const getPositionLabel = (pos: string | undefined, t: (k: string) => string): string => {
   if (!pos) return '-';
@@ -271,7 +277,7 @@ function renderEmployeeCard(
           )}
           <span>
             {(record.designatedLeaves ?? []).length > 0
-              ? (record.designatedLeaves ?? []).join('、')
+              ? formatLeaveRanges(record.designatedLeaves)
               : record.leaveType
                 ? ''
                 : '-'}
@@ -324,6 +330,22 @@ const EmployeePage: FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [form] = Form.useForm<EmployeeFormData>();
+  const { data: regionData } = useRegionAreas();
+
+  // 組別選單：後端的 12 個群組，值是群組 id
+  const localizedAreaOptions = useMemo(
+    () => (regionData?.regions ?? []).map((r) => ({ label: r.name, value: r.id })),
+    [regionData],
+  );
+
+  // 群組名稱以「晚」結尾就是晚班，其餘早班（北早、北一晚、桃竹晚…）
+  const shiftOfGroup = useCallback(
+    (groupId?: string) =>
+      (regionData?.regions.find((r) => r.id === groupId)?.name ?? '').endsWith('晚')
+        ? '晚班'
+        : '早班',
+    [regionData],
+  );
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   // 取得員工資料（組長僅撈取所屬組別，經理/管理員撈取全量），供 AutoComplete 動態產生姓名與員工編號模糊搜尋
@@ -400,17 +422,13 @@ const EmployeePage: FC = () => {
     };
     const query = useEmployeeList(effectiveParams) as QueryResult<PaginatedResponse<Employee>>;
     if (isLeader && query.data) {
-      const filtered = query.data.list.filter(
-        (e) =>
-          !isLeaderSelf(e) &&
-          (!leaderArea || e.area === leaderArea || e.groupName?.includes(leaderArea)),
-      );
+      const filtered = query.data.list.filter((e) => !isLeaderSelf(e));
       return {
         ...query,
         data: {
           ...query.data,
           list: filtered,
-          total: filtered.length,
+          total: query.data.total - (query.data.list.length - filtered.length),
         },
       };
     }
@@ -517,9 +535,6 @@ const EmployeePage: FC = () => {
         });
       }
 
-      const area = record.area || '台北';
-      const shift = record.shift || '早班';
-
       setEditingEmployee(record);
       form.setFieldsValue({
         name: record.name,
@@ -527,10 +542,8 @@ const EmployeePage: FC = () => {
         email: record.email,
         employeeNo: record.employeeNo,
         position: record.position,
-        groupId: record.groupId || `${area}-${shift}`,
-        area,
-        shift,
-        groupName: record.groupName || `${area} ${shift}`,
+        area: record.groupId,
+        shift: record.shift || '早班',
         leaveType: record.leaveType || 'REGULAR_LEAVE',
         designatedLeaves: record.designatedLeaves || [],
         licenses: (record.licenses ?? []).length > 0 ? record.licenses : ['NONE'],
@@ -550,14 +563,10 @@ const EmployeePage: FC = () => {
   // 送出表單：依是否為編輯模式呼叫更新或建立 API
   const handleModalOk = useCallback(async () => {
     const values = await form.validateFields();
-    const area = values.area || '台北';
-    const shift = values.shift || '早班';
     const payload = {
       ...values,
-      area,
-      shift,
-      groupName: `${area} ${shift}`,
-      groupId: `${area}-${shift}`,
+      groupId: values.area ?? '',
+      shift: values.shift || shiftOfGroup(values.area),
     };
 
     if (editingEmployee) {
@@ -571,7 +580,7 @@ const EmployeePage: FC = () => {
     setModalOpen(false);
     setEditingEmployee(null);
     form.resetFields();
-  }, [form, editingEmployee, createMutation, updateMutation, t]);
+  }, [form, shiftOfGroup, editingEmployee, createMutation, updateMutation, t]);
 
   // 彈出刪除確認 Modal，確認後呼叫刪除 API
   const handleDelete = useCallback(
@@ -600,16 +609,6 @@ const EmployeePage: FC = () => {
       { label: t('employee.positions.leader'), value: 'LEADER' },
       { label: t('employee.positions.manager'), value: 'MANAGER' },
       { label: t('employee.positions.adminStaff'), value: 'ADMIN_STAFF' },
-    ],
-    [t],
-  );
-
-  const localizedAreaOptions = useMemo(
-    () => [
-      { label: `${t('employee.areas.taipei')} (北)`, value: '台北' },
-      { label: `${t('employee.areas.hsinchu')} (竹)`, value: '新竹' },
-      { label: `${t('employee.areas.taichung')} (中)`, value: '台中' },
-      { label: `${t('employee.areas.tainan')} (南)`, value: '台南' },
     ],
     [t],
   );
@@ -701,14 +700,14 @@ const EmployeePage: FC = () => {
       render: (_value, record) => (
         <Space size={[4, 4]} wrap>
           {record.leaveType && <Tag color="orange">{getLeaveTypeLabel(record.leaveType, t)}</Tag>}
-          {(record.designatedLeaves ?? []).map((d) => (
-            <Tag key={d}>{d}</Tag>
+          {groupLeaveRanges(record.designatedLeaves).map((r) => (
+            <Tag key={r.start}>{formatLeaveRange(r)}</Tag>
           ))}
         </Space>
       ),
       exportHeader: t('employee.designatedLeave'),
       exportKey: (record) =>
-        `${record.leaveType ? getLeaveTypeLabel(record.leaveType, t) + ' ' : ''}${(record.designatedLeaves ?? []).join(', ')}`,
+        `${record.leaveType ? getLeaveTypeLabel(record.leaveType, t) + ' ' : ''}${formatLeaveRanges(record.designatedLeaves)}`,
     },
     {
       title: t('employee.licenses'),
@@ -911,6 +910,9 @@ const EmployeePage: FC = () => {
             cardRender={(record) => renderEmployeeCard(record, handleDelete, t)}
             cardLayout="always"
             rowKey="id"
+            onPaginationChange={(page, pageSize) =>
+              setFilters((prev) => ({ ...prev, page, pageSize }))
+            }
           />
         </>
       )}
@@ -998,6 +1000,7 @@ const EmployeePage: FC = () => {
                     placeholder={t('employee.groupPlaceholder')}
                     options={localizedAreaOptions}
                     style={{ width: '100%' }}
+                    onChange={(id: string) => form.setFieldValue('shift', shiftOfGroup(id))}
                   />
                 </Form.Item>
               </Col>

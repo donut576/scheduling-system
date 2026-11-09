@@ -99,3 +99,13 @@ test('更新員工：管理員可改職位，登入角色跟著變', async (t) =
   const role = await pool.query('SELECT r.code FROM users u JOIN roles r ON r.id = u.role_id WHERE u.employee_no = $1', [`${NO}9`]);
   assert.equal(role.rows[0].code, 'LEADER');
 });
+
+test('指定休假：連續日期合併成一段存入，列表仍展開成每一天', async (t) => {
+  const base = start(t);
+  const admin = await login(base, 'admin', 'admin123');
+  const days = ['2030-02-10', '2030-02-11', '2030-02-12', '2030-02-20'];
+  const emp = (await (await call(base, 'POST', '/employees', admin, BODY('10', { designatedLeaves: days }))).json()).data;
+  assert.deepEqual(emp.designatedLeaves, days);
+  const rows = await pool.query('SELECT start_date::text AS s, end_date::text AS e FROM user_leaves WHERE user_id = $1::bigint ORDER BY start_date', [emp.id]);
+  assert.deepEqual(rows.rows.map((r) => [r.s, r.e]), [['2030-02-10', '2030-02-12'], ['2030-02-20', '2030-02-20']]);
+});
