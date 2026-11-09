@@ -472,6 +472,11 @@ export default {
     positionRequired: 'Please select position',
     positionPlaceholder: 'Select position',
     phoneLabel: 'Mobile',
+    email: 'Email',
+    emailLabel: 'Email',
+    emailInvalid: 'Please enter a valid email',
+    emailPlaceholder: 'Enter email',
+    emailRequired: 'Please enter email',
     positionLabel: 'Position',
     onlyPestControlWarningTitle: 'License Notice',
     onlyPestControlWarningContent:
