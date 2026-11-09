@@ -43,7 +43,7 @@ const { TextArea } = Input;
  * Validates: Requirements 10.1, 10.2, 10.3, 10.4
  */
 
-const DEFAULT_FILTERS: CustomerListParams = { page: 1, pageSize: 20 };
+const DEFAULT_FILTERS: CustomerListParams = { page: 1, pageSize: 18 };
 
 /**
  * 行動裝置（< 768px）卡片檢視渲染函式。
@@ -515,6 +515,7 @@ const CustomerPage: FC = () => {
         cardRender={(record) => renderCustomerCard(record, handleDelete, t, hasCustomerDelete)}
         cardLayout="always"
         rowKey="id"
+        onPaginationChange={(page, pageSize) => setFilters((prev) => ({ ...prev, page, pageSize }))}
       />
 
       <BaseModal
