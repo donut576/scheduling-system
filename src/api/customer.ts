@@ -23,7 +23,7 @@ export interface CustomerFormData {
   longitude?: number; // 經度（用於地圖顯示）
   contactName: string; // 聯絡人姓名
   contactPhone: string; // 聯絡人電話
-  contactEmail: string; // 聯絡人信箱（必填）
+  contactEmail?: string; // 聯絡人信箱（必填）
   backupName?: string; // 備用窗口（選填，三欄要一起填）
   backupPhone?: string;
   backupEmail?: string;

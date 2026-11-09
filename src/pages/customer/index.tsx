@@ -332,7 +332,7 @@ const CustomerPage: FC = () => {
       address: values.address.trim(),
       contactName: values.contactName.trim(),
       contactPhone: values.contactPhone.trim(),
-      contactEmail: values.contactEmail.trim(),
+      contactEmail: (values.contactEmail ?? '').trim(),
       backupName: (values.backupName ?? '').trim(),
       backupPhone: (values.backupPhone ?? '').trim(),
       backupEmail: (values.backupEmail ?? '').trim(),
@@ -651,7 +651,7 @@ const CustomerPage: FC = () => {
               dependencies={['backupPhone', 'backupEmail']}
               rules={[backupRequired('customer.backupNameRequired')]}
             >
-              <Input placeholder={t('customer.contactNamePlaceholder')} />
+              <Input placeholder={t('customer.backupNamePlaceholder')} />
             </Form.Item>
             <Form.Item
               name="backupPhone"
@@ -659,7 +659,7 @@ const CustomerPage: FC = () => {
               dependencies={['backupName', 'backupEmail']}
               rules={[backupRequired('customer.backupPhoneRequired')]}
             >
-              <Input placeholder={t('customer.contactPhonePlaceholder')} />
+              <Input placeholder={t('customer.backupPhonePlaceholder')} />
             </Form.Item>
             <Form.Item
               name="backupEmail"
@@ -671,7 +671,7 @@ const CustomerPage: FC = () => {
               ]}
               extra={t('customer.backupContactHint')}
             >
-              <Input placeholder={t('customer.contactEmailPlaceholder')} />
+              <Input placeholder={t('customer.backupEmailPlaceholder')} />
             </Form.Item>
           </div>
           <Form.Item
