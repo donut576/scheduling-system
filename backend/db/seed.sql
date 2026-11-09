@@ -24,6 +24,7 @@ INSERT INTO permissions (code, name) VALUES
   ('employee:view','員工：檢視'),
   ('employee:create','員工：新增'),
   ('employee:edit','員工：編輯'),
+  ('employee:delete','員工：刪除（停用）'),
   ('employee:designate_leave','員工：指定排休'),
   ('notification:view','通知：檢視'),
   ('notification:send','通知：發送'),
@@ -37,7 +38,7 @@ INSERT INTO permissions (code, name) VALUES
   ('map:view','地圖：檢視'),
   ('system:audit','系統：稽核'),
   ('system:settings','系統：設定');
-INSERT INTO role_permissions (role_id, permission_id) SELECT r.id, p.id FROM roles r, permissions p WHERE r.code='ADMIN' AND p.code IN ('task:view','task:create','task:edit','task:delete','task:export','task:override_alert','schedule:view','schedule:edit','schedule:approve','customer:view','customer:create','customer:edit','customer:delete','employee:view','employee:create','employee:edit','employee:designate_leave','notification:view','notification:send','notification:manage_template','approval:view','approval:approve','pending_customer:view','pending_customer:create','pending_customer:convert','pending_customer:delete','map:view','system:audit','system:settings');
+INSERT INTO role_permissions (role_id, permission_id) SELECT r.id, p.id FROM roles r, permissions p WHERE r.code='ADMIN' AND p.code IN ('task:view','task:create','task:edit','task:delete','task:export','task:override_alert','schedule:view','schedule:edit','schedule:approve','customer:view','customer:create','customer:edit','customer:delete','employee:view','employee:create','employee:edit','employee:delete','employee:designate_leave','notification:view','notification:send','notification:manage_template','approval:view','approval:approve','pending_customer:view','pending_customer:create','pending_customer:convert','pending_customer:delete','map:view','system:audit','system:settings');
 INSERT INTO role_permissions (role_id, permission_id) SELECT r.id, p.id FROM roles r, permissions p WHERE r.code='MANAGER' AND p.code IN ('schedule:view','schedule:approve','task:view','task:create','task:edit','task:export','task:override_alert','customer:view','customer:create','customer:edit','customer:delete','pending_customer:view','pending_customer:create','pending_customer:convert','pending_customer:delete','employee:view','employee:edit','employee:designate_leave','approval:view','approval:approve','notification:view','notification:send','notification:manage_template','map:view');
 INSERT INTO role_permissions (role_id, permission_id) SELECT r.id, p.id FROM roles r, permissions p WHERE r.code='LEADER' AND p.code IN ('task:view','task:create','task:edit','task:export','task:override_alert','schedule:view','schedule:edit','customer:view','customer:create','customer:edit','customer:delete','pending_customer:view','pending_customer:create','pending_customer:convert','pending_customer:delete','employee:view','employee:designate_leave','approval:view','notification:view','notification:send','notification:manage_template','map:view');
 INSERT INTO role_permissions (role_id, permission_id) SELECT r.id, p.id FROM roles r, permissions p WHERE r.code='EMPLOYEE' AND p.code IN ('schedule:view','notification:view','map:view','customer:view','employee:view','employee:edit');

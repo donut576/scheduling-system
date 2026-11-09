@@ -54,9 +54,12 @@ export const mapEmployee = (row) => ({
   isActive: row.is_active,
 });
 
-export const buildEmployeeFilter = (filters, scope) => {
+// 主任只管組員：一般員工、約聘員工、主任；看不到副理、行政
+export const LEADER_VISIBLE_POSITIONS = ['STAFF', 'CONTRACT_STAFF', 'LEADER'];
+
+export const buildEmployeeFilter = (filters, scope, excludeNo = null, onlyPositions = null) => {
   const values = [];
-  const where = [];
+  const where = ['u.is_active'];
   const sc = scopeCondition(scope, 'rg.name', values);
   if (sc) where.push(sc);
   const add = (sql, v) => { values.push(v); where.push(sql.replace('?', `$${values.length}`)); };
@@ -65,6 +68,8 @@ export const buildEmployeeFilter = (filters, scope) => {
     const p = `$${values.length}`;
     where.push(`(u.name ILIKE ${p} OR u.employee_no ILIKE ${p} OR u.phone ILIKE ${p} OR u.email ILIKE ${p})`);
   }
+  if (excludeNo) add('u.employee_no <> ?', excludeNo);
+  if (onlyPositions) add('p.code = ANY(?::text[])', onlyPositions);
   if (filters.groupId) add('rg.id = ?::bigint', parseId(filters.groupId));
   if (filters.area) add('rg.name = ?', filters.area);
   if (filters.shift) add('sh.name = ?', filters.shift);
@@ -81,7 +86,10 @@ export const buildEmployeeFilter = (filters, scope) => {
 export const listEmployees = async (user, rawQuery) => {
   const filters = validate(rawQuery, LIST_SCHEMA);
   const paging = parsePaging(rawQuery);
-  const { whereSql, values } = buildEmployeeFilter(filters, await getScope(user));
+  // 主任只看組員（一般、約聘、主任），列表不含自己；管理員、經理看全部
+  const isLeader = user.role === 'LEADER';
+  const { whereSql, values } = buildEmployeeFilter(filters, await getScope(user),
+    isLeader ? user.no : null, isLeader ? LEADER_VISIBLE_POSITIONS : null);
   const n = values.length;
   const [rows, total] = await Promise.all([
     query(`${SELECT_SQL} ${FROM_SQL} ${whereSql} ORDER BY rg.name NULLS LAST, sh.id NULLS LAST, u.employee_no LIMIT $${n + 1} OFFSET $${n + 2}`,
@@ -93,7 +101,8 @@ export const listEmployees = async (user, rawQuery) => {
 
 export const getEmployee = async (user, id) => {
   const empId = parseId(id);
-  const { whereSql, values } = buildEmployeeFilter({}, await getScope(user));
+  const { whereSql, values } = buildEmployeeFilter({}, await getScope(user), null,
+    user.role === 'LEADER' ? LEADER_VISIBLE_POSITIONS : null);
   const cond = `${whereSql ? `${whereSql} AND` : 'WHERE'} u.id = $${values.length + 1}::bigint`;
   const rows = await query(`${SELECT_SQL} ${FROM_SQL} ${cond}`, [...values, empId]);
   if (rows.rows.length === 0) throw new AppError(404, ERROR_CODES.EMPLOYEE_NOT_FOUND, '找不到此員工');

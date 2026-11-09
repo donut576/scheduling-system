@@ -475,6 +475,7 @@ export default {
     deleteSuccess: '員工資料已刪除',
     deleteTitle: '刪除員工資料',
     deleteConfirm: '確定要刪除「{{name}}」的員工資料嗎？',
+    deleteHint: '刪除後，員工會從列表消失；歷史任務與紀錄會保留。',
     confirmDelete: '確定刪除',
     nameRequired: '請輸入姓名',
     namePlaceholder: '請輸入姓名',

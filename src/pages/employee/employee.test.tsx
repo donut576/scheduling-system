@@ -193,6 +193,16 @@ describe('EmployeePage', () => {
   });
 
   describe('刪除員工 - Requirement 11.2', () => {
+    beforeEach(() => {
+      usePermissionStore.getState().buildPermissions([], 'ADMIN');
+    });
+
+    it('hides delete action for users without employee:delete permission', async () => {
+      usePermissionStore.getState().buildPermissions([], 'LEADER');
+      render(<EmployeePage />);
+      expect(screen.queryByLabelText('刪除員工')).not.toBeInTheDocument();
+    });
+
     it('shows delete action on employee cards and asks for confirmation', async () => {
       const user = userEvent.setup();
       render(<EmployeePage />);
