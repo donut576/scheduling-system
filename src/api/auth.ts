@@ -1,7 +1,14 @@
 // 身分驗證（Auth）相關 API 呼叫層
 // 提供登入與取得個人資料的功能
 import apiInstance from './instance';
-import type { LoginRequest, LoginResponse, UserProfile, ChangePasswordRequest } from '@/types/auth';
+import type {
+  LoginRequest,
+  LoginResponse,
+  UserProfile,
+  ChangePasswordRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+} from '@/types/auth';
 import type { ApiResponse } from '@/types/common';
 
 export const authApi = {
@@ -16,4 +23,18 @@ export const authApi = {
   // 變更自己的密碼（首次登入被要求改密碼時也用這支）
   changePassword: (data: ChangePasswordRequest) =>
     apiInstance.post<ApiResponse<null>>('/auth/change-password', data),
+
+  // 忘記密碼：寄重設信到員工信箱（不論帳號是否存在都回成功）
+  forgotPassword: (data: ForgotPasswordRequest) =>
+    apiInstance.post<ApiResponse<null>>('/auth/forgot-password', data),
+
+  // 開啟信件連結時，先確認連結是否有效，並取得員工編號
+  checkResetToken: (token: string) =>
+    apiInstance.get<ApiResponse<{ employeeNo: string }>>('/auth/reset-password/check', {
+      params: { token },
+    }),
+
+  // 用信件連結設定新密碼
+  resetPassword: (data: ResetPasswordRequest) =>
+    apiInstance.post<ApiResponse<null>>('/auth/reset-password', data),
 };

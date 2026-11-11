@@ -81,6 +81,15 @@ CREATE TABLE users (              -- 每位員工即一個使用者；登入帳�
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX uq_users_email_lower ON users (lower(email)) WHERE email IS NOT NULL;
+CREATE TABLE password_reset_tokens (  -- 忘記密碼寄信的重設連結（只存 token 的雜湊）
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash text NOT NULL UNIQUE,
+  expires_at timestamptz NOT NULL,
+  used_at timestamptz,            -- 用過或被新申請作廢時填入
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_reset_tokens_user ON password_reset_tokens(user_id, created_at DESC);
 ALTER TABLE regions ADD CONSTRAINT fk_region_leader FOREIGN KEY (leader_id) REFERENCES users(id);
 
 CREATE TABLE user_licenses (      -- 持有證照與期限

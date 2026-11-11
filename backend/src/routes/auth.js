@@ -7,6 +7,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { ok, AppError, ERROR_CODES } from '../utils/response.js';
 import { loginWithDb, getDbProfile, changePassword } from '../services/auth.js';
 import { ensurePermissions, permissionsOf } from '../services/permissions.js';
+import { requestPasswordReset, getResetTokenInfo, resetPasswordWithToken } from '../services/passwordReset.js';
 
 export const authRouter = Router();
 
@@ -55,4 +56,22 @@ authRouter.post('/auth/change-password', requireAuthAllowMustChange, asyncHandle
   const { currentPassword, newPassword } = req.body || {};
   await changePassword(req.user.sub, currentPassword, newPassword);
   ok(res, null, '密碼已更新');
+}));
+
+// 忘記密碼（寄信重設）。三支都不需要登入。
+// 不論員工編號存不存在都回同一句話，避免被拿來探測帳號。
+authRouter.post('/auth/forgot-password', asyncHandler(async (req, res) => {
+  await requestPasswordReset((req.body || {}).account);
+  ok(res, null, '若此員工編號存在，重設信已寄出，請到信箱收信');
+}));
+
+// 開啟連結時先確認連結還有效，並取得員工編號顯示在畫面上
+authRouter.get('/auth/reset-password/check', asyncHandler(async (req, res) => {
+  ok(res, await getResetTokenInfo(req.query.token));
+}));
+
+authRouter.post('/auth/reset-password', asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body || {};
+  await resetPasswordWithToken(token, newPassword);
+  ok(res, null, '密碼已更新，請用新密碼登入');
 }));

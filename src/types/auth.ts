@@ -41,3 +41,14 @@ export interface ChangePasswordRequest {
 
 /** 使用者角色類型：管理員／行政／經理／組長／一般員工 */
 export type RoleType = 'ADMIN' | 'ADMIN_STAFF' | 'MANAGER' | 'LEADER' | 'STAFF';
+
+/** 忘記密碼（寄信重設）請求參數 */
+export interface ForgotPasswordRequest {
+  account: string;
+}
+
+/** 用信件連結設定新密碼的請求參數 */
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+}
