@@ -11,7 +11,7 @@ import { BASE_SELECT, mapTask, loadRelations } from './tasks.js';
 // 申請時任務存成「待核准」（不出現在班表與待排）；核准 → 依任務內容變成已排班；駁回 → 任務取消。
 
 const LIST_SCHEMA = {
-  status: { type: 'enum', values: ['PENDING', 'APPROVED', 'REJECTED', 'WITHDRAWN'] },
+  status: { type: 'enum', values: ['PENDING', 'APPROVED', 'REJECTED', 'WITHDRAWN','PROCESSED'] },
   type: { type: 'enum', values: ['TASK_CHANGE', 'ALERT_OVERRIDE', 'SCHEDULE_CHANGE', 'SHIFT_CHANGE'] },
   keyword: { type: 'string', max: 100 },
   requestedBy: { type: 'string', max: 50 },
@@ -63,7 +63,9 @@ export const listApprovals = async (user, rawQuery) => {
     values.push(f.requestedBy);
     where.push(`(a.requested_by::text = $${values.length} OR ru.name = $${values.length})`);
   }
-  if (f.status) add('a.status = ?', f.status);
+    // PROCESSED = 已處理（核准、駁回、撤回），不含待審
+  if (f.status === 'PROCESSED') where.push(`a.status <> 'PENDING'`);
+  else if (f.status) add('a.status = ?', f.status);
   if (f.type) add('a.type = ?', f.type);
   if (f.keyword) {
     values.push(`%${likeEscape(f.keyword)}%`);
