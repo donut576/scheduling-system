@@ -133,6 +133,7 @@ const MapPage: FC = () => {
         );
         const assigneeId = task?.assignees[0]?.employeeId;
         const color =
+          (customer.regions?.[0] && AREA_COLOR_MAP[customer.regions[0]]) ||
           (assigneeId && employeeColorById.get(assigneeId)) ||
           getGroupColor(customer.groupId) ||
           ECOLAB_BLUE;
