@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 // 不設定 SMTP，信件不會真的寄出，內容記在 mailer 的 sentMails，測試從裡面取出連結。
 // 會新增員工編號以 __RST 開頭的員工，測試結束會清掉（重設連結隨員工一併刪除）。
 process.env.ENABLE_DEV_LOGIN = 'true';
+process.env.SMTP_HOST = ''; // 測試不能真的寄信（即使 .env 設定了 SMTP）；信件改記在 mailer 的 sentMails
 const { createApp } = await import('../src/app.js');
 const { pool } = await import('../src/db.js');
 const { sentMails } = await import('../src/services/mailer.js');
