@@ -70,10 +70,15 @@ apiInstance.interceptors.response.use(
     // 依 HTTP 狀態碼顯示對應的錯誤訊息
     switch (status) {
       case 401:
+        // 登入請求本身的 401 是「帳號或密碼錯誤」，由登入頁自己顯示，不能當成登入過期
+        if (error.config?.url?.includes('/auth/login')) break;
         message.error('登入已過期，請重新登入');
         onUnauthorized();
         break;
       case 403:
+        // 40303 = 需要先改密碼，改密碼視窗已經在畫面上，不另外跳錯誤
+        // 登入請求的 403（帳號已停用）由登入頁自己顯示
+        if (data?.code === 40303 || error.config?.url?.includes('/auth/login')) break;
         message.error('無此操作權限');
         break;
       case 422: {

@@ -6,7 +6,7 @@ import { ok } from '../utils/response.js';
 import { listEmployees, getEmployee } from '../services/employees.js';
 import { createEmployee, updateEmployee } from '../services/employeeWrite.js';
 import { disableEmployee } from '../services/employeeDisable.js';
-
+import { resetEmployeePassword } from '../services/employeePassword.js';
 
 export const employeesRouter = Router();
 
@@ -24,3 +24,6 @@ employeesRouter.patch('/employees/:id', requireAuth, requirePermission('employee
 
 employeesRouter.delete('/employees/:id', requireAuth, requirePermission('employee:delete'),
   asyncHandler(async (req, res) => ok(res, await disableEmployee(req.user, req.params.id), '員工已停用')));
+
+employeesRouter.post('/employees/:id/reset-password', requireAuth, requirePermission('employee:reset_password'),
+  asyncHandler(async (req, res) => ok(res, await resetEmployeePassword(req.params.id), '密碼已重設為預設密碼，員工下次登入需變更密碼')));

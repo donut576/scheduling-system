@@ -14,6 +14,7 @@ export const ERROR_CODES = {
   // Permission errors
   FORBIDDEN: 40301,
   INSUFFICIENT_PERMISSIONS: 40302,
+  PASSWORD_CHANGE_REQUIRED: 40303,
 
   // Validation errors
   VALIDATION_ERROR: 42201,
@@ -44,4 +45,5 @@ export const ERROR_MESSAGES: Record<number, string> = {
   [ERROR_CODES.EMPLOYEE_NOT_FOUND]: '找不到該員工',
   [ERROR_CODES.CUSTOMER_NOT_FOUND]: '找不到該客戶',
   [ERROR_CODES.INTERNAL_ERROR]: '伺服器錯誤，請稍後再試',
+  [ERROR_CODES.PASSWORD_CHANGE_REQUIRED]: '請先變更預設密碼',
 };
