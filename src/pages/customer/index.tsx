@@ -58,7 +58,7 @@ function renderCustomerCard(
 ) {
   const hasPest = (record.requiredLicenses ?? []).includes('PEST_CONTROL');
   const hasProf = (record.requiredLicenses ?? []).includes('PROFESSIONAL');
-  const avatarColor = getGroupColor(record.groupId || record.groupName);
+  const avatarColor = getGroupColor(record.regions?.[0] ?? record.groupId ?? record.groupName);
 
   return (
     <Card
