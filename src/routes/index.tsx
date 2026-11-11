@@ -24,6 +24,7 @@ import i18n from '@/i18n';
 
 // Lazy loaded pages
 const LoginPage = lazy(() => import('@/pages/login/index'));
+const ResetPasswordPage = lazy(() => import('@/pages/reset-password/index'));
 const DashboardPage = lazy(() => import('@/pages/dashboard/index'));
 const ForbiddenPage = lazy(() => import('@/pages/403'));
 
@@ -124,6 +125,14 @@ const childRoutes: RouteObject[] = [
     element: (
       <LazyLoad>
         <LoginPage />
+      </LazyLoad>
+    ),
+  },
+  {
+    path: '/reset-password',
+    element: (
+      <LazyLoad>
+        <ResetPasswordPage />
       </LazyLoad>
     ),
   },

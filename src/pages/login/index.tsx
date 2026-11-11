@@ -1,20 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { FC } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Form,
-  Input,
-  Button,
-  Card,
-  Typography,
-  Checkbox,
-  message,
-  Space,
-  Modal,
-  Alert,
-  Row,
-  Col,
-} from 'antd';
+import { Form, Input, Button, Card, Typography, Checkbox, message, Space, Row, Col } from 'antd';
 import { UserOutlined, LockOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useUserStore } from '@/stores/useUserStore';
@@ -23,6 +10,7 @@ import { authApi } from '@/api/auth';
 import { ROLE_PERMISSIONS } from '@/constants/permissions';
 import type { LoginRequest, UserProfile, RoleType } from '@/types/auth';
 import axios from 'axios';
+import ForgotPasswordModal from '@/components/business/ForgotPasswordModal';
 
 const { Title, Text } = Typography;
 
@@ -381,31 +369,8 @@ const LoginPage: FC = () => {
           </Row>
         </div>
       </Card>
-
-      {/* 忘記密碼：目前由系統管理員重設，沒有自助重設 */}
-      <Modal
-        title={
-          <Space>
-            <LockOutlined style={{ color: '#005EB8' }} />
-            <span>忘記密碼</span>
-          </Space>
-        }
-        open={forgotModalOpen}
-        onCancel={() => setForgotModalOpen(false)}
-        footer={
-          <Button type="primary" onClick={() => setForgotModalOpen(false)}>
-            我知道了
-          </Button>
-        }
-        width={420}
-      >
-        <Alert
-          type="info"
-          showIcon
-          message="請聯絡系統管理員"
-          description="系統管理員可以重設您的密碼，重設後登入時會要求您設定新的密碼。"
-        />
-      </Modal>
+      {/*忘記密碼*/}
+      <ForgotPasswordModal open={forgotModalOpen} onClose={() => setForgotModalOpen(false)} />
     </div>
   );
 };

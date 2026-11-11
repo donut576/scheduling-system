@@ -44,12 +44,20 @@ const body = (branch, emp, date, extra = {}) => ({
   headcount: 1, shift: '早班', contents: ['P'], assignees: [String(emp)], remarks: MARK, ...extra,
 });
 test('列表 status=PROCESSED 回傳非待審的申請', async (t) => {
-  // 以經理登入，GET /approvals?status=PROCESSED
-  // 預期 200，且 data.list 裡每一筆的 status 都不是 'PENDING'
   const base = start(t);
   const manager = await login(base, 'manager', 'manager123');
-  assert.equal((await call(base, 'GET', '/approvals?status=PROCESSED', manager)).status, 200);
 
+  const res = await call(base, 'GET', '/approvals?status=PROCESSED&pageSize=100', manager);
+  assert.equal(res.status, 200);
+
+  const list = (await res.json()).data.list;
+  assert.ok(list.every((a) => a.status !== 'PENDING'));
+  assert.ok(list.every((a) => ['APPROVED', 'REJECTED', 'WITHDRAWN'].includes(a.status)));
+
+  // 待審的申請不會被算進「已處理」
+  const pending = (await (await call(base, 'GET', '/approvals?status=PENDING&pageSize=100', manager)).json()).data.list;
+  const processedIds = new Set(list.map((a) => a.id));
+  assert.ok(pending.every((a) => !processedIds.has(a.id)));
 });
 
 test('核准 API 需要登入與權限；一般員工不能看', async (t) => {
