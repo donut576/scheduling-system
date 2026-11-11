@@ -1,6 +1,7 @@
 import { config } from '../config.js';
 import { pool } from '../db.js';
 import { verifyToken } from '../utils/token.js';
+import { ensurePermissions } from '../services/permissions.js';
 import { AppError, ERROR_CODES } from '../utils/response.js';
 
 // 驗證 Authorization: Bearer <token>，通過後把使用者放到 req.user。
@@ -23,6 +24,7 @@ const build = ({ allowMustChange }) => async (req, res, next) => {
       }
       payload.mustChangePassword = row.must_change_password;
     }
+    await ensurePermissions(); // 之後的 requirePermission / hasPermission 是同步判斷，要先確保權限快取已載入
     req.user = payload;
     next();
   } catch (e) {
