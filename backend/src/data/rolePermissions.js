@@ -19,6 +19,7 @@ export const ROLE_PERMISSIONS = {
     'employee:create',
     'employee:edit',
     'employee:delete',
+    'employee:reset_password',
     'employee:designate_leave',
     'notification:view',
     'notification:send',

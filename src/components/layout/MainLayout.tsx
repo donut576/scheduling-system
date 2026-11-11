@@ -5,6 +5,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import SideMenu from './SideMenu';
 import AppHeader from './AppHeader';
 import MapFloatingButton from './MapFloatingButton';
+import ForceChangePasswordModal from '@/components/business/ForceChangePasswordModal';
 
 const { Content } = Layout;
 
@@ -78,6 +79,8 @@ const MainLayout: React.FC = () => {
 
       {/* 全域地圖浮動按鈕（右下角） */}
       <MapFloatingButton />
+      {/* 使用預設密碼時的強制改密碼視窗（改完才能使用系統） */}
+      <ForceChangePasswordModal />
     </Layout>
   );
 };

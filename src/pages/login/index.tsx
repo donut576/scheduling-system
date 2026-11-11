@@ -15,19 +15,14 @@ import {
   Row,
   Col,
 } from 'antd';
-import {
-  UserOutlined,
-  LockOutlined,
-  SafetyCertificateOutlined,
-  KeyOutlined,
-  MailOutlined,
-} from '@ant-design/icons';
+import { UserOutlined, LockOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useUserStore } from '@/stores/useUserStore';
 import { usePermissionStore } from '@/stores/usePermissionStore';
 import { authApi } from '@/api/auth';
 import { ROLE_PERMISSIONS } from '@/constants/permissions';
 import type { LoginRequest, UserProfile, RoleType } from '@/types/auth';
+import axios from 'axios';
 
 const { Title, Text } = Typography;
 
@@ -40,7 +35,7 @@ interface LoginFormValues {
 
 /**
  * 登入頁面
- * 提供帳號密碼登入表單、快速切換角色、忘記密碼、首次登入設定密碼與 IT Support 支援說明。
+ * 提供帳號密碼登入表單、快速切換角色、忘記密碼與 IT Support 支援說明。
  */
 const LoginPage: FC = () => {
   const navigate = useNavigate();
@@ -51,15 +46,12 @@ const LoginPage: FC = () => {
 
   // 忘記密碼與首次登入彈窗
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
-  const [firstLoginModalOpen, setFirstLoginModalOpen] = useState(false);
-  const [forgotForm] = Form.useForm();
-  const [firstLoginForm] = Form.useForm();
 
   const { loginFailCount, setToken, setUser, incrementLoginFail, resetLoginFail } = useUserStore();
   const { buildPermissions } = usePermissionStore();
 
-  // 連續登入失敗達 3 次以上才顯示驗證碼欄位
-  const showCaptcha = loginFailCount >= 3;
+  // 連續登入失敗達 3 次以上才顯示驗證碼欄位（目前關閉）
+  const showCaptcha = false;
 
   // 產生帶有防快取時間戳的驗證碼圖片網址
   const refreshCaptcha = useCallback(() => {
@@ -160,12 +152,15 @@ const LoginPage: FC = () => {
 
         throw apiErr;
       }
-    } catch {
+    } catch (err) {
       incrementLoginFail();
       if (loginFailCount + 1 >= 3) {
         refreshCaptcha();
       }
-      message.error(t('auth.invalidCredentials'));
+      const serverMsg = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string } | undefined)?.message
+        : undefined;
+      message.error(serverMsg || t('auth.invalidCredentials'));
     } finally {
       setLoading(false);
     }
@@ -175,33 +170,6 @@ const LoginPage: FC = () => {
   const handleQuickFillAndLogin = (account: string, password: string) => {
     form.setFieldsValue({ account, password });
     handleSubmit({ account, password, rememberMe: false });
-  };
-
-  // 忘記密碼送出
-  const handleForgotSubmit = async () => {
-    try {
-      const values = await forgotForm.validateFields();
-      message.success(
-        `重設密碼驗證信已發送至與員工編號【${values.employeeNo}】綁定之信箱，請至信箱收取驗證連結！`,
-      );
-      setForgotModalOpen(false);
-      forgotForm.resetFields();
-    } catch {
-      // Form validation failed
-    }
-  };
-
-  // 首次登入設定密碼送出
-  const handleFirstLoginSubmit = async () => {
-    try {
-      const values = await firstLoginForm.validateFields();
-      form.setFieldsValue({ account: values.employeeNo, password: values.newPassword });
-      message.success('密碼設定成功！已為您自動帶入新密碼，請點擊登入。');
-      setFirstLoginModalOpen(false);
-      firstLoginForm.resetFields();
-    } catch {
-      // Form validation failed
-    }
   };
 
   return (
@@ -337,15 +305,6 @@ const LoginPage: FC = () => {
               <Button
                 type="link"
                 size="small"
-                onClick={() => setFirstLoginModalOpen(true)}
-                style={{ padding: 0, fontSize: 13 }}
-              >
-                首次登入？
-              </Button>
-              <Text type="secondary">|</Text>
-              <Button
-                type="link"
-                size="small"
                 onClick={() => setForgotModalOpen(true)}
                 style={{ padding: 0, fontSize: 13 }}
               >
@@ -423,111 +382,29 @@ const LoginPage: FC = () => {
         </div>
       </Card>
 
-      {/* 忘記密碼彈窗 */}
+      {/* 忘記密碼：目前由系統管理員重設，沒有自助重設 */}
       <Modal
         title={
           <Space>
-            <MailOutlined style={{ color: '#005EB8' }} />
-            <span>忘記密碼 / 密碼重設申請</span>
+            <LockOutlined style={{ color: '#005EB8' }} />
+            <span>忘記密碼</span>
           </Space>
         }
         open={forgotModalOpen}
-        onOk={handleForgotSubmit}
         onCancel={() => setForgotModalOpen(false)}
-        okText="發送重設驗證信"
-        cancelText="取消"
+        footer={
+          <Button type="primary" onClick={() => setForgotModalOpen(false)}>
+            我知道了
+          </Button>
+        }
         width={420}
       >
         <Alert
           type="info"
           showIcon
-          style={{ marginBottom: 16 }}
-          message="重設密碼說明"
-          description="請輸入您的「員工編號」或「公司電子信箱」，系統將自動寄發密碼重設連結至您留存的公司信箱中。"
+          message="請聯絡系統管理員"
+          description="系統管理員可以重設您的密碼，重設後登入時會要求您設定新的密碼。"
         />
-        <Form form={forgotForm} layout="vertical">
-          <Form.Item
-            name="employeeNo"
-            label="員工編號 / 電子信箱"
-            rules={[{ required: true, message: '請輸入員工編號或公司信箱' }]}
-          >
-            <Input prefix={<UserOutlined />} placeholder="例如：STAFF01 或 user@ecolab.com" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 首次登入設定密碼彈窗 */}
-      <Modal
-        title={
-          <Space>
-            <KeyOutlined style={{ color: '#52c41a' }} />
-            <span>首次登入啟用與設定密碼</span>
-          </Space>
-        }
-        open={firstLoginModalOpen}
-        onOk={handleFirstLoginSubmit}
-        onCancel={() => setFirstLoginModalOpen(false)}
-        okText="確認設定並登入"
-        cancelText="取消"
-        width={440}
-      >
-        <Alert
-          type="success"
-          showIcon
-          style={{ marginBottom: 16 }}
-          message="新進員工帳號開通"
-          description={
-            <div>
-              新進員工預設初始密碼為 <code>Ecolab1234</code>
-              。為確保帳號安全，首次登入請設定您的個人專屬密碼。
-            </div>
-          }
-        />
-        <Form form={firstLoginForm} layout="vertical">
-          <Form.Item
-            name="employeeNo"
-            label="員工編號"
-            rules={[{ required: true, message: '請輸入員工編號' }]}
-          >
-            <Input prefix={<UserOutlined />} placeholder="例如：STAFF01、E001" />
-          </Form.Item>
-          <Form.Item
-            name="initialPassword"
-            label="預設初始密碼"
-            initialValue="Ecolab1234"
-            rules={[{ required: true, message: '請輸入預設初始密碼' }]}
-          >
-            <Input.Password prefix={<LockOutlined />} placeholder="預設為 Ecolab1234" />
-          </Form.Item>
-          <Form.Item
-            name="newPassword"
-            label="設定新密碼"
-            rules={[
-              { required: true, message: '請輸入新密碼' },
-              { min: 6, message: '密碼長度至少需 6 個字元' },
-            ]}
-          >
-            <Input.Password prefix={<KeyOutlined />} placeholder="請輸入至少 6 位英數新密碼" />
-          </Form.Item>
-          <Form.Item
-            name="confirmPassword"
-            label="確認新密碼"
-            dependencies={['newPassword']}
-            rules={[
-              { required: true, message: '請再次輸入新密碼' },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  if (!value || getFieldValue('newPassword') === value) {
-                    return Promise.resolve();
-                  }
-                  return Promise.reject(new Error('兩次輸入的新密碼不一致！'));
-                },
-              }),
-            ]}
-          >
-            <Input.Password prefix={<KeyOutlined />} placeholder="請再次輸入新密碼" />
-          </Form.Item>
-        </Form>
       </Modal>
     </div>
   );

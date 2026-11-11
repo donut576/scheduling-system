@@ -29,6 +29,14 @@ export interface UserProfile {
   permissions: string[];
   groupId?: string;
   area?: string;
+  /** 是否需要先變更密碼（使用預設密碼或被管理員重設）；true 時登入後會跳出強制改密碼視窗 */
+  mustChangePassword?: boolean;
+}
+
+/** 變更密碼請求參數 */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
 }
 
 /** 使用者角色類型：管理員／行政／經理／組長／一般員工 */

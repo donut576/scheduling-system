@@ -86,27 +86,27 @@ describe('LoginPage', () => {
       expect(screen.queryByLabelText('驗證碼')).not.toBeInTheDocument();
     });
 
-    it('shows captcha field when loginFailCount >= 3', () => {
+    it.skip('shows captcha field when loginFailCount >= 3', () => {
       useUserStore.setState({ loginFailCount: 3 });
       render(<LoginPage />);
       expect(screen.getByLabelText('驗證碼')).toBeInTheDocument();
     });
 
-    it('shows captcha field when loginFailCount is 5', () => {
+    it.skip('shows captcha field when loginFailCount is 5', () => {
       useUserStore.setState({ loginFailCount: 5 });
       render(<LoginPage />);
       expect(screen.getByLabelText('驗證碼')).toBeInTheDocument();
     });
 
-    it('shows warning message when captcha is displayed', () => {
+    it.skip('shows warning message when captcha is displayed', () => {
       useUserStore.setState({ loginFailCount: 3 });
       render(<LoginPage />);
       expect(screen.getByText(/連續登入失敗 3 次/)).toBeInTheDocument();
     });
   });
-
+  // 驗證碼目前關閉（後端沒有驗證碼 API，開著會讓使用者無法登入）；有實作後把 it.skip 改回 it
   describe('驗證碼圖片鍵盤導航 (Captcha Keyboard Navigation) - Requirement 16.4', () => {
-    it('captcha image is keyboard-focusable and refreshes on Enter key', async () => {
+    it.skip('captcha image is keyboard-focusable and refreshes on Enter key', async () => {
       useUserStore.setState({ loginFailCount: 3 });
       render(<LoginPage />);
 
@@ -249,8 +249,6 @@ describe('LoginPage', () => {
       const user = userEvent.setup();
       await user.type(screen.getByLabelText('帳號或員工編號'), 'user2');
       await user.type(screen.getByLabelText('密碼'), 'pass123');
-      // Since loginFailCount >= 3, captcha is required
-      await user.type(screen.getByLabelText('驗證碼'), '1234');
       await user.click(screen.getByRole('button', { name: '登入' }));
 
       await waitFor(() => {
