@@ -1,5 +1,5 @@
 import { pool } from '../db.js';
-import { ROLE_PERMISSIONS } from '../data/rolePermissions.js';
+import { permissionsOf } from './permissions.js';
 import { AppError, ERROR_CODES } from '../utils/response.js';
 import { verifyPassword, assertValidNewPassword, encodePassword } from './password.js';
 
@@ -14,7 +14,7 @@ export const toDbProfile = (row) => {
     name: row.name,
     employeeNo: row.employee_no,
     role,
-    permissions: ROLE_PERMISSIONS[role] || [],
+    permissions: permissionsOf(role),
     mustChangePassword: row.must_change_password,
   };
 };

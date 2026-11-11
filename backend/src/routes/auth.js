@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { config } from '../config.js';
 import { DEV_USERS } from '../data/devUsers.js';
-import { ROLE_PERMISSIONS } from '../data/rolePermissions.js';
 import { signToken } from '../utils/token.js';
 import { requireAuthAllowMustChange } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ok, AppError, ERROR_CODES } from '../utils/response.js';
 import { loginWithDb, getDbProfile, changePassword } from '../services/auth.js';
+import { ensurePermissions, permissionsOf } from '../services/permissions.js';
 
 export const authRouter = Router();
 
@@ -16,7 +16,7 @@ const toDevProfile = (u) => ({
   name: u.name,
   employeeNo: u.employeeNo,
   role: u.role,
-  permissions: ROLE_PERMISSIONS[u.role] || [],
+  permissions: permissionsOf(u.role),
   mustChangePassword: false,
 });
 
@@ -27,6 +27,7 @@ authRouter.post('/auth/login', asyncHandler(async (req, res) => {
   if (typeof account !== 'string' || typeof password !== 'string' || !account.trim() || !password) {
     throw new AppError(422, ERROR_CODES.VALIDATION_ERROR, '請輸入員工編號與密碼');
   }
+  await ensurePermissions(); // 登入回傳的權限清單來自資料庫
   if (config.enableDevLogin) {
     const dev = DEV_USERS.find((u) => u.account === account && u.password === password);
     if (dev) {
