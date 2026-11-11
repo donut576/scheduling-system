@@ -43,6 +43,14 @@ const body = (branch, emp, date, extra = {}) => ({
   branchId: String(branch), taskType: 'ONETIME', date, startTime: '09:00', endTime: '11:00',
   headcount: 1, shift: '早班', contents: ['P'], assignees: [String(emp)], remarks: MARK, ...extra,
 });
+test('列表 status=PROCESSED 回傳非待審的申請', async (t) => {
+  // 以經理登入，GET /approvals?status=PROCESSED
+  // 預期 200，且 data.list 裡每一筆的 status 都不是 'PENDING'
+  const base = start(t);
+  const manager = await login(base, 'manager', 'manager123');
+  assert.equal((await call(base, 'GET', '/approvals?status=PROCESSED', manager)).status, 200);
+
+});
 
 test('核准 API 需要登入與權限；一般員工不能看', async (t) => {
   const base = start(t);
