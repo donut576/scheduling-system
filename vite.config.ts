@@ -21,6 +21,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    // antd 元件套件單檔約 1.3 MB（gzip 後約三分之一），屬正常大小，調高門檻避免每次建置都警告
+    chunkSizeWarningLimit: 1400,
     rollupOptions: {
       output: {
         manualChunks: {
