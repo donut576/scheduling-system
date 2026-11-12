@@ -644,6 +644,10 @@ export default {
       employeeDispatch: '員工指派通知',
       changeApproval: '特許核准通知',
       approvalResult: '核准結果通知',
+      taskCreated: '新增任務',
+      taskUpdated: '修改任務',
+      taskCanceled: '取消任務',
+      licenseExpiry: '證照即將到期',
     },
     status: {
       notified: '已通知',
@@ -656,6 +660,7 @@ export default {
     changedNotified: '有異動已通知',
     changedNotNotified: '有異動未通知',
     center: '通知中心',
+    markAllRead: '全部標為已讀',
   },
   // 特許核准（審批流程）相關文字
   approval: {

@@ -34,6 +34,12 @@ import type { Notification } from '@/types/notification';
 import type { ScheduleEvent } from '@/types/schedule';
 
 const { Text, Title } = Typography;
+/** 員工 Dashboard「近期任務異動」：各異動類型的標籤顏色 */
+const TASK_CHANGE_STYLE: Record<string, string> = {
+  TASK_CREATED: 'green',
+  TASK_UPDATED: 'orange',
+  TASK_CANCELED: 'red',
+};
 
 /**
  * Dashboard 首頁
@@ -109,20 +115,17 @@ const DashboardPage: FC = () => {
   const pendingApprovals = approvalData?.list ?? [];
 
   // 3. 近期發送通知紀錄（近 7 日）
-  const { data: notificationData, isLoading: notificationLoading } = useNotificationList({
-    page: 1,
-    pageSize: 20,
-  });
+  // 員工：只取寄給自己的站內通知（用來顯示近期任務異動）；其他角色維持郵件發送紀錄
+  const { data: notificationData, isLoading: notificationLoading } = useNotificationList(
+    isStaff
+      ? { page: 1, pageSize: 20, recipientId: user?.id, channel: 'IN_APP' }
+      : { page: 1, pageSize: 20 },
+  );
 
   const recentNotifications = useMemo<Notification[]>(() => {
     const list = notificationData?.list ?? [];
     if (isStaff) {
-      return list.filter((n) => {
-        if (user?.id && n.recipientId === user.id) return true;
-        if (user?.name && n.recipientName && n.recipientName.includes(user.name)) return true;
-        if (user?.name && n.content && n.content.includes(user.name)) return true;
-        return false;
-      });
+      return list.filter((n) => n.type in TASK_CHANGE_STYLE);
     }
 
     if (role === 'LEADER' || role === 'MANAGER') {
@@ -274,7 +277,7 @@ const DashboardPage: FC = () => {
             title={
               <Space>
                 <BellOutlined />
-                <span>{isStaff ? '近期通知' : '近期通知發送紀錄'}</span>
+                <span>{isStaff ? '近期任務異動' : '近期通知發送紀錄'}</span>
               </Space>
             }
             loading={notificationLoading}
@@ -289,7 +292,7 @@ const DashboardPage: FC = () => {
             }
           >
             <Statistic
-              title={isStaff ? '收到的通知數' : '近 7 日發送總則數'}
+              title={isStaff ? '近期任務異動數' : '近 7 日發送總則數'}
               value={
                 role === 'ADMIN'
                   ? (notificationData?.total ?? recentNotifications.length)
@@ -297,7 +300,10 @@ const DashboardPage: FC = () => {
               }
             />
             {recentNotifications.length === 0 ? (
-              <Empty description="目前無發送紀錄" style={{ marginTop: 12 }} />
+              <Empty
+                description={isStaff ? '目前沒有任務異動' : '目前無發送紀錄'}
+                style={{ marginTop: 12 }}
+              />
             ) : (
               <List
                 size="small"
@@ -305,6 +311,33 @@ const DashboardPage: FC = () => {
                 dataSource={recentNotifications}
                 renderItem={(item: Notification) => {
                   const statusConfig = NOTIFICATION_STATUS_MAP[item.status];
+                  if (isStaff) {
+                    return (
+                      <List.Item key={item.id} style={{ padding: '6px 8px' }}>
+                        <div
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          <Space size={6} style={{ minWidth: 0 }}>
+                            <Tag color={TASK_CHANGE_STYLE[item.type]} style={{ margin: 0 }}>
+                              {NOTIFICATION_TYPE_MAP[item.type] || item.type}
+                            </Tag>
+                            <Text ellipsis style={{ fontSize: 13 }}>
+                              {item.subject}
+                            </Text>
+                          </Space>
+                          <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+                            {formatDateTime(item.createdAt, 'MM-DD HH:mm')}
+                          </Text>
+                        </div>
+                      </List.Item>
+                    );
+                  }
                   return (
                     <List.Item
                       key={item.id}

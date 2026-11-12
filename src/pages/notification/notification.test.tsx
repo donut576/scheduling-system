@@ -94,7 +94,9 @@ describe('NotificationPage - 通知管理設定', () => {
 
     expect(screen.getByText('自動通知開關')).toBeInTheDocument();
     expect(
-      screen.getByText('當管理員新增排班後，系統是否自動寄送郵件給客戶與負責員工'),
+      screen.getByText(
+        '任務新增、修改、取消後，系統每日合併寄送郵件給客戶與負責員工，員工同時會收到站內通知；證照即將到期則自動寄給轄區主任',
+      ),
     ).toBeInTheDocument();
 
     const switchBtn = screen.getByTestId('auto-notify-switch');
@@ -156,5 +158,76 @@ describe('NotificationPage - 通知管理設定', () => {
     expect(screen.getByText('client@din-tai-fung.com')).toBeInTheDocument();
     const subjectInput = screen.getByTestId('subject-input') as HTMLInputElement;
     expect(subjectInput.value).toBe('Ecolab 服務排程確認通知');
+  });
+
+  it('shows the merged-digest preview with created, updated and canceled blocks', () => {
+    render(<NotificationPage />);
+
+    const preview = screen.getByTestId('email-preview-container');
+    expect(preview).toHaveTextContent('新增');
+    expect(preview).toHaveTextContent('修改');
+    expect(preview).toHaveTextContent('取消');
+    // 變數以範例資料取代
+    expect(preview).toHaveTextContent('2026/11/12');
+    expect(preview).not.toHaveTextContent('{{日期}}');
+  });
+
+  it('customer tab can toggle CC to backup contact and preview follows', async () => {
+    const user = userEvent.setup();
+    render(<NotificationPage />);
+
+    await user.click(screen.getByText('客戶通知範本'));
+    expect(screen.getByTestId('preview-cc')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('cc-backup-switch'));
+    expect(screen.queryByTestId('preview-cc')).not.toBeInTheDocument();
+  });
+
+  it('leader can only change send time; templates are read-only', () => {
+    usePermissionStore
+      .getState()
+      .buildPermissions(['notification:view', 'notification:send'], 'LEADER');
+    render(<NotificationPage />);
+
+    expect(screen.getByTestId('template-readonly-alert')).toBeInTheDocument();
+    expect(screen.getByTestId('subject-input')).toBeDisabled();
+    expect(screen.getByTestId('header-input')).toBeDisabled();
+    expect(screen.getByTestId('created-input')).toBeDisabled();
+    expect(screen.getByTestId('auto-notify-switch')).toBeDisabled();
+    // 發送時間可以調整
+    expect(screen.getByTestId('send-time-select')).toBeInTheDocument();
+  });
+
+  it('manager/admin does not see the read-only notice', () => {
+    render(<NotificationPage />);
+    expect(screen.queryByTestId('template-readonly-alert')).not.toBeInTheDocument();
+    expect(screen.getByTestId('subject-input')).not.toBeDisabled();
+  });
+
+  it('license tab: recipient is fixed (auto to region leader) and shows license preview', async () => {
+    const user = userEvent.setup();
+    render(<NotificationPage />);
+
+    await user.click(screen.getByText('證照到期通知範本'));
+
+    expect(screen.getByTestId('recipient-input')).toBeDisabled();
+    expect(screen.getByTestId('license-item-input')).toBeInTheDocument();
+    expect(screen.queryByTestId('created-input')).not.toBeInTheDocument();
+    const preview = screen.getByTestId('email-preview-container');
+    expect(preview).toHaveTextContent('登革熱防治證照');
+    expect(preview).toHaveTextContent('剩 14 天');
+    expect(preview).not.toHaveTextContent('{{證照名稱}}');
+  });
+
+  it('leader sees the license template read-only', async () => {
+    const user = userEvent.setup();
+    usePermissionStore
+      .getState()
+      .buildPermissions(['notification:view', 'notification:send'], 'LEADER');
+    render(<NotificationPage />);
+
+    await user.click(screen.getByText('證照到期通知範本'));
+    expect(screen.getByTestId('subject-input')).toBeDisabled();
+    expect(screen.getByTestId('license-item-input')).toBeDisabled();
   });
 });
