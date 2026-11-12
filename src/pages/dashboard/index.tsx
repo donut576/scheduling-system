@@ -278,11 +278,6 @@ const DashboardPage: FC = () => {
               <Space>
                 <BellOutlined />
                 <span>{isStaff ? '近期任務異動' : '近期通知發送紀錄'}</span>
-                title={isStaff ? '近期任務異動數' : '近 7 日發送總則數'}
-                <Empty
-                  description={isStaff ? '目前沒有任務異動' : '目前無發送紀錄'}
-                  style={{ marginTop: 12 }}
-                />
               </Space>
             }
             loading={notificationLoading}
@@ -297,7 +292,7 @@ const DashboardPage: FC = () => {
             }
           >
             <Statistic
-              title={isStaff ? '收到的通知數' : '近 7 日發送總則數'}
+              title={isStaff ? '近期任務異動' : '近期通知發送紀錄'}
               value={
                 role === 'ADMIN'
                   ? (notificationData?.total ?? recentNotifications.length)
@@ -305,7 +300,10 @@ const DashboardPage: FC = () => {
               }
             />
             {recentNotifications.length === 0 ? (
-              <Empty description="目前無發送紀錄" style={{ marginTop: 12 }} />
+              <Empty
+                description={isStaff ? '目前沒有任務異動' : '目前無發送紀錄'}
+                style={{ marginTop: 12 }}
+              />
             ) : (
               <List
                 size="small"
