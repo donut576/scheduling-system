@@ -292,7 +292,7 @@ const DashboardPage: FC = () => {
             }
           >
             <Statistic
-              title={isStaff ? '近期任務異動' : '近期通知發送紀錄'}
+              title={isStaff ? '近期任務異動數' : '近 7 日發送總則數'}
               value={
                 role === 'ADMIN'
                   ? (notificationData?.total ?? recentNotifications.length)
