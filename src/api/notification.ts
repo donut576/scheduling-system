@@ -10,6 +10,8 @@ export interface NotificationListParams {
   pageSize?: number; // 每頁筆數
   type?: string; // 依通知類型篩選
   status?: string; // 依通知狀態篩選
+  recipientId?: string; // 只取寄給指定收件人（員工 id）的通知
+  channel?: 'IN_APP'; // IN_APP：只取站內通知（鈴鐺、任務異動用）
 }
 
 // 發送通知時使用的資料結構
@@ -40,4 +42,10 @@ export const notificationApi = {
   // 更新指定 id 的通知範本（部分欄位更新）
   updateTemplate: (id: string, data: Partial<NotificationTemplate>) =>
     apiInstance.patch<ApiResponse<NotificationTemplate>>(`/notifications/templates/${id}`, data),
+
+  // 將單筆站內通知標為已讀
+  markRead: (id: string) => apiInstance.patch<ApiResponse<null>>(`/notifications/${id}/read`),
+
+  // 將目前使用者所有站內通知標為已讀
+  markAllRead: () => apiInstance.post<ApiResponse<null>>('/notifications/read-all'),
 };

@@ -645,6 +645,10 @@ export default {
       employeeDispatch: 'Employee Dispatch',
       changeApproval: 'Change Approval',
       approvalResult: 'Approval Result',
+      taskCreated: 'Task Created',
+      taskUpdated: 'Task Updated',
+      taskCanceled: 'Task Canceled',
+      licenseExpiry: 'License Expiring',
     },
     status: {
       notified: 'Notified',
@@ -657,6 +661,7 @@ export default {
     changedNotified: 'Changed & Notified',
     changedNotNotified: 'Changed & Not Notified',
     center: 'Notification Center',
+    markAllRead: 'Mark all as read',
   },
   // 特許核准（審批流程）相關文字
   approval: {

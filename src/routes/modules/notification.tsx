@@ -1,7 +1,7 @@
 /**
  * 通知模組路由設定
  *
- * 定義 /notification 路由，需具備 notification:view 權限才能進入。
+ * 定義 /notification 路由，需具備 notification:send 權限才能進入（主任可進入但範本唯讀）。
  */
 import { lazy } from 'react';
 import type { RouteObject } from 'react-router-dom';
@@ -13,7 +13,7 @@ export const notificationRoutes: RouteObject[] = [
   {
     path: '/notification',
     element: (
-      <RouteGuard requiredPermissions={['notification:manage_template']}>
+      <RouteGuard requiredPermissions={['notification:send']}>
         <NotificationPage />
       </RouteGuard>
     ),

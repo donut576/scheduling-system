@@ -2870,6 +2870,55 @@ const mockNotifications: Notification[] = [
     senderRole: 'LEADER',
     createdAt: '2026-08-18T08:15:00+08:00',
   },
+  {
+    id: 'notif-app-001',
+    type: 'TASK_CREATED',
+    recipientType: 'EMPLOYEE',
+    recipientId: 'emp-001',
+    recipientName: '測試使用者 (專員)',
+    subject: '新增任務：11/15 09:00 台北信義店',
+    content: '主任已為您新增一項服務任務。',
+    status: 'NOTIFIED',
+    isRead: false,
+    createdAt: '2026-11-12T09:00:00+08:00',
+  },
+  {
+    id: 'notif-app-002',
+    type: 'TASK_UPDATED',
+    recipientType: 'EMPLOYEE',
+    recipientId: 'emp-001',
+    recipientName: '測試使用者 (專員)',
+    subject: '修改任務：台中港區店 10:00 → 14:00',
+    content: '任務時間已調整。',
+    status: 'NOTIFIED',
+    isRead: false,
+    createdAt: '2026-11-12T08:50:00+08:00',
+  },
+  {
+    id: 'notif-app-003',
+    type: 'LICENSE_EXPIRY',
+    recipientType: 'EMPLOYEE',
+    recipientId: 'emp-leader',
+    recipientName: 'Demo 主任',
+    subject: '證照即將到期：陳志豪 登革熱防治證照 剩 14 天',
+    content: '到期日 2026-11-26，請提醒員工續辦。',
+    status: 'NOTIFIED',
+    isRead: false,
+    createdAt: '2026-11-12T08:00:00+08:00',
+  },
+  {
+    id: 'notif-app-004',
+    type: 'TASK_CANCELED',
+    recipientType: 'EMPLOYEE',
+    recipientId: 'emp-001',
+    recipientName: '測試使用者 (專員)',
+    subject: '取消任務：11/16 13:00 高雄左營店',
+    content: '此任務已取消。',
+    status: 'NOTIFIED',
+    isRead: true,
+    readAt: '2026-11-11T18:00:00+08:00',
+    createdAt: '2026-11-11T17:30:00+08:00',
+  },
 ];
 
 const mockNotificationTemplates: NotificationTemplate[] = [
@@ -2903,7 +2952,36 @@ const mockNotificationTemplates: NotificationTemplate[] = [
 請準時前往處理並於完成後更新狀態。`,
     variables: ['{{客戶名稱}}', '{{服務時間}}', '{{服務地址}}'],
   },
+  {
+    id: 'template-003',
+    name: '證照到期通知範本',
+    type: 'LICENSE_EXPIRY',
+    subject: 'Ecolab 證照到期提醒（{{日期}}）',
+    content: '',
+    variables: ['{{主任姓名}}', '{{員工姓名}}', '{{證照名稱}}', '{{到期日}}', '{{剩餘天數}}'],
+    header: '{{主任姓名}} 您好，您轄區有下列員工的證照即將到期：',
+    itemBlock: '{{員工姓名}}　{{證照名稱}}　到期日 {{到期日}}（剩 {{剩餘天數}} 天）',
+    footer: '請提醒員工儘早辦理續證。',
+  },
 ];
+
+// 讓假資料中「歷史寄送紀錄」的主旨與完整內文，與每日合併信範本的格式一致
+const fieldOf = (content: string, label: string): string =>
+  new RegExp(`${label}：([^\\n]+)`).exec(content)?.[1]?.trim() ?? '';
+
+mockNotifications.forEach((n) => {
+  if (n.type !== 'CUSTOMER_NOTIFY' && n.type !== 'EMPLOYEE_DISPATCH') return;
+  const isCust = n.type === 'CUSTOMER_NOTIFY';
+  const name = fieldOf(n.content, '客戶名稱');
+  const time = fieldOf(n.content, '服務時間');
+  const addr = fieldOf(n.content, '服務地址');
+  if (!name || !time) return; // 不是任務異動格式的紀錄（例如排班提醒）不處理
+  const date = n.createdAt.slice(0, 10).replace(/-/g, '/');
+  n.subject = isCust ? `Ecolab 服務異動通知（${date})` : `Ecolab 您的排班異動（${date})`;
+  n.content = isCust
+    ? `${name} 您好，以下是 ${date} 的服務異動：\n新增：${time} ${addr}\n若有任何時間調整需求，請隨時與我們聯絡。`
+    : `${n.recipientName} 您好，以下是 ${date} 的排班異動：\n新增 : ${name} ${time} ${addr}\n請準時前往處理並於完成後更新狀態。`;
+});
 
 let mockApprovals: Approval[] = [
   {
@@ -5063,6 +5141,10 @@ export const handlers = [
     const recipientId = url.searchParams.get('recipientId');
     const recipientName = url.searchParams.get('recipientName');
     let list = mockNotifications;
+    const channel = url.searchParams.get('channel');
+    if (channel === 'IN_APP') {
+      list = list.filter((n) => n.isRead !== undefined);
+    }
     if (recipientId) {
       list = list.filter((n) => n.recipientId === recipientId);
     }
@@ -5097,9 +5179,11 @@ export const handlers = [
         recipientId: body?.recipientIds?.[0] || 'rec-new',
         recipientName,
         subject: isCust
-          ? `【Ecolab】服務排程確認通知 - ${recipientName}`
-          : `【Ecolab】新服務任務指派通知`,
-        content: `尊敬的${isCust ? '客戶' : '專員'}您好：\n\n我們已為您更新服務排程資訊。\n客戶名稱：${recipientName}\n服務時間：${body?.variables?.['{{服務時間}}'] || '即時指派時間'}\n服務地址：${body?.variables?.['{{服務地址}}'] || '台北市'}\n\n若有任何問題，請隨時與我們聯絡。`,
+          ? `Ecolab 服務異動通知（${new Date().toLocaleDateString('zh-TW')}）`
+          : `Ecolab 您的排班異動（${new Date().toLocaleDateString('zh-TW')}）`,
+        content: isCust
+          ? `${recipientName} 您好，以下是今日的服務異動：\n新增：${body?.variables?.['{{服務時間}}'] || '即時指派時間'} ${body?.variables?.['{{服務地址}}'] || '台北市'}\n若有任何時間調整需求，請隨時與我們聯絡。`
+          : `${recipientName} 您好，以下是今日的排班異動：\n新增：${body?.variables?.['{{服務時間}}'] || '即時指派時間'} ${body?.variables?.['{{服務地址}}'] || '台北市'}\n請準時前往處理並於完成後更新狀態。`,
         status: 'NOTIFIED',
         taskId: body?.taskId,
         createdAt: new Date().toISOString(),
@@ -5109,6 +5193,23 @@ export const handlers = [
     } catch {
       // fallback
     }
+    return HttpResponse.json(ok(null));
+  }),
+  http.patch('*/api/v1/notifications/:id/read', ({ params }) => {
+    const n = mockNotifications.find((item) => item.id === params.id);
+    if (n) {
+      n.isRead = true;
+      n.readAt = new Date().toISOString();
+    }
+    return HttpResponse.json(ok(null));
+  }),
+  http.post('*/api/v1/notifications/read-all', () => {
+    mockNotifications.forEach((n) => {
+      if (n.isRead === false) {
+        n.isRead = true;
+        n.readAt = new Date().toISOString();
+      }
+    });
     return HttpResponse.json(ok(null));
   }),
   http.get('*/api/v1/notifications/templates', () =>

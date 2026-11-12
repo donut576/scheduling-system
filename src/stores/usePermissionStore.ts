@@ -35,7 +35,7 @@ export const FULL_MENU: MenuItem[] = [
   { key: '/schedule', label: '班表總覽', permission: 'schedule:view' },
   { key: '/customer', label: '客戶資料管理', permission: 'customer:view' },
   { key: '/employee', label: '員工資料管理', permission: 'employee:view' },
-  { key: '/notification', label: '通知管理', permission: 'notification:manage_template' },
+  { key: '/notification', label: '通知管理', permission: 'notification:send' },
   { key: '/approval', label: '特許核准', permission: 'approval:view', hideFromMenu: true },
   {
     key: '/pending-customer',
@@ -56,7 +56,7 @@ const FULL_ROUTES: RouteConfig[] = [
   { path: '/employee', permission: 'employee:view', meta: { title: '員工資料管理' } },
   {
     path: '/notification',
-    permission: 'notification:manage_template',
+    permission: 'notification:send',
     meta: { title: '通知管理' },
   },
   { path: '/approval', permission: 'approval:view', meta: { title: '特許核准' } },

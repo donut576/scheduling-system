@@ -1,298 +1,276 @@
 /**
  * NotificationPage - 通知管理設定頁面
  *
- * 提供自動通知總開關、客戶與員工指派兩大郵件範本之編輯與擬真深色 Email 發送預覽。
+ * 提供自動通知總開關、每日合併發送時間、客戶／員工／證照到期三種郵件範本之編輯，
+ * 以及擬真深色 Email 發送預覽（每日將新增、修改、取消的異動合併成一封信）。
+ *
+ * 權限：
+ * - notification:send（管理員、副理、主任）可進入頁面並設定每日發送時間
+ * - notification:manage_template（管理員、副理）才能編輯範本與總開關；主任唯讀
  */
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
+  Alert,
   Card,
   Switch,
   Tabs,
   Form,
   Input,
   Button,
+  Checkbox,
   Row,
   Col,
+  Select,
   Space,
   Typography,
   message,
 } from 'antd';
 import { SendOutlined, CheckOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
-import { useTranslation } from 'react-i18next';
 import { useNotificationTemplates, useUpdateTemplate } from '@/queries/useNotificationQueries';
+import { usePermissionStore } from '@/stores/usePermissionStore';
 import type { NotificationTemplate } from '@/types/notification';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-const DEFAULT_EMPLOYEE_TEMPLATE = {
-  recipient: 'employee@ecolab.com',
-  subject: 'Ecolab 新服務任務指派通知',
-  content: `系統已指派您一項新的服務任務，請確認以下資訊：
+type TabKey = 'customer' | 'employee' | 'license';
 
-客戶名稱：{{客戶名稱}}
-服務時間：{{服務時間}}
-服務地址：{{服務地址}}
+/** 單一範本（客戶或員工）的編輯內容 */
+interface TemplateDraft {
+  recipient: string;
+  subject: string;
+  header: string;
+  createdBlock: string;
+  updatedBlock: string;
+  canceledBlock: string;
+  /** 證照到期信：每位員工一行 */
+  itemBlock: string;
+  footer: string;
+}
 
-請準時前往處理並於完成後更新狀態。`,
+const DEFAULT_DRAFTS: Record<TabKey, TemplateDraft> = {
+  customer: {
+    recipient: 'client@din-tai-fung.com',
+    subject: 'Ecolab 服務異動通知（{{日期}}）',
+    header: '{{客戶名稱}} 您好，以下是 {{日期}} 的服務異動：',
+    createdBlock: '新增：{{服務時間}}　{{服務地址}}',
+    updatedBlock: '修改：{{服務地址}}　{{原時間}} → {{新時間}}',
+    canceledBlock: '取消：{{服務時間}}　{{服務地址}}',
+    itemBlock: '',
+    footer: '若有任何時間調整需求，請隨時與我們聯絡。',
+  },
+  employee: {
+    recipient: 'employee@ecolab.com',
+    subject: 'Ecolab 您的排班異動（{{日期}}）',
+    header: '{{員工姓名}} 您好，以下是 {{日期}} 的排班異動：',
+    createdBlock: '新增：{{客戶名稱}}　{{服務時間}}　{{服務地址}}',
+    updatedBlock: '修改：{{客戶名稱}}　{{原時間}} → {{新時間}}',
+    canceledBlock: '取消：{{客戶名稱}}　{{服務時間}}',
+    itemBlock: '',
+    footer: '請準時前往處理並於完成後更新狀態。',
+  },
+  license: {
+    recipient: 'leader@ecolab.com',
+    subject: 'Ecolab 證照到期提醒（{{日期}}）',
+    header: '{{主任姓名}} 您好，您轄區有下列員工的證照即將到期：',
+    createdBlock: '',
+    updatedBlock: '',
+    canceledBlock: '',
+    itemBlock: '{{員工姓名}}　{{證照名稱}}　到期日 {{到期日}}（剩 {{剩餘天數}} 天）',
+    footer: '請提醒員工儘早辦理續證。',
+  },
 };
 
-const DEFAULT_CUSTOMER_TEMPLATE = {
-  recipient: 'client@din-tai-fung.com',
-  subject: 'Ecolab 服務排程確認通知',
-  content: `尊敬的客戶您好：
-
-我們已為您安排近期的專業服務，排班詳情如下：
-
-客戶名稱：{{客戶名稱}}
-服務時間：{{服務時間}}
-服務地址：{{服務地址}}
-
-若有任何時間調整需求，請隨時與我們聯絡。`,
+const TEMPLATE_TYPE: Record<TabKey, NotificationTemplate['type']> = {
+  customer: 'CUSTOMER_NOTIFY',
+  employee: 'EMPLOYEE_DISPATCH',
+  license: 'LICENSE_EXPIRY',
 };
+
+const FALLBACK_TEMPLATE_ID: Record<TabKey, string> = {
+  customer: 'template-001',
+  employee: 'template-002',
+  license: 'template-003',
+};
+
+const SEND_TIME_OPTIONS = ['08:00', '10:00', '12:00', '14:00', '16:00', '17:00', '18:00'].map(
+  (v) => ({ label: v, value: v }),
+);
+
+const LICENSE_DAY_OPTIONS = [
+  { label: '到期前 30 天', value: 30 },
+  { label: '到期前 14 天', value: 14 },
+  { label: '到期前 7 天', value: 7 },
+];
 
 const STORAGE_KEY = 'ecolab_notification_settings';
 
+/** 目前尚未有後端設定 API，先存在瀏覽器 localStorage */
 interface StoredNotificationSettings {
   autoNotifyEnabled: boolean;
-  customerRecipient: string;
-  customerSubject: string;
-  customerContent: string;
-  employeeRecipient: string;
-  employeeSubject: string;
-  employeeContent: string;
+  sendTime: string;
+  ccBackup: boolean;
+  licenseDays: number[];
+  recipients: Record<'customer' | 'employee', string>;
 }
 
+const loadStoredSettings = (): Partial<StoredNotificationSettings> => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved) as Partial<StoredNotificationSettings>;
+  } catch {
+    /* noop */
+  }
+  return {};
+};
+
+/** 由 API 範本組出編輯內容；範本沒有分段欄位時使用預設分段 */
+const draftFromTemplate = (
+  key: TabKey,
+  tpl: NotificationTemplate | undefined,
+  recipient: string | undefined,
+): TemplateDraft => {
+  const d = DEFAULT_DRAFTS[key];
+  return {
+    recipient: recipient || d.recipient,
+    subject: tpl?.subject || d.subject,
+    header: tpl?.header ?? d.header,
+    createdBlock: tpl?.createdBlock ?? d.createdBlock,
+    updatedBlock: tpl?.updatedBlock ?? d.updatedBlock,
+    canceledBlock: tpl?.canceledBlock ?? d.canceledBlock,
+    itemBlock: tpl?.itemBlock ?? d.itemBlock,
+    footer: tpl?.footer ?? d.footer,
+  };
+};
+
+/** 把五段組成純文字內文（相容仍只讀取 content 的舊程式） */
+const composeContent = (d: TemplateDraft): string =>
+  [d.header, d.createdBlock, d.updatedBlock, d.canceledBlock, d.itemBlock, d.footer]
+    .filter(Boolean)
+    .join('\n');
+
+/** 以範例資料取代變數，供預覽使用 */
+const fillSample = (text: string): string =>
+  text
+    .replace(/{{客戶名稱}}/g, '鼎泰豐 信義店')
+    .replace(/{{員工姓名}}/g, '王小明')
+    .replace(/{{日期}}/g, '2026/11/12')
+    .replace(/{{服務時間}}/g, '11/15 09:00 - 12:00')
+    .replace(/{{服務地址}}/g, '台北市大安區信義路二段194號')
+    .replace(/{{原時間}}/g, '11/14 10:00')
+    .replace(/{{新時間}}/g, '11/14 14:00')
+    .replace(/{{工作內容}}/g, '定期蟲害防治與環境消毒')
+    .replace(/{{主任姓名}}/g, '林主任')
+    .replace(/{{證照名稱}}/g, '登革熱防治證照')
+    .replace(/{{到期日}}/g, '2026/11/26')
+    .replace(/{{剩餘天數}}/g, '14');
+
 const NotificationPage: React.FC = () => {
-  const { t } = useTranslation();
-  const [autoNotifyEnabled, setAutoNotifyEnabled] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as StoredNotificationSettings;
-        return parsed.autoNotifyEnabled ?? true;
-      }
-    } catch {
-      // fallback
-    }
-    return true;
-  });
-  const [activeTab, setActiveTab] = useState<'customer' | 'employee'>('employee');
+  const hasPermission = usePermissionStore((s) => s.hasPermission);
+  const canEditTemplate = hasPermission('notification:manage_template');
+  const canSetSendTime = hasPermission('notification:send');
+
+  const [stored] = useState(loadStoredSettings);
+  const [autoNotifyEnabled, setAutoNotifyEnabled] = useState<boolean>(
+    stored.autoNotifyEnabled ?? true,
+  );
+  const [sendTime, setSendTime] = useState<string>(stored.sendTime ?? '17:00');
+  const [ccBackup, setCcBackup] = useState<boolean>(stored.ccBackup ?? true);
+  const [licenseDays, setLicenseDays] = useState<number[]>(stored.licenseDays ?? [30, 14, 7]);
+  const [activeTab, setActiveTab] = useState<TabKey>('employee');
   const [saving, setSaving] = useState(false);
 
-  const { data: templates = [] } = useNotificationTemplates();
+  const { data: templateData } = useNotificationTemplates();
+  // 固定空陣列的參考，避免每次渲染產生新陣列讓 useEffect 無限重跑
+  const templates = useMemo(() => templateData ?? [], [templateData]);
   const updateTemplateMutation = useUpdateTemplate();
 
-  // Local state for customer template
-  const initialCustomerTpl = useMemo(() => {
-    const tpl = templates.find((t: NotificationTemplate) => t.type === 'CUSTOMER_NOTIFY');
-    return {
-      id: tpl?.id || 'template-001',
-      recipient: DEFAULT_CUSTOMER_TEMPLATE.recipient,
-      subject: tpl?.subject || DEFAULT_CUSTOMER_TEMPLATE.subject,
-      content: tpl?.content || DEFAULT_CUSTOMER_TEMPLATE.content,
-    };
-  }, [templates]);
+  const findTemplate = useCallback(
+    (key: TabKey) => templates.find((tpl: NotificationTemplate) => tpl.type === TEMPLATE_TYPE[key]),
+    [templates],
+  );
 
-  // Local state for employee template
-  const initialEmployeeTpl = useMemo(() => {
-    const tpl = templates.find((t: NotificationTemplate) => t.type === 'EMPLOYEE_DISPATCH');
-    return {
-      id: tpl?.id || 'template-002',
-      recipient: DEFAULT_EMPLOYEE_TEMPLATE.recipient,
-      subject: tpl?.subject || DEFAULT_EMPLOYEE_TEMPLATE.subject,
-      content: tpl?.content || DEFAULT_EMPLOYEE_TEMPLATE.content,
-    };
-  }, [templates]);
+  const [drafts, setDrafts] = useState<Record<TabKey, TemplateDraft>>(() => ({
+    customer: draftFromTemplate('customer', undefined, stored.recipients?.customer),
+    employee: draftFromTemplate('employee', undefined, stored.recipients?.employee),
+    license: draftFromTemplate('license', undefined, undefined),
+  }));
 
-  const [customerRecipient, setCustomerRecipient] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved)
-        return (
-          (JSON.parse(saved) as StoredNotificationSettings).customerRecipient ||
-          initialCustomerTpl.recipient
-        );
-    } catch {
-      /* noop */
-    }
-    return initialCustomerTpl.recipient;
-  });
-
-  const [customerSubject, setCustomerSubject] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved)
-        return (
-          (JSON.parse(saved) as StoredNotificationSettings).customerSubject ||
-          initialCustomerTpl.subject
-        );
-    } catch {
-      /* noop */
-    }
-    return initialCustomerTpl.subject;
-  });
-
-  const [customerContent, setCustomerContent] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved)
-        return (
-          (JSON.parse(saved) as StoredNotificationSettings).customerContent ||
-          initialCustomerTpl.content
-        );
-    } catch {
-      /* noop */
-    }
-    return initialCustomerTpl.content;
-  });
-
-  const [employeeRecipient, setEmployeeRecipient] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved)
-        return (
-          (JSON.parse(saved) as StoredNotificationSettings).employeeRecipient ||
-          initialEmployeeTpl.recipient
-        );
-    } catch {
-      /* noop */
-    }
-    return initialEmployeeTpl.recipient;
-  });
-
-  const [employeeSubject, setEmployeeSubject] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved)
-        return (
-          (JSON.parse(saved) as StoredNotificationSettings).employeeSubject ||
-          initialEmployeeTpl.subject
-        );
-    } catch {
-      /* noop */
-    }
-    return initialEmployeeTpl.subject;
-  });
-
-  const [employeeContent, setEmployeeContent] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved)
-        return (
-          (JSON.parse(saved) as StoredNotificationSettings).employeeContent ||
-          initialEmployeeTpl.content
-        );
-    } catch {
-      /* noop */
-    }
-    return initialEmployeeTpl.content;
-  });
-
-  // Sync with loaded templates if no local storage was saved
+  // 範本載入（或儲存後重新載入）時，更新主旨與各段內容；收件人沿用目前輸入
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) {
-      if (initialCustomerTpl.subject) {
-        setCustomerSubject(initialCustomerTpl.subject);
-        setCustomerContent(initialCustomerTpl.content);
-      }
-    }
-  }, [initialCustomerTpl]);
+    setDrafts((prev) => ({
+      customer: draftFromTemplate('customer', findTemplate('customer'), prev.customer.recipient),
+      employee: draftFromTemplate('employee', findTemplate('employee'), prev.employee.recipient),
+      license: draftFromTemplate('license', findTemplate('license'), undefined),
+    }));
+  }, [findTemplate]);
 
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) {
-      if (initialEmployeeTpl.subject) {
-        setEmployeeSubject(initialEmployeeTpl.subject);
-        setEmployeeContent(initialEmployeeTpl.content);
-      }
-    }
-  }, [initialEmployeeTpl]);
+  const draft = drafts[activeTab];
+  const setField = (field: keyof TemplateDraft, value: string) =>
+    setDrafts((prev) => ({ ...prev, [activeTab]: { ...prev[activeTab], [field]: value } }));
 
-  // Handle Save
   const handleSaveSettings = useCallback(async () => {
     setSaving(true);
     try {
-      // 1. Save to localStorage
       const settingsToSave: StoredNotificationSettings = {
         autoNotifyEnabled,
-        customerRecipient,
-        customerSubject,
-        customerContent,
-        employeeRecipient,
-        employeeSubject,
-        employeeContent,
+        sendTime,
+        ccBackup,
+        licenseDays,
+        recipients: { customer: drafts.customer.recipient, employee: drafts.employee.recipient },
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settingsToSave));
 
-      // 2. Save via API
-      if (initialCustomerTpl.id) {
-        await updateTemplateMutation.mutateAsync({
-          id: initialCustomerTpl.id,
-          data: {
-            subject: customerSubject,
-            content: customerContent,
-          },
-        });
+      // 只有管理員／副理能改範本；主任儲存時只會存發送時間
+      if (canEditTemplate) {
+        for (const key of ['customer', 'employee', 'license'] as TabKey[]) {
+          const d = drafts[key];
+          await updateTemplateMutation.mutateAsync({
+            id: findTemplate(key)?.id ?? FALLBACK_TEMPLATE_ID[key],
+            data: {
+              subject: d.subject,
+              content: composeContent(d),
+              header: d.header,
+              createdBlock: d.createdBlock,
+              updatedBlock: d.updatedBlock,
+              canceledBlock: d.canceledBlock,
+              itemBlock: d.itemBlock,
+              footer: d.footer,
+            },
+          });
+        }
       }
-      if (initialEmployeeTpl.id) {
-        await updateTemplateMutation.mutateAsync({
-          id: initialEmployeeTpl.id,
-          data: {
-            subject: employeeSubject,
-            content: employeeContent,
-          },
-        });
-      }
-      message.success(t('notification.templateUpdated') || '設定已成功儲存');
-    } catch {
       message.success('設定已成功儲存');
+    } catch {
+      message.error('儲存失敗，請稍後再試');
     } finally {
       setSaving(false);
     }
   }, [
     autoNotifyEnabled,
-    customerRecipient,
-    customerSubject,
-    customerContent,
-    employeeRecipient,
-    employeeSubject,
-    employeeContent,
-    initialCustomerTpl.id,
-    initialEmployeeTpl.id,
+    sendTime,
+    ccBackup,
+    licenseDays,
+    drafts,
+    canEditTemplate,
+    findTemplate,
     updateTemplateMutation,
-    t,
   ]);
 
-  // Replace variable placeholders with realistic mockup data
-  const renderPreviewBody = (templateContent: string) => {
-    if (!templateContent) return '';
-    return templateContent
-      .replace(/{{客戶名稱}}/g, '鼎泰豐 信義店')
-      .replace(/{{服務時間}}/g, '2026-02-11 09:00 - 12:00')
-      .replace(/{{服務地址}}/g, '台北市大安區信義路二段194號')
-      .replace(/{{工作內容}}/g, '定期蟲害防治與環境消毒');
-  };
+  const label = (text: string) => (
+    <Text strong style={{ color: '#434343', fontSize: 14 }}>
+      {text}
+    </Text>
+  );
 
-  const currentRecipient = activeTab === 'employee' ? employeeRecipient : customerRecipient;
-  const currentSubject = activeTab === 'employee' ? employeeSubject : customerSubject;
-  const currentContent = activeTab === 'employee' ? employeeContent : customerContent;
-
-  const handleRecipientChange = (val: string) => {
-    if (activeTab === 'employee') setEmployeeRecipient(val);
-    else setCustomerRecipient(val);
-  };
-
-  const handleSubjectChange = (val: string) => {
-    if (activeTab === 'employee') setEmployeeSubject(val);
-    else setCustomerSubject(val);
-  };
-
-  const handleContentChange = (val: string) => {
-    if (activeTab === 'employee') setEmployeeContent(val);
-    else setCustomerContent(val);
-  };
+  const inputStyle = { borderRadius: 6, padding: '8px 12px', fontSize: 14 };
+  const blockPreview = (color: string, title: string, text: string) => (
+    <div style={{ borderLeft: `3px solid ${color}`, paddingLeft: 10, margin: '8px 0' }}>
+      <b style={{ color: '#ffffff' }}>{title}</b>
+      {'　'}
+      {fillSample(text).replace(/^(新增|修改|取消)：/, '')}
+    </div>
+  );
 
   return (
     <div
@@ -335,6 +313,16 @@ const NotificationPage: React.FC = () => {
         </Button>
       </div>
 
+      {!canEditTemplate && (
+        <Alert
+          type="info"
+          showIcon
+          data-testid="template-readonly-alert"
+          message="範本由管理員／副理統一維護，您可以預覽範本並設定自己轄區的每日發送時間。"
+          style={{ marginBottom: 16, borderRadius: 8 }}
+        />
+      )}
+
       {/* 自動通知開關卡片 */}
       <Card
         style={{
@@ -345,7 +333,15 @@ const NotificationPage: React.FC = () => {
         }}
         styles={{ body: { padding: '16px 20px' } }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 16,
+            flexWrap: 'wrap',
+          }}
+        >
           <Space size={16} align="center">
             <div
               style={{
@@ -368,23 +364,38 @@ const NotificationPage: React.FC = () => {
                 自動通知開關
               </div>
               <Text type="secondary" style={{ fontSize: 13, color: '#666' }}>
-                當管理員新增排班後，系統是否自動寄送郵件給客戶與負責員工
+                任務新增、修改、取消後，系統每日合併寄送郵件給客戶與負責員工，員工同時會收到站內通知；證照即將到期則自動寄給轄區主任
               </Text>
             </div>
           </Space>
-          <Switch
-            checked={autoNotifyEnabled}
-            onChange={setAutoNotifyEnabled}
-            data-testid="auto-notify-switch"
-            style={{ transform: 'scale(1.1)' }}
-          />
+          <Space size={16} align="center">
+            <Space size={8} align="center">
+              <Text style={{ fontSize: 13, color: '#434343' }}>每日發送時間</Text>
+              <Select
+                value={sendTime}
+                onChange={setSendTime}
+                options={SEND_TIME_OPTIONS}
+                disabled={!canSetSendTime}
+                style={{ width: 96 }}
+                aria-label="每日發送時間"
+                data-testid="send-time-select"
+              />
+            </Space>
+            <Switch
+              checked={autoNotifyEnabled}
+              onChange={setAutoNotifyEnabled}
+              disabled={!canEditTemplate}
+              data-testid="auto-notify-switch"
+              style={{ transform: 'scale(1.1)' }}
+            />
+          </Space>
         </div>
       </Card>
 
       {/* 雙範本 Tabs */}
       <Tabs
         activeKey={activeTab}
-        onChange={(k) => setActiveTab(k as 'customer' | 'employee')}
+        onChange={(k) => setActiveTab(k as TabKey)}
         tabBarStyle={{ marginBottom: 20 }}
         items={[
           {
@@ -400,6 +411,14 @@ const NotificationPage: React.FC = () => {
             label: (
               <span style={{ fontSize: 15, fontWeight: activeTab === 'employee' ? 600 : 400 }}>
                 員工指派通知範本
+              </span>
+            ),
+          },
+          {
+            key: 'license',
+            label: (
+              <span style={{ fontSize: 15, fontWeight: activeTab === 'license' ? 600 : 400 }}>
+                證照到期通知範本
               </span>
             ),
           },
@@ -426,71 +445,141 @@ const NotificationPage: React.FC = () => {
           <Card style={{ borderRadius: 12, border: '1px solid #e8e8e8', background: '#fff' }}>
             <Form layout="vertical">
               <Form.Item
-                label={
-                  <Text strong style={{ color: '#434343', fontSize: 14 }}>
-                    收件人
-                  </Text>
-                }
+                label={label(
+                  activeTab === 'license'
+                    ? '收件人（依員工所屬轄區，自動寄給該轄區主任）'
+                    : '收件人',
+                )}
                 style={{ marginBottom: 16 }}
               >
                 <Input
-                  value={currentRecipient}
-                  onChange={(e) => handleRecipientChange(e.target.value)}
+                  value={draft.recipient}
+                  onChange={(e) => setField('recipient', e.target.value)}
                   placeholder="請輸入收件人信箱或變數（例如：{{指派員工 Email}}）"
                   aria-label="收件人"
                   data-testid="recipient-input"
-                  style={{
-                    borderRadius: 6,
-                    padding: '8px 12px',
-                    fontSize: 14,
-                  }}
+                  disabled={!canEditTemplate || activeTab === 'license'}
+                  style={inputStyle}
                 />
               </Form.Item>
-              <Form.Item
-                label={
-                  <Text strong style={{ color: '#434343', fontSize: 14 }}>
-                    郵件主旨
-                  </Text>
-                }
-                style={{ marginBottom: 16 }}
-              >
+              {activeTab === 'customer' && (
+                <Form.Item style={{ marginBottom: 16 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    {label('副本（CC）給備用聯絡人')}
+                    <Switch
+                      checked={ccBackup}
+                      onChange={setCcBackup}
+                      disabled={!canEditTemplate}
+                      data-testid="cc-backup-switch"
+                    />
+                  </div>
+                </Form.Item>
+              )}
+              <Form.Item label={label('郵件主旨')} style={{ marginBottom: 16 }}>
                 <Input
-                  value={currentSubject}
-                  onChange={(e) => handleSubjectChange(e.target.value)}
+                  value={draft.subject}
+                  onChange={(e) => setField('subject', e.target.value)}
                   placeholder="請輸入郵件主旨"
                   aria-label="郵件主旨"
                   data-testid="subject-input"
-                  style={{
-                    borderRadius: 6,
-                    padding: '8px 12px',
-                    fontSize: 14,
-                    fontWeight: 600,
-                  }}
+                  disabled={!canEditTemplate}
+                  style={{ ...inputStyle, fontWeight: 600 }}
                 />
               </Form.Item>
-              <Form.Item
-                label={
-                  <Text strong style={{ color: '#434343', fontSize: 14 }}>
-                    郵件內文
-                  </Text>
-                }
-                style={{ marginBottom: 0 }}
-              >
+              <Form.Item label={label('郵件開頭')} style={{ marginBottom: 16 }}>
+                <Input
+                  value={draft.header}
+                  onChange={(e) => setField('header', e.target.value)}
+                  aria-label="郵件開頭"
+                  data-testid="header-input"
+                  disabled={!canEditTemplate}
+                  style={inputStyle}
+                />
+              </Form.Item>
+              {activeTab !== 'license' && (
+                <>
+                  <Form.Item label={label('新增任務（每筆）')} style={{ marginBottom: 16 }}>
+                    <TextArea
+                      value={draft.createdBlock}
+                      onChange={(e) => setField('createdBlock', e.target.value)}
+                      rows={2}
+                      aria-label="新增任務"
+                      data-testid="created-input"
+                      disabled={!canEditTemplate}
+                      style={inputStyle}
+                    />
+                  </Form.Item>
+                  <Form.Item label={label('修改任務（每筆）')} style={{ marginBottom: 16 }}>
+                    <TextArea
+                      value={draft.updatedBlock}
+                      onChange={(e) => setField('updatedBlock', e.target.value)}
+                      rows={2}
+                      aria-label="修改任務"
+                      data-testid="updated-input"
+                      disabled={!canEditTemplate}
+                      style={inputStyle}
+                    />
+                  </Form.Item>
+                  <Form.Item label={label('取消任務（每筆）')} style={{ marginBottom: 16 }}>
+                    <TextArea
+                      value={draft.canceledBlock}
+                      onChange={(e) => setField('canceledBlock', e.target.value)}
+                      rows={2}
+                      aria-label="取消任務"
+                      data-testid="canceled-input"
+                      disabled={!canEditTemplate}
+                      style={inputStyle}
+                    />
+                  </Form.Item>
+                </>
+              )}
+              {activeTab === 'license' && (
+                <>
+                  <Form.Item label={label('每位員工證照（每筆）')} style={{ marginBottom: 16 }}>
+                    <TextArea
+                      value={draft.itemBlock}
+                      onChange={(e) => setField('itemBlock', e.target.value)}
+                      rows={2}
+                      aria-label="每位員工證照"
+                      data-testid="license-item-input"
+                      disabled={!canEditTemplate}
+                      style={inputStyle}
+                    />
+                  </Form.Item>
+                  <Form.Item label={label('提前提醒天數')} style={{ marginBottom: 16 }}>
+                    <Checkbox.Group
+                      options={LICENSE_DAY_OPTIONS}
+                      value={licenseDays}
+                      onChange={(v) => setLicenseDays(v as number[])}
+                      disabled={!canEditTemplate}
+                      data-testid="license-days"
+                    />
+                  </Form.Item>
+                </>
+              )}
+              <Form.Item label={label('郵件結尾')} style={{ marginBottom: 8 }}>
                 <TextArea
-                  value={currentContent}
-                  onChange={(e) => handleContentChange(e.target.value)}
-                  rows={9}
-                  placeholder="請輸入郵件內文"
-                  aria-label="郵件內文"
-                  data-testid="content-input"
-                  style={{
-                    borderRadius: 6,
-                    padding: '10px 12px',
-                    fontSize: 14,
-                    lineHeight: 1.6,
-                  }}
+                  value={draft.footer}
+                  onChange={(e) => setField('footer', e.target.value)}
+                  rows={2}
+                  aria-label="郵件結尾"
+                  data-testid="footer-input"
+                  disabled={!canEditTemplate}
+                  style={inputStyle}
                 />
               </Form.Item>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                可用變數：
+                {activeTab === 'license'
+                  ? '{{主任姓名}} {{員工姓名}} {{證照名稱}} {{到期日}} {{剩餘天數}} {{日期}}'
+                  : '{{客戶名稱}} {{員工姓名}} {{日期}} {{服務時間}} {{服務地址}} {{原時間}} {{新時間}}'}
+              </Text>
             </Form>
           </Card>
         </Col>
@@ -560,19 +649,26 @@ const NotificationPage: React.FC = () => {
               <div style={{ marginBottom: 6, color: '#9ba1b0' }}>
                 收件人：
                 <span style={{ color: '#5ba4fc', textDecoration: 'underline' }}>
-                  {currentRecipient ||
-                    (activeTab === 'employee' ? 'employee@ecolab.com' : 'client@din-tai-fung.com')}
+                  {draft.recipient || DEFAULT_DRAFTS[activeTab].recipient}
                 </span>
               </div>
+              {activeTab === 'customer' && ccBackup && (
+                <div style={{ marginBottom: 6, color: '#9ba1b0' }} data-testid="preview-cc">
+                  副本：
+                  <span style={{ color: '#5ba4fc', textDecoration: 'underline' }}>
+                    backup@din-tai-fung.com
+                  </span>
+                </div>
+              )}
               <div style={{ color: '#9ba1b0' }}>
                 主旨：
                 <span style={{ color: '#ffffff', fontWeight: 600 }}>
-                  {currentSubject || '(無主旨)'}
+                  {fillSample(draft.subject) || '(無主旨)'}
                 </span>
               </div>
             </div>
 
-            {/* 郵件內文即時預覽 */}
+            {/* 郵件內文即時預覽（範例：同一天有新增、修改、取消各一筆） */}
             <div
               style={{
                 background: '#1c2233',
@@ -582,14 +678,41 @@ const NotificationPage: React.FC = () => {
                 fontSize: 13,
                 lineHeight: 1.7,
                 flex: 1,
-                whiteSpace: 'pre-wrap',
               }}
             >
-              <div style={{ fontWeight: 600, color: '#ffffff', marginBottom: 12 }}>
-                {activeTab === 'employee' ? '王小明 您好：' : '鼎泰豐 信義店 負責人 您好：'}
+              <div style={{ fontWeight: 600, color: '#ffffff', marginBottom: 8 }}>
+                {fillSample(draft.header)}
               </div>
-              {renderPreviewBody(currentContent)}
+              {activeTab === 'license' ? (
+                <>
+                  <div
+                    style={{ borderLeft: '3px solid #faad14', paddingLeft: 10, margin: '8px 0' }}
+                  >
+                    {fillSample(draft.itemBlock)}
+                  </div>
+                  <div
+                    style={{ borderLeft: '3px solid #ff4d4f', paddingLeft: 10, margin: '8px 0' }}
+                  >
+                    {fillSample(draft.itemBlock)
+                      .replace('登革熱防治證照', '有害生物防治員')
+                      .replace('2026/11/26', '2026/11/19')
+                      .replace('剩 14 天', '剩 7 天')}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {blockPreview('#52c41a', '新增', draft.createdBlock)}
+                  {blockPreview('#faad14', '修改', draft.updatedBlock)}
+                  {blockPreview('#ff4d4f', '取消', draft.canceledBlock)}
+                </>
+              )}
+              <div style={{ marginTop: 12 }}>{fillSample(draft.footer)}</div>
             </div>
+            <Text style={{ color: '#8c9ba5', fontSize: 12, marginTop: 10 }}>
+              {activeTab === 'license'
+                ? '預覽顯示一封信列出 2 位員工的範例；系統每天檢查一次，符合提醒天數的證照合併成一封寄給轄區主任（同一張證照同一個天數只寄一次）。'
+                : '預覽顯示當天新增、修改、取消各一筆的範例；實際信件只會出現當天有發生的區塊。'}
+            </Text>
           </div>
         </Col>
       </Row>

@@ -5,10 +5,12 @@
  */
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import NotificationCenter from './index';
 import type { Notification } from '@/types/notification';
 import type { PaginatedResponse } from '@/types/common';
+import userEvent from '@testing-library/user-event';
+import { useUserStore } from '@/stores/useUserStore';
 
 // Mock window.matchMedia for Ant Design responsive components
 beforeAll(() => {
@@ -70,11 +72,16 @@ let mockData: PaginatedResponse<Notification> = {
   pageSize: 10,
 };
 
+const mockMarkRead = vi.fn();
+const mockMarkAllRead = vi.fn();
+
 vi.mock('@/queries/useNotificationQueries', () => ({
   useNotificationList: () => ({
     data: mockData,
     isLoading: false,
   }),
+  useMarkNotificationRead: () => ({ mutate: mockMarkRead, isPending: false }),
+  useMarkAllNotificationsRead: () => ({ mutate: mockMarkAllRead, isPending: false }),
 }));
 
 const createTestQueryClient = () =>
@@ -140,5 +147,89 @@ describe('NotificationCenter', () => {
       page: 1,
       pageSize: 10,
     };
+  });
+  describe('站內通知已讀', () => {
+    const inApp: Notification[] = [
+      {
+        id: 'app-1',
+        type: 'TASK_CREATED',
+        recipientType: 'EMPLOYEE',
+        recipientId: 'emp-1',
+        recipientName: '王大明',
+        subject: '新增任務：11/15 台北信義店',
+        content: '',
+        status: 'NOTIFIED',
+        isRead: false,
+        createdAt: '2026-11-12T09:00:00+08:00',
+      },
+      {
+        id: 'app-2',
+        type: 'LICENSE_EXPIRY',
+        recipientType: 'EMPLOYEE',
+        recipientId: 'emp-2',
+        recipientName: '林主任',
+        subject: '證照即將到期：陳志豪 剩 14 天',
+        content: '',
+        status: 'NOTIFIED',
+        isRead: true,
+        createdAt: '2026-11-12T08:00:00+08:00',
+      },
+    ];
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockData = { list: inApp, total: 2, page: 1, pageSize: 10 };
+    });
+
+    afterEach(() => {
+      useUserStore.setState({ user: null });
+      mockData = {
+        list: mockNotifications,
+        total: mockNotifications.length,
+        page: 1,
+        pageSize: 10,
+      };
+    });
+
+    it('以 isRead 判斷未讀（NOTIFIED 但 isRead=false 仍算未讀）', () => {
+      renderWithProvider(<NotificationCenter />);
+      expect(screen.getAllByTestId('unread-indicator')).toHaveLength(1);
+      expect(screen.getByText('新增任務')).toBeInTheDocument();
+      expect(screen.getByText('證照即將到期')).toBeInTheDocument();
+    });
+
+    it('點擊未讀通知會標為已讀；已讀通知不會再送出', async () => {
+      const user = userEvent.setup();
+      renderWithProvider(<NotificationCenter />);
+
+      await user.click(screen.getByTestId('notification-item-app-2'));
+      expect(mockMarkRead).not.toHaveBeenCalled();
+
+      await user.click(screen.getByTestId('notification-item-app-1'));
+      expect(mockMarkRead).toHaveBeenCalledWith('app-1');
+    });
+    it('一般員工看不到證照到期通知；主任看得到', () => {
+      useUserStore.setState({
+        user: { id: 'emp-1', name: '王大明', employeeNo: 'S1', role: 'STAFF', permissions: [] },
+      });
+      const { unmount } = renderWithProvider(<NotificationCenter />);
+      expect(screen.queryByText('證照即將到期：陳志豪 剩 14 天')).not.toBeInTheDocument();
+      expect(screen.getByText('新增任務：11/15 台北信義店')).toBeInTheDocument();
+      unmount();
+
+      useUserStore.setState({
+        user: { id: 'emp-2', name: '林主任', employeeNo: 'L1', role: 'LEADER', permissions: [] },
+      });
+      renderWithProvider(<NotificationCenter />);
+      expect(screen.getByText('證照即將到期：陳志豪 剩 14 天')).toBeInTheDocument();
+    });
+
+    it('「全部標為已讀」會呼叫 API；沒有未讀時按鈕停用', async () => {
+      const user = userEvent.setup();
+      renderWithProvider(<NotificationCenter />);
+
+      await user.click(screen.getByTestId('mark-all-read-btn'));
+      expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
+    });
   });
 });
