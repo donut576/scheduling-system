@@ -1,0 +1,367 @@
+.dash-chip {
+  border: 0;
+  cursor: pointer;
+  padding: 3px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  background: #f0f0f0;
+  color: #262626;
+  transition: background 0.15s;
+}
+.dash-chip:hover {
+  background: #e4e4e4;
+}
+.dash-chip:active {
+  background: #d0d0d0;
+}
+.dash-chip[aria-pressed='true'] {
+  background: #262626;
+  color: #fff;
+}
+.dash-row {
+  cursor: pointer;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+.dash-row:hover {
+  background: #fafafa;
+}
+.dash-nav-btn {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #595959;
+}
+.dash-nav-btn:hover {
+  background: #f0f0f0;
+}
+
+/* 任務列：左側色條 + 邊框 + hover 陰影 */
+.dash-task {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  cursor: pointer;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-left: 4px solid var(--accent, #d9d9d9);
+  border-radius: 8px;
+  transition:
+    box-shadow 0.15s,
+    border-color 0.15s;
+}
+.dash-task:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: #e0e0e0;
+  border-left-color: var(--accent, #d9d9d9);
+}
+.dash-task-time {
+  min-width: 52px;
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #262626;
+  line-height: 24px;
+}
+.dash-flex-tag {
+  display: inline-block;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 22px;
+  color: #595959;
+  background: #f5f5f5;
+  border: 1px dashed #bfbfbf;
+  border-radius: 4px;
+}
+/* 日期標題：文字 + 延伸分隔線 */
+.dash-date {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+.dash-date::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #f0f0f0;
+}
+.dash-today-tag {
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 18px;
+  color: #005eb8;
+  background: rgba(0, 94, 184, 0.1);
+  border-radius: 9px;
+}
+
+/* 詳細視窗：摘要區資訊卡、分區、膠囊 */
+.dash-tiles {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+.dash-tile {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #fff;
+  border-radius: 10px;
+}
+.dash-flex-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px dashed #8c8c8c;
+  border-radius: 10px;
+}
+.dash-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 10px;
+  font-size: 12px;
+  line-height: 22px;
+  color: #434343;
+  background: #fff;
+  border-radius: 999px;
+}
+.dash-sec {
+  padding: 18px 0;
+  border-top: 1px solid #f0f0f0;
+}
+.dash-sec:first-child {
+  border-top: 0;
+}
+.dash-lb-ic {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.dash-lbi {
+  display: inline-flex;
+  font-size: 13px;
+  color: #8c8c8c;
+}
+.dash-lb {
+  margin-bottom: 2px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+.dash-vl {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #262626;
+}
+.dash-grid2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+.dash-grid2 > * {
+  min-width: 150px;
+}
+@media (max-width: 480px) {
+  .dash-tiles {
+    flex-direction: column;
+  }
+}
+
+/* 資訊卡內的小字補充（例如彈性任務的「不施作」時段） */
+
+/* 列表第二行：日期 時間 集團 · 分店 */
+.dash-task-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding-left: 16px;
+}
+.dash-tl-date {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+.dash-tl-time {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #8c8c8c;
+}
+
+/* 列表固定高度、內部捲動（發送紀錄） */
+.dash-scroll {
+  max-height: 420px;
+  overflow-y: auto;
+  margin-right: -8px;
+  padding: 2px 8px 2px 2px;
+}
+
+/* 第四種列表：左側日期／時間塊 + 兩行內容，底線分隔 */
+.dash-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 11px 4px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.dash-item:last-child {
+  border-bottom: 0;
+}
+.dash-item:hover {
+  background: #fafafa;
+}
+.dash-block {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: #262626;
+  line-height: 1.25;
+}
+.dash-block-n {
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.dash-block-s {
+  font-size: 11px;
+  opacity: 0.75;
+}
+.dash-block-flex {
+  border: 1px dashed rgba(0, 0, 0, 0.35);
+}
+.dash-d1 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+}
+.dash-d2 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 5px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+.dash-ctag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 7px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 20px;
+  color: #595959;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+.dash-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.dash-old {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #bfbfbf;
+  text-decoration: line-through;
+}
+.dash-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 8px;
+  border: 0;
+  background: #fafafa;
+  cursor: pointer;
+  font-size: 13px;
+  color: #262626;
+  text-align: left;
+}
+.dash-group-sub {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+.dash-group-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: #595959;
+}
+
+/* 詳細視窗：任務類型｜任務內容 */
+.dash-tc {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.dash-tc-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #262626;
+}
+.dash-tc-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  background: #fff;
+  border-radius: 50%;
+}
+.dash-tc-sep {
+  width: 1px;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* 列表第一行最前面的任務時間（1430／彈性），灰色小字 */
+.dash-d1-time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 通知卡片頂部摘要列 */
+.dash-summary {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #595959;
+  background: #fafafa;
+  border-radius: 8px;
+}

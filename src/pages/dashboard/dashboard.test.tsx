@@ -1,15 +1,13 @@
 // Dashboard 首頁 (DashboardPage) 單元測試
-// 測試對象：src/pages/dashboard/index.tsx，涵蓋今日排班概要、待審核項目、
-// 近期警示與快捷入口導覽
-import { render, screen } from '@testing-library/react';
+// 測試對象：src/pages/dashboard/index.tsx（員工／主任／副理與管理員三種版面）
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import DashboardPage from './index';
 import { useUserStore } from '@/stores/useUserStore';
+import { toDateStr } from './personalTasks';
 import type { ScheduleData } from '@/types/schedule';
-import type { Task } from '@/types/task';
-import type { Approval, Notification } from '@/types/notification';
-import type { PaginatedResponse } from '@/types/common';
+import type { Notification } from '@/types/notification';
 
 // Mock window.matchMedia for Ant Design responsive components
 Object.defineProperty(window, 'matchMedia', {
@@ -35,128 +33,78 @@ vi.mock('react-router-dom', () => ({
 vi.mock('@/queries/useScheduleQueries', () => ({
   useScheduleData: vi.fn(),
 }));
-vi.mock('@/queries/useApprovalQueries', () => ({
-  useApprovalList: vi.fn(),
+vi.mock('@/queries/useCustomerQueries', () => ({
+  useCustomerList: vi.fn(() => ({ data: { list: [], total: 0 } })),
 }));
-vi.mock('@/queries/useTaskQueries', () => ({
-  useTaskList: vi.fn(),
+vi.mock('@/queries/useEmployeeQueries', () => ({
+  useEmployeeList: vi.fn(() => ({ data: { list: [], total: 0 } })),
 }));
 vi.mock('@/queries/useNotificationQueries', () => ({
   useNotificationList: vi.fn(),
+  useMarkNotificationRead: () => ({ mutate: vi.fn() }),
+  useMarkAllNotificationsRead: () => ({ mutate: vi.fn() }),
 }));
 
 import { useScheduleData } from '@/queries/useScheduleQueries';
-import { useApprovalList } from '@/queries/useApprovalQueries';
-import { useTaskList } from '@/queries/useTaskQueries';
 import { useNotificationList } from '@/queries/useNotificationQueries';
-import { usePermissionStore } from '@/stores/usePermissionStore';
-import { PERMISSIONS } from '@/constants/permissions';
+
+const TODAY = toDateStr(new Date());
+
+const makeEvent = (
+  id: string,
+  group: string,
+  branch: string,
+  assignees: { employeeId: string; employeeName: string }[],
+  headcount = 1,
+) => ({
+  id,
+  taskId: `task-${id}`,
+  resourceId: `branch-${id}`,
+  title: `${group} ${branch}`,
+  start: `${TODAY}T14:30:00`,
+  end: `${TODAY}T16:00:00`,
+  groupName: group,
+  branchName: branch,
+  alertStatus: 'CLEAN' as const,
+  isRecurring: false,
+  isOvernight: false,
+  extendedProps: {
+    taskType: 'CONTRACT' as const,
+    shift: '北早',
+    assignees: assignees.map((a) => ({ ...a, licenses: [] })),
+    contents: ['P' as const],
+    headcount,
+  },
+});
 
 const scheduleData: ScheduleData = {
   events: [
-    {
-      id: 'evt-1',
-      taskId: 'task-1',
-      resourceId: 'branch-1',
-      title: '集團A 分店A',
-      start: '2024-01-10T09:00:00+08:00',
-      end: '2024-01-10T17:00:00+08:00',
-      groupName: '集團A',
-      branchName: '分店A',
-      alertStatus: 'CLEAN',
-      isRecurring: false,
-      isOvernight: false,
-      extendedProps: {
-        taskType: 'CONTRACT',
-        shift: 'DAY',
-        assignees: [],
-        contents: ['P'],
-      },
-    },
-    {
-      id: 'evt-2',
-      taskId: 'task-2',
-      resourceId: 'branch-2',
-      title: '集團B 分店B',
-      start: '2024-01-10T09:00:00+08:00',
-      end: '2024-01-10T17:00:00+08:00',
-      groupName: '集團B',
-      branchName: '分店B',
-      alertStatus: 'OVERRIDDEN',
-      isRecurring: false,
-      isOvernight: false,
-      extendedProps: {
-        taskType: 'CONTRACT',
-        shift: 'DAY',
-        assignees: [],
-        contents: ['P'],
-        overrideReason: '主管王經理已核准特許',
-      },
-    },
+    makeEvent('1', '集團A', '分店A', [{ employeeId: 'emp-demo', employeeName: 'Demo 員工' }]),
+    // 指派人數不足（待排）→ 不應顯示
+    makeEvent('2', '集團B', '分店B', [{ employeeId: 'emp-x', employeeName: '李四' }], 2),
+    // 其他人的任務 → 員工看不到
+    makeEvent('3', '集團C', '分店C', [{ employeeId: 'emp-x', employeeName: '李四' }]),
   ],
   resources: [],
 };
 
-const pendingApproval: Approval = {
-  id: 'a1',
-  taskId: 't1',
-  type: 'SCHEDULE_CHANGE',
-  status: 'PENDING',
-  requestedBy: 'u1',
-  requestedByName: '王組長',
-  approvers: [],
-  createdAt: '2024-01-01T00:00:00+08:00',
-  updatedAt: '2024-01-01T00:00:00+08:00',
-};
+const mockNotifications = (list: Notification[]) =>
+  vi.mocked(useNotificationList).mockReturnValue({
+    data: { list, total: list.length, page: 1, pageSize: 50 },
+    isLoading: false,
+    isError: false,
+    error: null,
+  } as unknown as ReturnType<typeof useNotificationList>);
 
-const violatedTask: Task = {
-  id: 'task-3',
-  groupId: 'g1',
-  groupName: '集團C',
-  branchId: 'b1',
-  branchName: '分店C',
-  taskType: 'CONTRACT',
-  date: '2024-01-09',
-  startTime: '09:00',
-  endTime: '17:00',
-  isOvernight: false,
-  headcount: 1,
-  shift: 'DAY',
-  route: 'R1',
-  contents: ['P'],
-  assignees: [],
-  status: 'SCHEDULED',
-  alertStatus: 'VIOLATED',
-  createdBy: 'u1',
-  createdAt: '2024-01-01T00:00:00+08:00',
-  updatedAt: '2024-01-01T00:00:00+08:00',
-};
+const setUser = (role: 'ADMIN' | 'MANAGER' | 'LEADER' | 'STAFF', id = 'emp-demo', name = 'Demo') =>
+  useUserStore.setState({
+    user: { id, name, employeeNo: 'E01', role, permissions: [] },
+  } as never);
 
-const overriddenTask: Task = {
-  ...violatedTask,
-  id: 'task-4',
-  groupName: '集團D',
-  branchName: '分店D',
-  date: '2024-01-08',
-  alertStatus: 'OVERRIDDEN',
-};
-
-function mockApprovalListData(list: Approval[]): PaginatedResponse<Approval> {
-  return { list, total: list.length, page: 1, pageSize: 5 };
-}
-
-function mockTaskListData(list: Task[]): PaginatedResponse<Task> {
-  return { list, total: list.length, page: 1, pageSize: 100 };
-}
-
-/**
- * Unit Tests for Dashboard 首頁
- * Validates: Requirements 2.1
- */
 describe('DashboardPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    usePermissionStore.getState().buildPermissions(Object.values(PERMISSIONS), 'ADMIN');
+    setUser('ADMIN', 'emp-admin', 'Admin');
 
     vi.mocked(useScheduleData).mockReturnValue({
       data: scheduleData,
@@ -165,191 +113,96 @@ describe('DashboardPage', () => {
       error: null,
     } as unknown as ReturnType<typeof useScheduleData>);
 
-    vi.mocked(useApprovalList).mockReturnValue({
-      data: mockApprovalListData([pendingApproval]),
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof useApprovalList>);
-
-    vi.mocked(useTaskList).mockReturnValue({
-      data: mockTaskListData([violatedTask, overriddenTask]),
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof useTaskList>);
-
-    vi.mocked(useNotificationList).mockReturnValue({
-      data: { list: [], total: 0, page: 1, pageSize: 5 },
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as unknown as ReturnType<typeof useNotificationList>);
+    mockNotifications([]);
   });
 
-  describe('三大卡片並排與今日排班概要', () => {
-    it('renders 3 side-by-side cards: schedule summary, pending approvals, and recent notifications', () => {
+  describe('副理／管理員版面', () => {
+    it('顯示今日班表、近期通知發送紀錄兩張卡片，沒有待審核項目', () => {
       render(<DashboardPage />);
-
       expect(screen.getByTestId('today-schedule-card')).toBeInTheDocument();
-      expect(screen.getByTestId('pending-approval-card')).toBeInTheDocument();
-      expect(screen.getByTestId('recent-notifications-card')).toBeInTheDocument();
-    });
-
-    it('renders today schedule summary with total count and clean/overridden breakdown without warning tag', () => {
-      render(<DashboardPage />);
-
-      const card = screen.getByTestId('today-schedule-card');
-      expect(card).toBeInTheDocument();
-      expect(screen.getByText('今日任務數')).toBeInTheDocument();
-      // 2 total events: 1 CLEAN + 1 OVERRIDDEN
-      expect(screen.getByText('2')).toBeInTheDocument();
-      expect(screen.getByText('正常 1')).toBeInTheDocument();
-      expect(screen.getByText(/已特許 1/)).toBeInTheDocument();
-      expect(screen.queryByText(/警示/)).not.toBeInTheDocument();
-    });
-
-    it('opens overridden alert notification modal when clicking overridden tag', async () => {
-      const user = userEvent.setup();
-      render(<DashboardPage />);
-
-      const overriddenTag = screen.getByTestId('overridden-tag');
-      await user.click(overriddenTag);
-
-      expect(screen.getByText(/今日排班特許通知/)).toBeInTheDocument();
-      expect(screen.getByText(/集團B - 分店B/)).toBeInTheDocument();
-      expect(screen.getByText(/主管王經理已核准特許/)).toBeInTheDocument();
-    });
-
-    it('navigates to /schedule when 查看排班總覽 link is clicked', async () => {
-      const user = userEvent.setup();
-      render(<DashboardPage />);
-
-      await user.click(screen.getByText('查看排班總覽'));
-      expect(mockNavigate).toHaveBeenCalledWith('/schedule');
-    });
-  });
-
-  describe('待審核項目', () => {
-    it('renders pending approval count and list', () => {
-      render(<DashboardPage />);
-
-      const card = screen.getByTestId('pending-approval-card');
-      expect(card).toBeInTheDocument();
-      expect(screen.getByText('待審核件數')).toBeInTheDocument();
-      expect(screen.getByText('排班變更')).toBeInTheDocument();
-      expect(screen.getByText('王組長')).toBeInTheDocument();
-    });
-
-    it('navigates to task approval tab when 查看細項 link is clicked for Admin', async () => {
-      const user = userEvent.setup();
-      render(<DashboardPage />);
-
-      await user.click(screen.getByText('查看細項'));
-      expect(mockNavigate).toHaveBeenCalledWith('/task?tab=approval');
-    });
-  });
-
-  describe('近期通知發送紀錄', () => {
-    const mockSampleNotif: Notification = {
-      id: 'notif-99',
-      type: 'CUSTOMER_NOTIFY',
-      recipientType: 'CUSTOMER',
-      recipientId: 'cust-99',
-      recipientName: '鼎泰豐 信義旗艦店',
-      subject: '服務排程確認通知 - 信義旗艦店',
-      content: '尊敬的客戶您好：您的排班已確認，服務時間為明日 09:00。',
-      status: 'NOTIFIED',
-      createdAt: '2026-08-18T10:00:00+08:00',
-    };
-
-    it('renders notification list and opens detail modal when item is clicked', async () => {
-      vi.mocked(useNotificationList).mockReturnValue({
-        data: { list: [mockSampleNotif], total: 1, page: 1, pageSize: 6 },
-        isLoading: false,
-        isError: false,
-        error: null,
-      } as unknown as ReturnType<typeof useNotificationList>);
-
-      const user = userEvent.setup();
-      render(<DashboardPage />);
-
-      expect(screen.getByText('鼎泰豐 信義旗艦店')).toBeInTheDocument();
-      expect(screen.getByText('服務排程確認通知 - 信義旗艦店')).toBeInTheDocument();
-
-      // Click notification item to view details
-      await user.click(screen.getByText('鼎泰豐 信義旗艦店'));
-
-      expect(screen.getByText('通知發送詳情')).toBeInTheDocument();
-      expect(
-        screen.getByText('尊敬的客戶您好：您的排班已確認，服務時間為明日 09:00。'),
-      ).toBeInTheDocument();
-    });
-  });
-
-  describe('無資料狀態', () => {
-    it('shows empty state when there are no pending approvals', () => {
-      vi.mocked(useApprovalList).mockReturnValue({
-        data: mockApprovalListData([]),
-        isLoading: false,
-        isError: false,
-        error: null,
-      } as unknown as ReturnType<typeof useApprovalList>);
-
-      render(<DashboardPage />);
-      expect(screen.getByText('目前無待審核項目')).toBeInTheDocument();
-    });
-  });
-
-  describe('角色問候語與版面自適應', () => {
-    it('displays personalized greeting with user name', () => {
-      useUserStore.setState({
-        user: {
-          id: 'emp-demo',
-          name: 'Demo 員工',
-          employeeNo: 'STAFF01',
-          role: 'STAFF',
-          permissions: [],
-        },
-      });
-
-      render(<DashboardPage />);
-      expect(screen.getByText('Hi, Demo 員工！')).toBeInTheDocument();
-      expect(screen.getByText('今日個人任務')).toBeInTheDocument();
-      expect(screen.getByText('近期任務異動')).toBeInTheDocument();
+      expect(screen.getByTestId('send-log-card')).toBeInTheDocument();
       expect(screen.queryByTestId('pending-approval-card')).not.toBeInTheDocument();
     });
 
-    it('renders 查看進度 button for LEADER', () => {
-      useUserStore.setState({
-        user: {
-          id: 'emp-leader',
-          name: 'Demo 主任',
-          employeeNo: 'LEADER01',
-          role: 'LEADER',
-          permissions: [],
-        },
-      });
-
+    it('今日班表只列已排滿的任務（待排不顯示）', () => {
       render(<DashboardPage />);
-      expect(screen.getByText('Hi, Demo 主任！')).toBeInTheDocument();
-      expect(screen.getByText('查看進度')).toBeInTheDocument();
+      const card = screen.getByTestId('today-schedule-card');
+      expect(within(card).getByText('集團A · 分店A')).toBeInTheDocument();
+      expect(within(card).getByText('集團C · 分店C')).toBeInTheDocument();
+      expect(within(card).queryByText('集團B · 分店B')).not.toBeInTheDocument();
+      expect(within(card).getAllByText('1430')).toHaveLength(2);
     });
 
-    it('renders 前往審核 button for MANAGER', () => {
-      useUserStore.setState({
-        user: {
-          id: 'emp-manager',
-          name: '副理主管',
-          employeeNo: 'MGR01',
-          role: 'MANAGER',
-          permissions: ['approval:approve'],
+    it('通知發送紀錄：列出收件對象，點擊開啟通知發送詳情', async () => {
+      mockNotifications([
+        {
+          id: 'notif-99',
+          type: 'CUSTOMER_NOTIFY',
+          recipientType: 'CUSTOMER',
+          recipientId: 'cust-99',
+          recipientName: '鼎泰豐 - 信義旗艦店',
+          subject: '服務排程確認通知',
+          content: '尊敬的客戶您好：您的排班已確認。',
+          status: 'NOTIFIED',
+          createdAt: new Date().toISOString(),
         },
-      });
-
+      ]);
+      const user = userEvent.setup();
       render(<DashboardPage />);
-      expect(screen.getByText('Hi, 副理主管！')).toBeInTheDocument();
-      expect(screen.getByText('前往審核')).toBeInTheDocument();
+      expect(screen.getByText('任務・客戶')).toBeInTheDocument();
+      await user.click(screen.getByText('鼎泰豐 - 信義旗艦店'));
+      expect(await screen.findByText('通知發送詳情')).toBeInTheDocument();
+      expect(screen.getByText('尊敬的客戶您好：您的排班已確認。')).toBeInTheDocument();
+    });
+  });
+
+  describe('主任版面', () => {
+    it('顯示今日班表、系統通知、近期通知發送紀錄，沒有待審核項目', () => {
+      setUser('LEADER', 'emp-leader', 'Demo 主任');
+      render(<DashboardPage />);
+      expect(screen.getByText('Hi, Demo 主任！')).toBeInTheDocument();
+      expect(screen.getByText('今日班表')).toBeInTheDocument();
+      expect(screen.getByTestId('system-notification-card')).toBeInTheDocument();
+      expect(screen.getByTestId('send-log-card')).toBeInTheDocument();
+      expect(screen.queryByTestId('pending-approval-card')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('員工版面', () => {
+    beforeEach(() => setUser('STAFF', 'emp-demo', 'Demo 員工'));
+
+    it('顯示個人任務與近期任務異動，沒有待審核項目', () => {
+      render(<DashboardPage />);
+      expect(screen.getByText('Hi, Demo 員工！')).toBeInTheDocument();
+      expect(screen.getByText('個人任務')).toBeInTheDocument();
+      expect(screen.getByTestId('recent-notifications-card')).toBeInTheDocument();
+      expect(screen.queryByTestId('pending-approval-card')).not.toBeInTheDocument();
+    });
+
+    it('只列自己的已排滿任務，並提供日／週／月分頁', () => {
+      render(<DashboardPage />);
+      const card = screen.getByTestId('today-schedule-card');
+      expect(within(card).getByText('集團A · 分店A')).toBeInTheDocument();
+      expect(within(card).queryByText('集團C · 分店C')).not.toBeInTheDocument();
+      expect(within(card).getByText('共 1 筆')).toBeInTheDocument();
+      ['日', '週', '月'].forEach((label) =>
+        expect(within(card).getByRole('button', { name: label })).toBeInTheDocument(),
+      );
+    });
+
+    it('切到「週」會改成區間標籤', async () => {
+      const user = userEvent.setup();
+      render(<DashboardPage />);
+      await user.click(screen.getByRole('button', { name: '週' }));
+      expect(screen.getByTestId('range-label').textContent).toMatch(/\d+\/\d+ – \d+\/\d+/);
+    });
+
+    it('點任務列開啟詳細視窗，自己的名字標「（我）」', async () => {
+      const user = userEvent.setup();
+      render(<DashboardPage />);
+      await user.click(screen.getByTestId('task-row'));
+      expect(await screen.findByText('任務詳細')).toBeInTheDocument();
+      expect(screen.getByText('Demo 員工（我）')).toBeInTheDocument();
     });
   });
 });
