@@ -136,7 +136,9 @@ export const toEventInputs = (
 
     const assignee = event.extendedProps?.assignees?.[0];
     const area = assignee?.area || (assignee?.groupId ? assignee.groupId.split('-')[0] : undefined);
+    // 任務顏色：優先用「任務所屬群組（轄區＋班別）」的顏色（後端依客戶地址與班別算出）；舊資料沒有時才用第一位同仁的轄區色
     const eventColor =
+      event.extendedProps?.regionColor ||
       (area && AREA_COLOR_MAP[area]) ||
       assignee?.groupColor ||
       (area ? getGroupColor(area) : undefined) ||

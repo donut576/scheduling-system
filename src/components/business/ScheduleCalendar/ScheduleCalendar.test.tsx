@@ -588,5 +588,20 @@ describe('ScheduleCalendar - Property 20: 跨日事件時間跨度', () => {
       // Colors are distinct based on getGroupColor for different areas
       expect(inputs[0]?.backgroundColor).not.toEqual(inputs[1]?.backgroundColor);
     });
+
+    it('任務有所屬群組顏色時，優先用群組顏色（跨區支援時不看同仁自己的轄區）', () => {
+      const crossRegion: ScheduleEvent = {
+        ...normalEvent,
+        id: 'evt-cross',
+        extendedProps: {
+          ...normalEvent.extendedProps,
+          regionName: '桃一早',
+          regionColor: '#69c0a5',
+          assignees: [{ employeeId: 'e1', employeeName: '張台北', licenses: [], area: '台北' }],
+        },
+      };
+      const [input] = toEventInputs([crossRegion]);
+      expect(input?.backgroundColor).toBe('#69c0a5');
+    });
   });
 });

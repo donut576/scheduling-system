@@ -107,3 +107,32 @@ describe('addDays', () => {
     expect(addDays('2026-11-29', 3)).toBe('2026-12-02');
   });
 });
+
+describe('任務顏色（群組＝轄區＋班別）', () => {
+  it('帶入後端算好的群組顏色', () => {
+    const [t] = buildPersonalTasks(
+      [ev({ props: { regionColor: '#5d4ba8', regionName: '北一晚' } })],
+      {
+        start: '2026-11-13',
+        end: '2026-11-13',
+      },
+    );
+    expect(t?.regionColor).toBe('#5d4ba8');
+  });
+  it('舊資料沒有群組顏色時為 undefined（畫面退回同仁顏色）', () => {
+    const [t] = buildPersonalTasks([ev({})], { start: '2026-11-13', end: '2026-11-13' });
+    expect(t?.regionColor).toBeUndefined();
+  });
+});
+
+describe('任務詳細資料（客戶、同仁電話）', () => {
+  it('帶入班表事件的客戶資料與同仁電話', () => {
+    const info = { address: '新竹市力行六路', contactName: '王窗口', contactPhone: '03-1234567' };
+    const [t] = buildPersonalTasks(
+      [ev({ props: { customerInfo: info, assigneePhones: { u1: '0911' } } })],
+      { start: '2026-11-13', end: '2026-11-13' },
+    );
+    expect(t?.customerInfo).toEqual(info);
+    expect(t?.assigneePhones).toEqual({ u1: '0911' });
+  });
+});
