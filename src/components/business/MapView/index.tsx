@@ -1,4 +1,4 @@
-import type { FC } from 'react';
+import type { FC, ReactNode } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import type { Customer } from '@/types/customer';
 import 'leaflet/dist/leaflet.css';
@@ -11,6 +11,8 @@ export interface MapViewProps {
   zoom?: number;
   markerColorByCustomerId?: Record<string, string>;
   onMarkerClick?: (customer: Customer) => void;
+  /** 自訂彈出視窗的整個內容（例如任務詳細）；未提供時顯示預設的集團、分店、地址 */
+  renderPopup?: (customer: Customer) => ReactNode;
 }
 
 /** 預設地圖中心（台灣本島中心） */
@@ -43,6 +45,7 @@ const MapView: FC<MapViewProps> = ({
   zoom = DEFAULT_ZOOM,
   markerColorByCustomerId = {},
   onMarkerClick,
+  renderPopup,
 }) => {
   // 僅保留具有效經緯度之客戶分店，缺少座標資料的分店不繪製標記
   const markers = customers.filter(
@@ -83,23 +86,31 @@ const MapView: FC<MapViewProps> = ({
               }}
               data-testid={`map-marker-${customer.id}`}
             >
-              <Popup>
-                <div data-testid={`map-popup-${customer.id}`} style={{ minWidth: 160 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>
-                    {customer.groupName}
+              <Popup
+                className={renderPopup ? 'map-task-popup' : undefined}
+                minWidth={renderPopup ? 340 : undefined}
+                maxWidth={renderPopup ? 340 : undefined}
+              >
+                {renderPopup ? (
+                  renderPopup(customer)
+                ) : (
+                  <div data-testid={`map-popup-${customer.id}`} style={{ minWidth: 160 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>
+                      {customer.groupName}
+                    </div>
+                    <div
+                      style={{
+                        color: '#1677ff',
+                        fontWeight: 600,
+                        fontSize: 12,
+                        marginBottom: 4,
+                      }}
+                    >
+                      {customer.branchName}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#666' }}>{customer.address}</div>
                   </div>
-                  <div
-                    style={{
-                      color: '#1677ff',
-                      fontWeight: 600,
-                      fontSize: 12,
-                      marginBottom: 4,
-                    }}
-                  >
-                    {customer.branchName}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#666' }}>{customer.address}</div>
-                </div>
+                )}
               </Popup>
             </CircleMarker>
           );

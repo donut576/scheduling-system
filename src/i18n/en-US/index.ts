@@ -735,5 +735,9 @@ export default {
     filter: 'Filter',
     filterByGroup: 'Filter by Group',
     filterByBranch: 'Filter by Branch',
+    dateRange: 'Date',
+    timeRange: 'Time of day',
+    summary: '{{tasks}} tasks at {{places}} locations',
+    empty: 'No tasks match the filters',
   },
 };

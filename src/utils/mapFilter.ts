@@ -14,6 +14,7 @@
  */
 
 import type { Customer } from '@/types/customer';
+import type { Task } from '@/types/task';
 
 export interface MapFilterCriteria {
   groupId?: string;
@@ -40,5 +41,44 @@ export function filterCustomersByLocation(
     // 同理，branchId 未指定時不限制分店
     if (branchId && c.branchId !== branchId) return false;
     return true;
+  });
+}
+
+/** 地圖的時間篩選條件：日期為 YYYY-MM-DD，時間為 HH:mm；未填代表該端不設限 */
+export interface MapTimeCriteria {
+  startDate?: string;
+  endDate?: string;
+  startTime?: string;
+  endTime?: string;
+}
+
+const toMinutes = (hhmm: string): number => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+};
+
+/**
+ * 依日期、時段篩選任務。
+ * - 日期：任務日期落在 [startDate, endDate]（含頭尾）。
+ * - 時段：任務時間與所選時段「有重疊」即保留；沒填時段就不看時間（彈性時間的任務也會保留）。
+ *   有填時段時，沒有開始時間的任務不顯示。跨日任務（結束時間早於開始時間）視為隔天結束。
+ */
+export function filterTasksByTime(tasks: Task[], criteria: MapTimeCriteria): Task[] {
+  const { startDate, endDate, startTime, endTime } = criteria;
+  const hasTimeWindow = !!startTime || !!endTime;
+  const windowStart = startTime ? toMinutes(startTime) : 0;
+  let windowEnd = endTime ? toMinutes(endTime) : 24 * 60;
+  if (windowEnd < windowStart) windowEnd += 24 * 60;
+
+  return tasks.filter((task) => {
+    if (!task.date) return false;
+    if (startDate && task.date < startDate) return false;
+    if (endDate && task.date > endDate) return false;
+    if (!hasTimeWindow) return true;
+    if (!task.startTime) return false;
+    const s = toMinutes(task.startTime);
+    let e = task.endTime ? toMinutes(task.endTime) : s;
+    if (e < s || task.isOvernight) e += 24 * 60;
+    return s <= windowEnd && e >= windowStart;
   });
 }

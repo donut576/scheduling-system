@@ -734,5 +734,9 @@ export default {
     filter: '篩選',
     filterByGroup: '依集團／公司篩選',
     filterByBranch: '依分店篩選',
+    dateRange: '日期',
+    timeRange: '時段',
+    summary: '共 {{tasks}} 項任務、{{places}} 個地點',
+    empty: '目前沒有符合條件的任務',
   },
 };

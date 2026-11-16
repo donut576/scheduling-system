@@ -6,7 +6,8 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import type { Customer } from '@/types/customer';
-import { filterCustomersByLocation } from './mapFilter';
+import type { Task } from '@/types/task';
+import { filterCustomersByLocation, filterTasksByTime } from './mapFilter';
 
 /**
  * **Validates: Requirements 15.3**
@@ -99,5 +100,50 @@ describe('Property 27: 地圖篩選正確性', () => {
       }),
       { numRuns: 100 },
     );
+  });
+});
+
+describe('filterTasksByTime', () => {
+  const mk = (id: string, date: string, startTime: string, endTime: string, isOvernight = false) =>
+    ({ id, date, startTime, endTime, isOvernight }) as unknown as Task;
+  const tasks = [
+    mk('a', '2026-11-16', '06:00', '08:00'),
+    mk('b', '2026-11-16', '09:00', '10:00'),
+    mk('c', '2026-11-17', '18:00', '22:00'),
+    mk('d', '2026-11-17', '22:00', '02:00', true),
+    mk('e', '2026-11-18', '', ''),
+  ];
+  const ids = (list: Task[]) => list.map((x) => x.id);
+
+  it('filters by date range, inclusive on both ends', () => {
+    expect(
+      ids(filterTasksByTime(tasks, { startDate: '2026-11-16', endDate: '2026-11-16' })),
+    ).toEqual(['a', 'b']);
+    expect(
+      ids(filterTasksByTime(tasks, { startDate: '2026-11-17', endDate: '2026-11-18' })),
+    ).toEqual(['c', 'd', 'e']);
+  });
+
+  it('keeps tasks without a start time when no time window is set', () => {
+    expect(ids(filterTasksByTime(tasks, {}))).toContain('e');
+  });
+
+  it('keeps tasks that overlap the time window and drops tasks without a start time', () => {
+    expect(ids(filterTasksByTime(tasks, { startTime: '07:00', endTime: '09:30' }))).toEqual([
+      'a',
+      'b',
+    ]);
+    expect(ids(filterTasksByTime(tasks, { startTime: '12:00' }))).toEqual(['c', 'd']);
+  });
+
+  it('treats an overnight task as ending the next day', () => {
+    expect(ids(filterTasksByTime(tasks, { startTime: '23:00', endTime: '23:30' }))).toEqual(['d']);
+  });
+
+  it('supports a window that crosses midnight', () => {
+    expect(ids(filterTasksByTime(tasks, { startTime: '21:00', endTime: '01:00' }))).toEqual([
+      'c',
+      'd',
+    ]);
   });
 });
