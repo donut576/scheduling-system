@@ -3,6 +3,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+ARG VITE_USE_MOCK_API=true
+ENV VITE_USE_MOCK_API=$VITE_USE_MOCK_API
 RUN npm run build
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
