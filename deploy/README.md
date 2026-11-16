@@ -27,7 +27,7 @@ done
 ```
 SCHEDULING_DB_PASSWORD=（和上面建立使用者時同一個密碼）
 SCHEDULING_JWT_SECRET=（長隨機字串，例如 openssl rand -hex 32）
-SCHEDULING_PUBLIC_URL=（使用者實際開的網址，例如 http://scheduling.ecolab-taiwan.com.tw）
+SCHEDULING_PUBLIC_URL=（使用者實際開的網址，例如 http://shift-schedule.ecolab-taiwan.com.tw）
 ```
 
 ## 3. 加入服務
