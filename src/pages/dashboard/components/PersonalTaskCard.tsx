@@ -56,13 +56,17 @@ const RANGE_OPTIONS: { value: TaskRange; label: string }[] = [
 const assigneeColor = (a: PersonalTask['assignees'][number]) =>
   a.groupColor ?? getGroupColor(a.groupId ?? a.area ?? '');
 
+/** 任務顏色：優先用任務所屬群組的顏色，沒有就用第一位同仁的轄區顏色 */
+const taskColor = (task: PersonalTask, fallback: string) =>
+  task.regionColor ?? (task.assignees[0] ? assigneeColor(task.assignees[0]) : fallback);
+
 const TaskRow: React.FC<{ task: PersonalTask; selfId?: string; onClick: () => void }> = ({
   task,
   selfId,
   onClick,
 }) => {
-  // 時間塊底色：沿用第一位施作同仁的轄區＋班別顏色
-  const accent = task.assignees[0] ? assigneeColor(task.assignees[0]) : '#d9d9d9';
+  // 時間塊底色：任務所屬群組（轄區＋班別）的顏色；沒有時沿用第一位施作同仁的顏色
+  const accent = taskColor(task, '#d9d9d9');
   return (
     <div
       className="dash-item"
@@ -116,21 +120,26 @@ export const TaskDetailModal: React.FC<{
     () => customerPage?.list?.find((c) => c.branchId === task.branchId),
     [customerPage, task.branchId],
   );
+  // 同仁電話：優先用班表事件帶來的（不受轄區限制），沒有再用員工清單
   const phoneById = useMemo(() => {
     const m = new Map<string, string>();
     employeePage?.list?.forEach((e) => {
       if (e.phone) m.set(e.id, e.phone);
     });
+    Object.entries(task.assigneePhones ?? {}).forEach(([id, phone]) => m.set(id, phone));
     return m;
-  }, [employeePage]);
+  }, [employeePage, task.assigneePhones]);
 
-  const accent = task.assignees[0] ? assigneeColor(task.assignees[0]) : '#8c8c8c';
-  const contact = customer
-    ? `${customer.contactName}${customer.contactPhone ? `\u3000${customer.contactPhone}` : ''}`
+  const accent = taskColor(task, '#8c8c8c');
+  // 客戶資料：優先用班表事件帶來的（跨區支援的任務，客戶清單查不到），沒有再用客戶清單
+  const info = task.customerInfo ?? customer;
+  const address = info?.address;
+  const contact = info?.contactName
+    ? `${info.contactName}${info.contactPhone ? `\u3000${info.contactPhone}` : ''}`
     : undefined;
   const backup =
-    customer?.backupName || customer?.backupPhone
-      ? `${customer.backupName ?? ''}${customer.backupPhone ? `\u3000${customer.backupPhone}` : ''}`
+    info?.backupName || info?.backupPhone
+      ? `${info.backupName ?? ''}${info.backupPhone ? `\u3000${info.backupPhone}` : ''}`
       : undefined;
   const reportTypes = task.reportTypes;
 
@@ -163,9 +172,9 @@ export const TaskDetailModal: React.FC<{
       }
       onClose={onClose}
     >
-      {customer?.address && (
+      {address && (
         <DetailSection icon={<EnvironmentOutlined />} label="地址">
-          {customer.address}
+          {address}
         </DetailSection>
       )}
       {contact && (

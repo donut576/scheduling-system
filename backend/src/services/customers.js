@@ -1,7 +1,7 @@
 import { query } from '../db.js';
 import { validate, parseId } from '../utils/validate.js';
 import { parsePaging, toPage } from '../utils/pagination.js';
-import { getScope, customerScopeCondition, customerRegionNamesSql, CUSTOMER_REGION_JOIN } from './scope.js';
+import { getScope, customerScopeCondition, customerRegionNamesSql, CUSTOMER_REGION_JOIN, customerHasMyTask } from './scope.js';
 
 const LIST_SCHEMA = {
   keyword: { type: 'string', max: 50 },
@@ -48,11 +48,14 @@ const SELECT_SQL = `SELECT c.id, c.name, c.city, c.district, ${customerRegionNam
   b.name AS backup_name, b.phone AS backup_phone, b.email AS backup_email`;
 
 // 只列出啟用中的客戶，並套用登入者的轄區範圍
-export const buildCustomerFilter = (filters, scope) => {
+export const buildCustomerFilter = (filters, scope, user = null) => {
   const values = [];
   const where = ['c.is_active'];
   const sc = customerScopeCondition(scope, values);
-  if (sc) where.push(sc);
+  if (sc) {
+    const mine = customerHasMyTask(user, values);
+    where.push(mine ? `(${sc} OR ${mine})` : sc);
+  }
   if (filters.keyword) {
     values.push(`%${likeEscape(filters.keyword)}%`);
     where.push(`(c.name ILIKE $${values.length} OR g.name ILIKE $${values.length} OR c.address ILIKE $${values.length})`);
@@ -67,7 +70,7 @@ export const buildCustomerFilter = (filters, scope) => {
 export const listCustomers = async (user, rawQuery) => {
   const filters = validate(rawQuery, LIST_SCHEMA);
   const paging = parsePaging(rawQuery);
-  const { whereSql, values } = buildCustomerFilter(filters, await getScope(user));
+  const { whereSql, values } = buildCustomerFilter(filters, await getScope(user), user);
   const n = values.length;
   const [rows, total] = await Promise.all([
     query(`${SELECT_SQL} ${FROM_SQL} ${whereSql} ORDER BY g.name, c.name, c.id LIMIT $${n + 1} OFFSET $${n + 2}`,
@@ -79,14 +82,14 @@ export const listCustomers = async (user, rawQuery) => {
 
 // 單一客戶（套用登入者範圍）；找不到回 null
 export const getCustomer = async (user, id) => {
-  const { whereSql, values } = buildCustomerFilter({}, await getScope(user));
+  const { whereSql, values } = buildCustomerFilter({}, await getScope(user), user);
   const rows = await query(`${SELECT_SQL} ${FROM_SQL} ${whereSql} AND c.id = $${values.length + 1}::bigint`, [...values, parseId(id)]);
   return rows.rows[0] ? mapCustomer(rows.rows[0]) : null;
 };
 
 // 客戶群組＋底下的分店（新增任務的「集團／分店」下拉用）
 export const listCustomerGroups = async (user) => {
-  const { whereSql, values } = buildCustomerFilter({}, await getScope(user));
+  const { whereSql, values } = buildCustomerFilter({}, await getScope(user), user);
   const rows = await query(`${SELECT_SQL} ${FROM_SQL} ${whereSql} ORDER BY g.name, c.name, c.id`, values);
   const groups = new Map();
   for (const row of rows.rows) {

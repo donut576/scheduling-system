@@ -2,7 +2,7 @@ import { query } from '../db.js';
 import { validate, parseId } from '../utils/validate.js';
 import { parsePaging, toPage } from '../utils/pagination.js';
 import { AppError, ERROR_CODES } from '../utils/response.js';
-import { getScope, customerScopeCondition, customerInRegionNames, CUSTOMER_REGION_JOIN } from './scope.js';
+import { getScope, customerScopeCondition, customerInRegionNames, CUSTOMER_REGION_JOIN, taskAssignedToMe } from './scope.js';
 import { hasPermission } from '../middleware/permission.js';
 
 export const TASK_TYPES = ['CONTRACT', 'ONETIME', 'ESR'];
@@ -23,13 +23,16 @@ const LIST_SCHEMA = {
 const likeEscape = (s) => s.replace(/[\\%_]/g, (m) => `\\${m}`);
 
 // 組出 WHERE 條件。全部用參數（$1、$2…），使用者輸入不會直接進 SQL 字串。
-export const buildTaskFilter = (filters, scope, { onlyScheduled = false } = {}) => {
+export const buildTaskFilter = (filters, scope, { onlyScheduled = false, user = null } = {}) => {
   const where = [];
   const values = [];
   const add = (sql, v) => { values.push(v); where.push(sql.replace('?', `$${values.length}`)); };
 
   const sc = customerScopeCondition(scope, values);
-  if (sc) where.push(sc);
+  if (sc) {
+    const mine = taskAssignedToMe(user, values);
+    where.push(mine ? `(${sc} OR ${mine})` : sc);
+  }
   if (onlyScheduled) where.push("t.status NOT IN ('UNSCHEDULED', 'CANCELLED', 'PENDING_APPROVAL')");
   if (filters.keyword) {
     values.push(`%${likeEscape(filters.keyword)}%`);
@@ -162,7 +165,7 @@ export const listTasks = async (user, rawQuery) => {
   const filters = validate(rawQuery, LIST_SCHEMA);
   const paging = parsePaging(rawQuery);
   const scope = await getScope(user);
-  const { whereSql, values } = buildTaskFilter(filters, scope, { onlyScheduled: !hasPermission(user, 'task:view') });
+  const { whereSql, values } = buildTaskFilter(filters, scope, { onlyScheduled: !hasPermission(user, 'task:view'), user });
   const n = values.length;
   const sql = `${BASE_SELECT} ${whereSql} ${ORDER_SQL} LIMIT $${n + 1} OFFSET $${n + 2}`;
   const countSql = `SELECT count(*)::int AS total FROM tasks t
@@ -182,7 +185,7 @@ export const listTasks = async (user, rawQuery) => {
 export const getTask = async (user, id) => {
   const taskId = parseId(id);
   const scope = await getScope(user);
-  const { whereSql, values } = buildTaskFilter({}, scope, { onlyScheduled: !hasPermission(user, 'task:view') });
+  const { whereSql, values } = buildTaskFilter({}, scope, { onlyScheduled: !hasPermission(user, 'task:view'), user });
   const idCond = `${whereSql ? `${whereSql} AND` : 'WHERE'} t.id = $${values.length + 1}::bigint`;
   const rows = await query(`${BASE_SELECT} ${idCond}`, [...values, taskId]);
   if (rows.rows.length === 0) {

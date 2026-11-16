@@ -15,6 +15,11 @@ export interface PersonalTask {
   time: string | null;
   flexible: boolean;
   timeRemark?: string;
+  /** 任務所屬群組（轄區＋班別）的顏色；沒有時畫面退回第一位同仁的顏色 */
+  regionColor?: string;
+  /** 詳細視窗用：客戶地址與聯絡窗口、同仁電話（後端跟著班表事件回傳） */
+  customerInfo?: NonNullable<ScheduleEvent['extendedProps']['customerInfo']>;
+  assigneePhones?: Record<string, string>;
   groupName: string;
   branchName: string;
   branchId: string;
@@ -100,6 +105,9 @@ export function toPersonalTask(ev: ScheduleEvent): PersonalTask {
     time: flexible ? null : ev.start.slice(11, 16).replace(':', ''),
     flexible,
     timeRemark: p.timeRemark,
+    regionColor: p.regionColor,
+    customerInfo: p.customerInfo,
+    assigneePhones: p.assigneePhones,
     groupName: ev.groupName,
     branchName: ev.branchName,
     branchId: ev.resourceId,

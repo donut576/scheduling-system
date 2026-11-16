@@ -191,21 +191,9 @@ const getAreaLabel = (area: string | undefined, t: (k: string) => string): strin
   return map[area] ?? area;
 };
 
-const getShiftLabel = (shift: string | undefined, t: (k: string) => string): string => {
-  if (!shift) return '';
-  const map: Record<string, string> = {
-    早班: t('task.shifts.morning'),
-    午班: t('task.shifts.afternoon'),
-    晚班: t('task.shifts.evening'),
-    大夜班: t('task.shifts.night'),
-  };
-  return map[shift] ?? shift;
-};
-
+// 員工一覽、匯出的「組別」：群組名稱已含早／晚（北早、北一晚…），不再另外顯示班別
 const getDisplayGroup = (record: Employee, t: (k: string) => string): string => {
-  if (record.area && record.shift) {
-    return `${getAreaLabel(record.area, t)} ${getShiftLabel(record.shift, t)}`;
-  }
+  if (record.area) return getAreaLabel(record.area, t);
   return record.groupName || '-';
 };
 
@@ -584,7 +572,8 @@ const EmployeePage: FC = () => {
     const payload = {
       ...values,
       groupId: values.area ?? '',
-      shift: values.shift || shiftOfGroup(values.area),
+      // 畫面上不再選班別：由群組名稱決定（「…晚」＝晚班，其餘早班），後端資料維持一致
+      shift: shiftOfGroup(values.area),
       licenseDetails: canEditLicense
         ? buildLicenseDetails(values.licenses ?? [], values.licenseDetails)
         : undefined,
@@ -635,14 +624,6 @@ const EmployeePage: FC = () => {
       { label: t('employee.positions.leader'), value: 'LEADER' },
       { label: t('employee.positions.manager'), value: 'MANAGER' },
       { label: t('employee.positions.adminStaff'), value: 'ADMIN_STAFF' },
-    ],
-    [t],
-  );
-
-  const localizedShiftOptions = useMemo(
-    () => [
-      { label: t('task.shifts.morning'), value: '早班' },
-      { label: t('task.shifts.evening'), value: '晚班' },
     ],
     [t],
   );
@@ -842,14 +823,9 @@ const EmployeePage: FC = () => {
               </Form.Item>
               <Form.Item label={t('employee.group')} style={{ marginBottom: 16 }}>
                 <Row gutter={12}>
-                  <Col span={12}>
+                  <Col span={24}>
                     <Form.Item name="area" noStyle>
                       <Select disabled options={localizedAreaOptions} style={{ width: '100%' }} />
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item name="shift" noStyle>
-                      <Select disabled options={localizedShiftOptions} style={{ width: '100%' }} />
                     </Form.Item>
                   </Col>
                 </Row>
@@ -1025,7 +1001,7 @@ const EmployeePage: FC = () => {
           </Form.Item>
           <Form.Item label={t('employee.group')} required style={{ marginBottom: 16 }}>
             <Row gutter={12}>
-              <Col span={12}>
+              <Col span={24}>
                 <Form.Item
                   name="area"
                   noStyle
@@ -1034,20 +1010,6 @@ const EmployeePage: FC = () => {
                   <Select
                     placeholder={t('employee.groupPlaceholder')}
                     options={localizedAreaOptions}
-                    style={{ width: '100%' }}
-                    onChange={(id: string) => form.setFieldValue('shift', shiftOfGroup(id))}
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="shift"
-                  noStyle
-                  rules={[{ required: true, message: t('task.shiftRequired') }]}
-                >
-                  <Select
-                    placeholder={t('task.shiftPlaceholder')}
-                    options={localizedShiftOptions}
                     style={{ width: '100%' }}
                   />
                 </Form.Item>

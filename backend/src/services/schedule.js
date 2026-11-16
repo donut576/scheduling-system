@@ -3,6 +3,7 @@ import { validate, parseId } from '../utils/validate.js';
 import { AppError, ERROR_CODES } from '../utils/response.js';
 import { getScope, scopeCondition, customerScopeCondition, customerInRegionNames, customerInRegionId, CUSTOMER_REGION_JOIN } from './scope.js';
 import { BASE_SELECT, loadRelations, mapTask } from './tasks.js';
+import { pickRegion } from './taskChanges.js';
 
 export const DIMENSIONS = ['overview', 'customer', 'employee'];
 // 排班可指派的職位（與前端 ASSIGNABLE_POSITIONS 一致）
@@ -48,7 +49,7 @@ const parseQuery = (raw) => {
   return { ...q, dimension: q.dimension || 'customer' };
 };
 
-const eventsSql = (q, scope) => {
+const eventsSql = (q, scope, user) => {
   const values = [q.startDate, q.endDate];
   const where = [
     "t.status NOT IN ('UNSCHEDULED', 'CANCELLED', 'PENDING_APPROVAL')",
@@ -57,7 +58,12 @@ const eventsSql = (q, scope) => {
   ];
   const add = (sql, v) => { values.push(v); where.push(sql.replace('?', `$${values.length}`)); };
   const cond = customerScopeCondition(scope, values);
-  if (cond) where.push(cond);
+  if (cond) {
+    // 轄區範圍之外，「指派給自己」的任務仍然看得到（例如員工被指派去別的轄區的客戶）
+    values.push(user?.no ?? '');
+    where.push(`(${cond} OR EXISTS (SELECT 1 FROM task_assignees tam JOIN users um ON um.id = tam.user_id
+      WHERE tam.task_id = t.id AND um.employee_no = $${values.length}))`);
+  }
   if (q.groupId && q.dimension === 'customer') add('g.id = ?::bigint', parseId(q.groupId));
   if (q.branchId) add('c.id = ?::bigint', parseId(q.branchId));
   if (q.employeeId) add('EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ?::bigint)', parseId(q.employeeId));
@@ -112,10 +118,54 @@ const employeeResources = async (q, scope) => {
   });
 };
 
+// 每筆任務所屬的群組（轄區＋班別，名稱已含早／晚）：由客戶地址找出涵蓋的群組，
+// 同一行政區屬於多個群組時依「施作同仁所屬群組 → 任務班別 → id 最小」挑選（與寄信挑主任同一套規則）。
+// 排班日曆與儀表板的任務顏色都用這個；回傳 Map<任務 id, { name, color }>
+const taskRegions = async (taskRows, assigneesOf) => {
+  const out = new Map();
+  if (taskRows.length === 0) return out;
+  const customerIds = [...new Set(taskRows.map((r) => r.customer_id))];
+  const r = await query(`SELECT DISTINCT c.id::text AS cid, rg.id::text AS id, rg.name, rg.color FROM customers c
+    JOIN region_areas ra ON ra.city = c.city AND (ra.district IS NULL OR ra.district = c.district)
+    JOIN regions rg ON rg.id = ra.region_id WHERE c.id = ANY($1::bigint[])`, [customerIds]);
+  const byCustomer = new Map();
+  for (const row of r.rows) byCustomer.set(row.cid, [...(byCustomer.get(row.cid) || []), row]);
+  for (const t of taskRows) {
+    const cands = byCustomer.get(String(t.customer_id)) || [];
+    const pickedId = pickRegion(cands, {
+      assigneeRegionIds: (assigneesOf.get(t.id) || []).map((a) => a.groupId).filter(Boolean),
+      shift: t.shift || null,
+    });
+    const picked = cands.find((c) => c.id === pickedId);
+    if (picked) out.set(String(t.id), { name: picked.name, color: picked.color || undefined });
+  }
+  return out;
+};
+
+// 任務詳細要顯示的客戶資料（地址、聯絡窗口、備用窗口）與同仁電話。
+// 直接跟著班表事件回傳，不讓前端另外查客戶／員工清單——那兩份清單有轄區限制，跨區支援的任務會查不到。
+const taskContacts = async (taskRows, assigneesOf) => {
+  const customerIds = [...new Set(taskRows.map((r) => r.customer_id))];
+  const userIds = [...new Set(taskRows.flatMap((r) => (assigneesOf.get(r.id) || []).map((a) => a.employeeId)))];
+  const [cu, us] = await Promise.all([
+    customerIds.length ? query(`SELECT c.id::text AS cid, c.address, cc.slot, cc.name, cc.phone FROM customers c
+      LEFT JOIN customer_contacts cc ON cc.customer_id = c.id WHERE c.id = ANY($1::bigint[])`, [customerIds]) : { rows: [] },
+    userIds.length ? query('SELECT id::text AS id, phone FROM users WHERE id = ANY($1::bigint[]) AND phone IS NOT NULL', [userIds]) : { rows: [] },
+  ]);
+  const customers = new Map();
+  for (const r of cu.rows) {
+    const c = customers.get(r.cid) || { address: r.address || undefined };
+    if (r.slot === 1) { c.contactName = r.name; c.contactPhone = r.phone || undefined; }
+    if (r.slot === 2) { c.backupName = r.name; c.backupPhone = r.phone || undefined; }
+    customers.set(r.cid, c);
+  }
+  return { customers, phones: Object.fromEntries(us.rows.map((r) => [r.id, r.phone])) };
+};
+
 export const getSchedule = async (user, rawQuery) => {
   const q = parseQuery(rawQuery);
   const scope = await getScope(user);
-  const { sql, values } = eventsSql(q, scope);
+  const { sql, values } = eventsSql(q, scope, user);
   const rows = (await query(sql, values)).rows;
 
   const inRange = rows
@@ -131,13 +181,16 @@ export const getSchedule = async (user, rawQuery) => {
     query(`SELECT task_id, string_agg(message, '；' ORDER BY id) AS reason FROM task_alerts
            WHERE task_id = ANY($1::bigint[]) GROUP BY task_id`, [ids]),
   ]);
+  const regionOf = await taskRegions(taskRows, rel.assignees);
+  const contacts = await taskContacts(taskRows, rel.assignees);
   const colorOf = new Map(colors.rows.map((r) => [String(r.id), r.color || undefined]));
   const reasonOf = new Map(alerts.rows.map((r) => [String(r.task_id), r.reason]));
 
   const baseEvents = inRange.map(({ row, range }) => {
     const assignees = rel.assignees.get(row.id) || [];
     const task = mapTask(row, { contents: rel.contents.get(row.id) || [], assignees, series: rel.series.get(row.series_id) || null });
-    const color = colorOf.get(String(row.customer_id));
+    const region = regionOf.get(String(row.id));
+    const color = region?.color || colorOf.get(String(row.customer_id));
     return {
       id: `event-${row.id}`,
       taskId: String(row.id),
@@ -169,6 +222,10 @@ export const getSchedule = async (user, rawQuery) => {
         overrideReason: task.overrideRemark,
         headcount: row.headcount,
         remarks: row.remarks || '',
+        customerInfo: contacts.customers.get(String(row.customer_id)),
+        assigneePhones: Object.fromEntries((assignees || []).filter((a) => contacts.phones[a.employeeId]).map((a) => [a.employeeId, contacts.phones[a.employeeId]])),
+        regionName: region?.name,
+        regionColor: region?.color,
         timeMode: row.time_mode,
         timeRemark: row.time_remark || undefined,
         route: row.route || '',

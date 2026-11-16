@@ -5,6 +5,7 @@ import { getScope, customerScopeCondition } from './scope.js';
 import { TASK_TYPES, getTask } from './tasks.js';
 import { enforceAlerts, recordAlerts, submitApproval } from './alerts.js';
 import { expandRecurrence } from './recurrence.js';
+import { snapshotTask, recordTaskChange } from './taskChanges.js';
 
 const REPORT_TYPES = ['APP', 'EDM', 'PAPER', 'PHOTO'];
 
@@ -170,6 +171,7 @@ export const createTaskTx = async (q, user, scope, raw) => {
   await replaceRelations(q, id, { contentIds, assigneeIdList, by });
   await recordAlerts(q, by, id, enforced, b.overrideRemark);
   if (enforced.needsApproval) await submitApproval(q, by, id, enforced.result.violations, b.overrideRemark);
+  await recordTaskChange(q, id, null); // 異動事件（通知用）；待核准的任務還看不到，不會記
   return id;
 };
 
@@ -246,6 +248,7 @@ export const updateTaskTx = async (q, user, scope, id, rawInput) => {
   const old = found.rows[0];
 
   if (old.status === 'CANCELLED') throw fail('已取消的任務不能修改');
+  const before = await snapshotTask(q, taskId); // 修改前的狀態，改完後比對出異動（通知用）
 
   // 整筆移回待排：把排班欄位換回第一次拖進日曆之前的樣子（備註、路線等手動編輯過的內容保留）
   const restoring = Boolean(raw && raw.restorePending === true && old.pending_snapshot);
@@ -263,6 +266,7 @@ export const updateTaskTx = async (q, user, scope, id, rawInput) => {
     // 取消 = 狀態改為「已取消」；若一併帶了備註（取消原因），就寫進備註
     await q(`UPDATE tasks SET status = 'CANCELLED', remarks = COALESCE($2, remarks), updated_at = now() WHERE id = $1::bigint`,
       [taskId, b.remarks ?? null]);
+    await recordTaskChange(q, taskId, before);
     return taskId;
   }
 
@@ -338,6 +342,7 @@ export const updateTaskTx = async (q, user, scope, id, rawInput) => {
   if (status === 'SCHEDULED') await q('UPDATE tasks SET reject_reason = NULL, rejected_assignees = NULL WHERE id = $1::bigint', [taskId]);
   if (enforced) await recordAlerts(q, by, taskId, enforced, b.overrideRemark);
   if (enforced?.needsApproval) await submitApproval(q, by, taskId, enforced.result.violations, b.overrideRemark);
+  await recordTaskChange(q, taskId, before);
   return taskId;
 };
 

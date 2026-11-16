@@ -47,3 +47,21 @@ export const scopeCondition = (scope, regionNameSql, values) => {
   values.push(scope.regionNames);
   return `${regionNameSql} = ANY($${values.length}::text[])`;
 };
+
+// 「指派給我」的任務條件（跨區支援：自己的任務不受轄區限制）。t 是任務資料表別名。
+export const taskAssignedToMe = (user, values, t = 't') => {
+  if (!user?.no) return null;
+  values.push(user.no);
+  return `EXISTS (SELECT 1 FROM task_assignees ta JOIN users u ON u.id = ta.user_id
+    WHERE ta.task_id = ${t}.id AND u.employee_no = $${values.length})`;
+};
+
+// 「這個客戶有指派給我的有效任務」條件。c 是客戶資料表別名。
+export const customerHasMyTask = (user, values, c = 'c') => {
+  if (!user?.no) return null;
+  values.push(user.no);
+  return `EXISTS (SELECT 1 FROM tasks t2
+    JOIN task_assignees ta ON ta.task_id = t2.id JOIN users u ON u.id = ta.user_id
+    WHERE t2.customer_id = ${c}.id AND u.employee_no = $${values.length}
+      AND t2.status NOT IN ('UNSCHEDULED', 'CANCELLED', 'PENDING_APPROVAL'))`;
+};

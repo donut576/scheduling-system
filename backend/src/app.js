@@ -11,6 +11,7 @@ import { pendingRouter } from './routes/pending.js';
 import { approvalsRouter } from './routes/approvals.js';
 import { scheduleRouter } from './routes/schedule.js';
 import { regionsRouter } from './routes/regions.js';
+import { notificationsRouter } from './routes/notifications.js';
 import { notFound, errorHandler } from './middleware/error.js';
 
 export const createApp = () => {
@@ -29,6 +30,7 @@ export const createApp = () => {
   app.use('/api/v1', scheduleRouter);
   app.use('/api/v1', regionsRouter);
   app.use('/api/v1', approvalsRouter);
+  app.use('/api/v1', notificationsRouter);
 
   app.use(notFound);
   app.use(errorHandler);

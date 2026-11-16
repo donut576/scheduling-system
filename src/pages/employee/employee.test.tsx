@@ -159,7 +159,7 @@ describe('EmployeePage', () => {
       expect(screen.getByText('2025-01-01')).toBeInTheDocument();
       expect(screen.getByText('手機：0912-345-678')).toBeInTheDocument();
       expect(screen.getByText('一般員工')).toBeInTheDocument();
-      expect(screen.getAllByTitle('台北 早班').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByTitle('台北').length).toBeGreaterThanOrEqual(1);
     });
 
     it('renders group color coding via avatar background and group dot color - Requirement 11.4', () => {

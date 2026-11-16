@@ -49,6 +49,18 @@ export interface ScheduleEvent {
     makeupReason?: string;
     isInternalEvent?: boolean;
     violationReason?: string;
+    /** 任務所屬群組（轄區＋班別，名稱已含早／晚）與其顏色：由客戶地址＋任務班別決定，日曆與儀表板任務顏色共用 */
+    /** 任務詳細用：客戶地址與聯絡窗口（跟著事件回傳，跨區支援的任務也看得到）與同仁電話（員工 id → 電話） */
+    customerInfo?: {
+      address?: string;
+      contactName?: string;
+      contactPhone?: string;
+      backupName?: string;
+      backupPhone?: string;
+    };
+    assigneePhones?: Record<string, string>;
+    regionName?: string;
+    regionColor?: string;
     overrideReason?: string;
     headcount?: number;
     remarks?: string;
