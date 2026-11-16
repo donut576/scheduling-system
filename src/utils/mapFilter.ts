@@ -53,7 +53,7 @@ export interface MapTimeCriteria {
 }
 
 const toMinutes = (hhmm: string): number => {
-  const [h, m] = hhmm.split(':').map(Number);
+  const [h, m] = hhmm.split(':').map(Number) as [number, number];
   return h * 60 + m;
 };
 
