@@ -5,6 +5,7 @@ import { signToken } from '../utils/token.js';
 import { requireAuthAllowMustChange } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ok, AppError, ERROR_CODES } from '../utils/response.js';
+import { pool } from '../db.js';
 import { loginWithDb, getDbProfile, changePassword } from '../services/auth.js';
 import { ensurePermissions, permissionsOf } from '../services/permissions.js';
 import { requestPasswordReset, getResetTokenInfo, resetPasswordWithToken } from '../services/passwordReset.js';
@@ -12,8 +13,10 @@ import { requestPasswordReset, getResetTokenInfo, resetPasswordWithToken } from 
 export const authRouter = Router();
 
 // 對齊前端 UserProfile：{ id, name, employeeNo, role, permissions, mustChangePassword }
-const toDevProfile = (u) => ({
-  id: u.id,
+// 固定帳號的 id 是寫死的（例：staff = '4'），和資料庫 users.id 不一定一樣；前端用 id 去比對「指派給我的任務」，
+// 所以回傳給前端的 id 以資料庫（依員工編號）為準，資料庫沒有這個員工才用寫死的 id。token 裡的 sub 不變。
+const toDevProfile = async (u) => ({
+    id: (await pool.query('SELECT id::text AS id FROM users WHERE employee_no = $1', [u.employeeNo])).rows[0]?.id ?? `dev-${u.id}`,
   name: u.name,
   employeeNo: u.employeeNo,
   role: u.role,
@@ -33,7 +36,7 @@ authRouter.post('/auth/login', asyncHandler(async (req, res) => {
     const dev = DEV_USERS.find((u) => u.account === account && u.password === password);
     if (dev) {
       const accessToken = signToken({ sub: dev.id, role: dev.role, no: dev.employeeNo }, config.jwtSecret, config.tokenTtlSec);
-      return ok(res, { accessToken, expiresIn: config.tokenTtlSec, user: toDevProfile(dev) });
+      return ok(res, { accessToken, expiresIn: config.tokenTtlSec, user: await toDevProfile(dev) });
     }
   }
   const user = await loginWithDb(account, password);
@@ -45,7 +48,7 @@ authRouter.get('/auth/profile', requireAuthAllowMustChange, asyncHandler(async (
   if (req.user.src === 'db') return ok(res, await getDbProfile(req.user.sub));
   const dev = DEV_USERS.find((u) => u.id === req.user.sub);
   if (!dev) throw new AppError(401, ERROR_CODES.TOKEN_EXPIRED, '登入已過期，請重新登入');
-  ok(res, toDevProfile(dev));
+  ok(res, await toDevProfile(dev));
 }));
 
 // 使用者自己改密碼（含首次登入被要求改密碼）。固定帳號（dev）沒有資料庫密碼，不能改。

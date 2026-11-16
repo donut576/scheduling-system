@@ -6,6 +6,7 @@ import { hasPermission } from '../middleware/permission.js';
 import { fail, currentUserId, isFullyScheduled } from './taskWrite.js';
 import { APPROVE_PERMISSION } from './alerts.js';
 import { BASE_SELECT, mapTask, loadRelations } from './tasks.js';
+import { snapshotTask, recordTaskChange } from './taskChanges.js';
 
 // 特許核准：排班警示（任何一條規則違規）的特許要核准（核准人 = 經理，也就是副總）。
 // 申請時任務存成「待核准」（不出現在班表與待排）；核准 → 依任務內容變成已排班；駁回 → 任務取消。
@@ -120,7 +121,9 @@ export const approve = async (user, id, raw) => {
     if (!task || task.status !== 'PENDING_APPROVAL') throw fail('任務已不在待核准狀態，無法核准');
     const status = isFullyScheduled({ date: task.date, timeMode: task.time_mode, startTime: task.start_time, endTime: task.end_time,
       headcount: task.headcount, assigneeCount: task.n }) ? 'SCHEDULED' : 'UNSCHEDULED';
+    const before = await snapshotTask(q, a.task_id);
     await q(`UPDATE tasks SET status = $2, alert_status = 'OVERRIDDEN', updated_at = now() WHERE id = $1::bigint`, [a.task_id, status]);
+    await recordTaskChange(q, a.task_id, before); // 核准後變已排班才會通知
     const by = await currentUserId(q, user);
     await finish(q, a.id, 'APPROVED', by, comment);
     await audit(q, by, a.task_id, { result: 'APPROVED', approvalId: String(a.id), comment: comment ?? null });

@@ -272,14 +272,25 @@ CREATE TABLE notifications (      -- 「通知」：系統要告知誰什麼事�
   template_id bigint REFERENCES notification_templates(id),
   recipient_user_id bigint REFERENCES users(id),
   recipient_contact_id bigint REFERENCES customer_contacts(id),
-  task_id bigint REFERENCES tasks(id),
+  task_id bigint REFERENCES tasks(id) ON DELETE CASCADE,  -- 任務刪除時，相關通知一併刪除
   subject text NOT NULL,
   content text NOT NULL,
   is_read boolean NOT NULL DEFAULT false,
   created_by bigint REFERENCES users(id),
   created_at timestamptz NOT NULL DEFAULT now(),
+  channel text NOT NULL DEFAULT 'EMAIL' CHECK (channel IN ('IN_APP','EMAIL')),   -- IN_APP：站內通知；EMAIL：寄信紀錄
+  action text CHECK (action IS NULL OR action IN ('CREATED','UPDATED','CANCELED')), -- 站內任務異動：最新動作
+  payload jsonb,                  -- 前端卡片用的內容（任務異動、證照到期）
+  history jsonb NOT NULL DEFAULT '[]', -- 同一任務的異動歷程（員工同一任務只留一筆，後續異動更新這一筆）
+  read_at timestamptz,
+  updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (recipient_user_id IS NOT NULL OR recipient_contact_id IS NOT NULL)
 );
+CREATE UNIQUE INDEX uq_inapp_user_task ON notifications (recipient_user_id, task_id)
+  WHERE channel = 'IN_APP' AND task_id IS NOT NULL AND recipient_user_id IS NOT NULL;
+CREATE INDEX idx_notifications_user ON notifications (recipient_user_id, channel, created_at DESC);
+CREATE UNIQUE INDEX uq_license_notice ON notifications (recipient_user_id, (payload->>'key'))
+  WHERE type = 'LICENSE_EXPIRY' AND channel = 'IN_APP';  -- 證照到期：同一位主任、同一張證照只有一筆
 CREATE TABLE email_outbox (       -- 「寄信」：實際寄出的信件佇列，含重試與結果
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   notification_id bigint REFERENCES notifications(id),
@@ -291,9 +302,27 @@ CREATE TABLE email_outbox (       -- 「寄信」：實際寄出的信件佇列�
   last_error text,
   scheduled_at timestamptz NOT NULL DEFAULT now(),
   sent_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  recipient_type text,            -- CUSTOMER／EMPLOYEE
+  recipient_user_id bigint REFERENCES users(id),
+  recipient_contact_id bigint REFERENCES customer_contacts(id),
+  recipient_name text,            -- 客戶＝集團 - 分店；員工＝姓名
+  region_id bigint REFERENCES regions(id),  -- 這封信屬於哪個群組（早、晚班不合併）
+  leader_id bigint REFERENCES users(id),    -- 負責寄出的主任（發送紀錄只看自己的用）
+  items jsonb NOT NULL DEFAULT '[]',        -- 信裡每個任務與標籤（新增／修改／取消），發送紀錄用
+  html text
 );
 CREATE INDEX idx_outbox_status ON email_outbox(status, scheduled_at);
+CREATE INDEX idx_outbox_sent ON email_outbox (sent_at DESC) WHERE status = 'SENT';
+-- 上次寄給某位收件人的版本：決定下一封信這個任務該標「新增」「修改」還是「取消」
+CREATE TABLE mail_task_state (
+  recipient_key text NOT NULL,                 -- 'E' + 員工 id，或 'C' + 客戶聯絡人 id
+  task_id bigint NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  last_action text NOT NULL CHECK (last_action IN ('CREATED','UPDATED','CANCELED')),
+  snapshot jsonb NOT NULL,                     -- 上次寄出時的任務內容
+  sent_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (recipient_key, task_id)
+);
 
 -- 每日合併通知：任務有建立／修改／刪除時先記一筆待通知，每天由主任設定的時間統一合併寄出
 CREATE TABLE system_settings (    -- 全域設定（key／value）
@@ -320,7 +349,7 @@ CREATE TABLE notification_changes ( -- 待合併的異動：同收件人同一�
   change_date date NOT NULL,      -- 異動發生的日期（同收件人同日期合併）
   detail jsonb,                   -- 異動摘要（改了哪些欄位、前後值）
   status text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','SENT','CANCELLED')),
-  notification_id bigint REFERENCES notifications(id),       -- 合併寄出後對應的通知
+  notification_id bigint REFERENCES notifications(id) ON DELETE SET NULL, -- 合併寄出後對應的通知
   created_at timestamptz NOT NULL DEFAULT now(),
   CHECK ((recipient_type = 'EMPLOYEE' AND recipient_user_id IS NOT NULL AND recipient_contact_id IS NULL)
       OR (recipient_type = 'CUSTOMER' AND recipient_contact_id IS NOT NULL AND recipient_user_id IS NULL))
