@@ -89,3 +89,33 @@ export function useUpdateTemplate() {
     },
   });
 }
+
+/** 將單筆站內通知標為已讀；成功後重新載入通知列表（鈴鐺未讀數會跟著更新） */
+export function useMarkNotificationRead() {
+  const queryClient = useQueryClient();
+
+  return useMutation<null, Error, string>({
+    mutationFn: async (id) => {
+      const response = await notificationApi.markRead(id);
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() });
+    },
+  });
+}
+
+/** 全部標為已讀 */
+export function useMarkAllNotificationsRead() {
+  const queryClient = useQueryClient();
+
+  return useMutation<null, Error, void>({
+    mutationFn: async () => {
+      const response = await notificationApi.markAllRead();
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() });
+    },
+  });
+}

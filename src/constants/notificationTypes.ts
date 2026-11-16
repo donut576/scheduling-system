@@ -4,7 +4,7 @@
  * 提供通知類型/狀態之顯示文字與顏色對照表、下拉選單選項，
  * 以及判斷通知是否為「未讀」之輔助函式。
  */
-import type { NotificationType, NotificationStatus } from '@/types/notification';
+import type { Notification, NotificationType, NotificationStatus } from '@/types/notification';
 import type { SelectOption } from '@/types/common';
 
 /** 通知類型對應顯示文字 */
@@ -14,6 +14,10 @@ export const NOTIFICATION_TYPE_MAP: Record<NotificationType, string> = {
   EMPLOYEE_DISPATCH: '員工指派通知',
   CHANGE_APPROVAL: '特許核准通知',
   APPROVAL_RESULT: '核准結果通知',
+  TASK_CREATED: '新增任務',
+  TASK_UPDATED: '修改任務',
+  TASK_CANCELED: '取消任務',
+  LICENSE_EXPIRY: '證照即將到期',
 };
 
 /** 通知狀態對應顯示文字與顏色 */
@@ -48,3 +52,11 @@ export const UNREAD_NOTIFICATION_STATUSES: NotificationStatus[] = [
 /** 判斷指定通知狀態是否為「未讀」 */
 export const isUnreadNotification = (status: NotificationStatus): boolean =>
   UNREAD_NOTIFICATION_STATUSES.includes(status);
+
+/**
+ * 判斷一則通知是否「未讀」。
+ * 站內通知（任務異動、證照到期）有 isRead 欄位，以它為準；
+ * 舊的郵件通知記錄沒有 isRead，沿用狀態判斷。
+ */
+export const isNotificationUnread = (n: Pick<Notification, 'isRead' | 'status'>): boolean =>
+  n.isRead !== undefined ? !n.isRead : isUnreadNotification(n.status);

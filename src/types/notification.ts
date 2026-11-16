@@ -20,6 +20,10 @@ export interface Notification {
   senderName?: string;
   senderRole?: string;
   sentAt?: string;
+  /** 站內通知是否已讀（郵件通知記錄沒有此欄位） */
+  isRead?: boolean;
+  /** 已讀時間 */
+  readAt?: string;
   createdAt: string;
 }
 
@@ -29,7 +33,11 @@ export type NotificationType =
   | 'CUSTOMER_NOTIFY'
   | 'EMPLOYEE_DISPATCH'
   | 'CHANGE_APPROVAL'
-  | 'APPROVAL_RESULT';
+  | 'APPROVAL_RESULT'
+  | 'TASK_CREATED'
+  | 'TASK_UPDATED'
+  | 'TASK_CANCELED'
+  | 'LICENSE_EXPIRY';
 /** 通知狀態：已通知／未通知／已異動已通知／已異動未通知 */
 export type NotificationStatus =
   'NOTIFIED' | 'NOT_NOTIFIED' | 'CHANGED_NOTIFIED' | 'CHANGED_NOT_NOTIFIED';
@@ -42,6 +50,14 @@ export interface NotificationTemplate {
   subject: string;
   content: string;
   variables: string[];
+  /** 每日合併信的分段：開頭／新增／修改／取消（每筆）／結尾 */
+  header?: string;
+  createdBlock?: string;
+  updatedBlock?: string;
+  canceledBlock?: string;
+  /** 證照到期信：每位員工一行 */
+  itemBlock?: string;
+  footer?: string;
 }
 
 /** 特許核准申請單 */

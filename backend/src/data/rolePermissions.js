@@ -81,7 +81,6 @@ export const ROLE_PERMISSIONS = {
     'approval:view',
     'notification:view',
     'notification:send',
-    'notification:manage_template',
     'map:view',
   ],
   STAFF: [

@@ -316,7 +316,7 @@ describe('DashboardPage', () => {
       render(<DashboardPage />);
       expect(screen.getByText('Hi, Demo 員工！')).toBeInTheDocument();
       expect(screen.getByText('今日個人任務')).toBeInTheDocument();
-      expect(screen.getByText('近期通知')).toBeInTheDocument();
+      expect(screen.getByText('近期任務異動')).toBeInTheDocument();
       expect(screen.queryByTestId('pending-approval-card')).not.toBeInTheDocument();
     });
 
