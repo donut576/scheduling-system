@@ -1,0 +1,38 @@
+# 排班系統：加進現有 docker-compose.yml 的 services 區塊（縮排與其他服務對齊）。
+# 用到現有的 shift-postgres（另開一個專用資料庫 scheduling）與 shift-network、proxy-network。
+# 不用 Redis、Node-RED、Appsmith。
+# 需要的環境變數放在同目錄的 .env：SCHEDULING_DB_PASSWORD、SCHEDULING_JWT_SECRET、SCHEDULING_PUBLIC_URL
+
+  scheduling-backend:
+    image: ghcr.io/donut576/scheduling-system-backend:latest
+    container_name: scheduling-backend
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Taipei
+      PORT: "3000"
+      DATABASE_URL: postgres://scheduling_app:${SCHEDULING_DB_PASSWORD}@shift-postgres:5432/scheduling
+      JWT_SECRET: ${SCHEDULING_JWT_SECRET}
+      CORS_ORIGIN: ${SCHEDULING_PUBLIC_URL}
+      FRONTEND_URL: ${SCHEDULING_PUBLIC_URL}
+      # 測試階段：保留固定測試帳號、先不跑背景排程、不設 SMTP（信只印在記錄裡）
+      ENABLE_DEV_LOGIN: "true"
+      MAIL_JOB_ENABLED: "false"
+      LICENSE_JOB_ENABLED: "false"
+    depends_on:
+      - shift-postgres
+    networks:
+      - shift-network
+
+  scheduling-frontend:
+    image: ghcr.io/donut576/scheduling-system:latest
+    container_name: scheduling-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    volumes:
+      - ./scheduling-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - scheduling-backend
+    networks:
+      - shift-network
+      - proxy-network
